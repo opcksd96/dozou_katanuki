@@ -14,7 +14,7 @@ defineProps<{
 const emit = defineEmits<{
   (e: 'toggleLike', id: string): void;
   (e: 'retryMedia', mediaId: string): void;
-  (e: 'clickMedia', media: RenderMedia): void;
+  (e: 'clickMedia', media: RenderMedia, list?: RenderMedia[]): void;
 }>();
 </script>
 
@@ -30,7 +30,7 @@ const emit = defineEmits<{
     <MediaGrid
       :media="article.media"
       @retry="(mediaId) => emit('retryMedia', mediaId)"
-      @clickMedia="(media) => emit('clickMedia', media)"
+      @clickMedia="(media, list) => emit('clickMedia', media, list)"
     />
     <ArticleStats :metrics="article.metrics" :isLiked="article.is_liked" @toggleLike="emit('toggleLike', article.id)" />
   </article>

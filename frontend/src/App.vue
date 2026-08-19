@@ -1,16 +1,21 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref } from 'vue';
 import { useTimeline } from './composables/useTimeline';
+import { useMediaOverlay } from './composables/useMediaOverlay';
 import ArticleCard from './components/article/ArticleCard.vue';
 import AccountSelector from './components/timeline/AccountSelector.vue';
 import TimelineFilter from './components/timeline/TimelineFilter.vue';
-import MediaLightbox from './components/media/MediaLightbox.vue';
+import MediaOverlay from './components/media/MediaOverlay.vue';
 
 const {
   articles, accounts, selectedAccount, currentFilter, systemLang,
-  loading, hasMore, activeMedia, selectAccount, setFilter,
-  toggleLike, openLightbox, closeLightbox, loadMore, reloadAll,
+  loading, hasMore, selectAccount, setFilter,
+  toggleLike, loadMore, reloadAll,
 } = useTimeline();
+
+const {
+  activeMedia, hasNext, hasPrev, openMedia, closeMedia, nextMedia, prevMedia,
+} = useMediaOverlay();
 
 const observerTarget = ref<HTMLElement | null>(null);
 let observer: IntersectionObserver | null = null;
@@ -75,7 +80,7 @@ onUnmounted(() => { observer?.disconnect(); });
         :article="article"
         :targetLang="systemLang"
         @toggleLike="toggleLike"
-        @clickMedia="openLightbox"
+        @clickMedia="(media, list) => openMedia(media, list)"
       />
 
       <div ref="observerTarget" class="py-8 flex flex-col items-center justify-center text-xs text-slate-500 font-mono gap-2">
@@ -93,6 +98,13 @@ onUnmounted(() => { observer?.disconnect(); });
       </div>
     </main>
 
-    <MediaLightbox :media="activeMedia" @close="closeLightbox" />
+    <MediaOverlay
+      :media="activeMedia"
+      :hasNext="hasNext"
+      :hasPrev="hasPrev"
+      @close="closeMedia"
+      @next="nextMedia"
+      @prev="prevMedia"
+    />
   </div>
 </template>

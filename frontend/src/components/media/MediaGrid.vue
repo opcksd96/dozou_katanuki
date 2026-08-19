@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { RenderMedia } from '../../models/RenderTree';
 import MediaFiller from './MediaFiller.vue';
+import StashPlayer from './StashPlayer.vue';
 
 defineProps<{
   media: RenderMedia[];
@@ -8,7 +9,7 @@ defineProps<{
 
 const emit = defineEmits<{
   (e: 'retry', mediaId: string): void;
-  (e: 'clickMedia', media: RenderMedia): void;
+  (e: 'clickMedia', media: RenderMedia, list: RenderMedia[]): void;
 }>();
 </script>
 
@@ -24,15 +25,15 @@ const emit = defineEmits<{
             :alt="item.id"
             class="w-full h-auto max-h-[400px] object-cover hover:opacity-95 transition-opacity cursor-pointer"
             loading="lazy"
-            @click="emit('clickMedia', item)"
+            @click="emit('clickMedia', item, media)"
           />
-          <video
-            v-else-if="item.type === 'video'"
-            :src="item.urls.stream || item.urls.original"
-            controls
-            preload="metadata"
-            class="w-full max-h-[400px]"
-          />
+          <div v-else-if="item.type === 'video'" class="w-full max-h-[400px]">
+            <StashPlayer
+              :src="item.urls.stream || item.urls.original"
+              :poster="item.urls.thumbnail"
+              :controls="true"
+            />
+          </div>
         </template>
         <!-- 未完了/失敗時: SVGプレースホルダー・フィラー -->
         <MediaFiller v-else :media="item" @retry="(id) => emit('retry', id)" />

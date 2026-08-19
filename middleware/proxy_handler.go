@@ -21,47 +21,47 @@ func NewUnifiedHandler(avatarDir string, stashURL *url.URL) *UnifiedHandler {
 	var proxy *httputil.ReverseProxy
 	if stashURL != nil {
 		proxy = httputil.NewSingleHostReverseProxy(stashURL)
-		// Stash へのリクエストヘッダー調整（CORS / Host維持など）
 		originalDirector := proxy.Director
 		proxy.Director = func(req *http.Request) {
 			originalDirector(req)
 			req.Host = stashURL.Host
 		}
+		proxy.ModifyResponse = func(resp *http.Response) error {
+			resp.Header.Set("Access-Control-Allow-Origin", "*")
+			resp.Header.Set("Access-Control-Allow-Methods", "GET, HEAD, OPTIONS")
+			return nil
+		}
+		proxy.ErrorHandler = func(w http.ResponseWriter, r *http.Request, err error) {
+			w.Header().Set("Content-Type", "image/svg+xml")
+			w.WriteHeader(http.StatusBadGateway)
+			_, _ = w.Write([]byte(`<svg xmlns="http://www.w3.org/2000/svg" width="400" height="250" viewBox="0 0 400 250"><rect width="100%" height="100%" fill="#1e293b" rx="8"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" fill="#ef4444" font-family="sans-serif" font-size="14">Stash Media Offline (502)</text></svg>`))
+		}
 	}
 
-	return &UnifiedHandler{
-		avatarDir:  avatarDir,
-		stashProxy: proxy,
-	}
+	return &UnifiedHandler{avatarDir: avatarDir, stashProxy: proxy}
 }
 
 func (h *UnifiedHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	path := r.URL.Path
 
-	// 1. アバター画像 (/avatars/ または /assets/) へのリクエスト解決
+	// 1. アバター・ローカルアセット解決 (/avatars/ または /assets/)
 	if strings.HasPrefix(path, "/avatars/") || strings.HasPrefix(path, "/assets/") {
-		relPath := path
-		if strings.HasPrefix(path, "/avatars/") {
-			relPath = strings.TrimPrefix(path, "/avatars/")
-		} else {
-			relPath = strings.TrimPrefix(path, "/assets/")
+		rel := strings.TrimPrefix(path, "/avatars/")
+		if strings.HasPrefix(path, "/assets/") {
+			rel = strings.TrimPrefix(path, "/assets/")
 		}
-
-		filePath := filepath.Join(h.avatarDir, filepath.Clean(relPath))
+		filePath := filepath.Join(h.avatarDir, filepath.Clean(rel))
 		if info, err := os.Stat(filePath); err == nil && !info.IsDir() {
 			http.ServeFile(w, r, filePath)
 			return
 		}
-
-		// ファイルが存在しない場合はデフォルトアバターSVGを返却
 		h.serveDefaultAvatar(w)
 		return
 	}
 
-	// 2. Stash サーバーへのリバースプロキシ (/stash-proxy/...)
+	// 2. Stash サーバーへのインメモリ・リバースプロキシ (/stash-proxy/...)
 	if strings.HasPrefix(path, "/stash-proxy/") {
 		if h.stashProxy != nil {
-			// 例: /stash-proxy/scene/123/stream -> /scene/123/stream
 			r.URL.Path = strings.TrimPrefix(path, "/stash-proxy")
 			if r.URL.RawPath != "" {
 				r.URL.RawPath = strings.TrimPrefix(r.URL.RawPath, "/stash-proxy")
@@ -69,8 +69,6 @@ func (h *UnifiedHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			h.stashProxy.ServeHTTP(w, r)
 			return
 		}
-
-		// Stashプロキシ未設定時のプレースホルダー
 		h.serveMediaPlaceholder(w)
 		return
 	}

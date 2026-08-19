@@ -2,7 +2,7 @@
 import { ref, onMounted, onUnmounted } from 'vue';
 import { GetTimeline, GetAccounts, GetSystemLanguage } from '../../wailsjs/go/main/App';
 import { EventsOn, WindowReload } from '../../wailsjs/runtime/runtime';
-import type { RenderTree, RenderAuthor, RenderMedia } from '../models/RenderTree';
+import type { RenderTree, RenderAuthor } from '../models/RenderTree';
 
 export type LanguageCode = 'original' | 'ja' | 'en' | 'zh';
 export type FilterType = 'all' | 'media' | 'reposts' | 'bookmarks';
@@ -15,7 +15,6 @@ export function useTimeline(platform: string = 'twitter') {
   const systemLang = ref<LanguageCode>('ja');
   const loading = ref(false);
   const hasMore = ref(true);
-  const activeMedia = ref<RenderMedia | null>(null);
 
   const fetchSystemLang = async () => {
     try {
@@ -33,7 +32,6 @@ export function useTimeline(platform: string = 'twitter') {
       const res = await GetAccounts(platform);
       accounts.value = res || [];
     } catch (e) {
-      console.warn(`[useTimeline] Failed to fetch accounts (retries left: ${retryCount}):`, e);
       if (retryCount > 0) {
         await new Promise((r) => setTimeout(r, 500));
         return fetchAccounts(retryCount - 1);
@@ -51,7 +49,6 @@ export function useTimeline(platform: string = 'twitter') {
       else articles.value.push(...(res || []));
       hasMore.value = (res || []).length === 50;
     } catch (e) {
-      console.warn(`[useTimeline] Fetch timeline failed (retries left: ${retryCount}):`, e);
       if (retryCount > 0) {
         loading.value = false;
         await new Promise((r) => setTimeout(r, 600));
@@ -79,28 +76,18 @@ export function useTimeline(platform: string = 'twitter') {
     fetchTimeline(true);
   };
 
-  const setLanguage = (lang: LanguageCode) => { currentLang.value = lang; };
-
   const toggleLike = (id: string) => {
     const target = articles.value.find((item) => item.id === id);
     if (target) target.is_liked = !target.is_liked;
   };
 
-  const openLightbox = (m: RenderMedia) => { activeMedia.value = m; };
-  const closeLightbox = () => { activeMedia.value = null; };
-
   const handleKeyDown = (e: KeyboardEvent) => {
     const isCtrlR = (e.ctrlKey || e.metaKey) && (e.key === 'r' || e.key === 'R' || e.code === 'KeyR');
-    const isF5 = e.key === 'F5' || e.code === 'F5';
-    if (isCtrlR || isF5) {
+    if (isCtrlR || e.key === 'F5' || e.code === 'F5') {
       e.preventDefault();
-      e.stopPropagation();
       try {
-        if (typeof WindowReload === 'function') {
-          WindowReload();
-        } else {
-          window.location.reload();
-        }
+        if (typeof WindowReload === 'function') WindowReload();
+        else window.location.reload();
       } catch (_) {
         window.location.reload();
       }
@@ -108,37 +95,26 @@ export function useTimeline(platform: string = 'twitter') {
   };
 
   let unoffReady: (() => void) | null = null;
-
   onMounted(() => {
-    // キャプチャフェーズ(true)で確実に捕捉
     window.addEventListener('keydown', handleKeyDown, true);
-    document.addEventListener('keydown', handleKeyDown, true);
-
-    // アプリ設定 (config.json) のシステム言語を取得
     fetchSystemLang();
-
-    // バックエンド初期化完了イベントを受け取ったら確実にフェッチ
     try {
       unoffReady = EventsOn('app:ready', () => {
         fetchSystemLang();
         reloadAll();
       });
-    } catch (_) {
-      // Wails外環境等のフォールバック
-    }
-
+    } catch (_) {}
     reloadAll();
   });
 
   onUnmounted(() => {
     window.removeEventListener('keydown', handleKeyDown, true);
-    document.removeEventListener('keydown', handleKeyDown, true);
     if (unoffReady) unoffReady();
   });
 
   return {
     articles, accounts, selectedAccount, currentFilter, systemLang,
-    loading, hasMore, activeMedia, selectAccount, setFilter,
-    toggleLike, openLightbox, closeLightbox, reloadAll, loadMore: () => fetchTimeline(false),
+    loading, hasMore, selectAccount, setFilter,
+    toggleLike, reloadAll, loadMore: () => fetchTimeline(false),
   };
 }

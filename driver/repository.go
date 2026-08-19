@@ -55,3 +55,24 @@ func (r *Repository) FetchArticles(accountID, filter string, limit, offset int) 
 	err := query.Limit(limit).Offset(offset).Find(&articles).Error
 	return articles, err
 }
+
+// UpsertArticleTx は記事・アカウント・メディアをトランザクション内で保存します
+func (r *Repository) UpsertArticleTx(art *models.Article) error {
+	return r.db.Transaction(func(tx *gorm.DB) error {
+		if art.Account.NumericID != "" {
+			if err := tx.Save(&art.Account).Error; err != nil {
+				return err
+			}
+		}
+		if err := tx.Save(art).Error; err != nil {
+			return err
+		}
+		for i := range art.Media {
+			art.Media[i].ArticleID = art.ID
+			if err := tx.Save(&art.Media[i]).Error; err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+}
