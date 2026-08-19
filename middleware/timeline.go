@@ -60,10 +60,26 @@ func (s *TimelineService) FetchTimeline(platform, accountID, filter string, limi
 	return trees, nil
 }
 
-func (s *TimelineService) ResolveAvatar(platform, accountID string, tweetAt time.Time) (string, error) {
-	histories, err := s.repo.GetAccountHistories(accountID)
+// GetArticleDetail は指定された記事および同一会話スレッド全体のツリーを取得します
+func (s *TimelineService) GetArticleDetail(platform, id string) (*models.ArticleDetailResult, error) {
+	article, err := s.repo.GetArticleByID(id)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-	return AuditAndResolveAvatar(platform, tweetAt, histories), nil
+	targetTree := ToRenderTree(*article, platform)
+
+	var threadTrees []models.RenderTree
+	if article.ConversationID != "" {
+		threadArticles, err := s.repo.GetArticlesByConversationID(article.ConversationID)
+		if err == nil {
+			threadTrees = make([]models.RenderTree, 0, len(threadArticles))
+			for _, ta := range threadArticles {
+				threadTrees = append(threadTrees, ToRenderTree(ta, platform))
+			}
+		}
+	}
+	return &models.ArticleDetailResult{
+		Article: targetTree,
+		Thread:  threadTrees,
+	}, nil
 }

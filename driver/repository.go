@@ -1,4 +1,4 @@
-// driver/repository.go (100行以下)
+// driver/repository.go
 package driver
 
 import (
@@ -35,7 +35,6 @@ func (r *Repository) FetchArticles(accountID, filter string, limit, offset int) 
 		Preload("Media").
 		Order("created_at DESC")
 
-	// 外向きリツイートの排除（リツイート対象がアクティブなホワイトリストに存在しない投稿を除外）
 	query = query.Where("is_repost = ? OR reply_to_handle IN (SELECT value FROM whitelists WHERE is_active = ?)", false, true)
 
 	if accountID != "all" {
@@ -148,7 +147,6 @@ func (r *Repository) SearchArticles(searchQuery, accountID, filter string, limit
 	}
 
 	var total int64
-	// カウント計算（Group によるカウント不整合を避けるため、Articles テーブルベースでカウント）
 	if err := query.Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
@@ -175,6 +173,18 @@ func (r *Repository) GetArticleByID(id string) (*models.Article, error) {
 	return &article, nil
 }
 
+// GetArticlesByConversationID は指定されたスレッド(conversation_id)に属する全記事を時系列順に取得します
+func (r *Repository) GetArticlesByConversationID(conversationID string) ([]models.Article, error) {
+	var articles []models.Article
+	err := r.db.Preload("Account").
+		Preload("Account.ProfileHistory").
+		Preload("Media").
+		Where("conversation_id = ?", conversationID).
+		Order("created_at ASC").
+		Find(&articles).Error
+	return articles, err
+}
+
 // UpdateArticleTranslations は指定された記事の日本語・英語・中国語の翻訳テキストを更新します
 func (r *Repository) UpdateArticleTranslations(id string, ja, en, zh string) error {
 	updates := map[string]interface{}{}
@@ -196,4 +206,3 @@ func (r *Repository) UpdateArticleTranslations(id string, ja, en, zh string) err
 
 	return r.db.Model(&models.Article{}).Where("id = ?", id).Updates(updates).Error
 }
-

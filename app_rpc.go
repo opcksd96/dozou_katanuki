@@ -28,6 +28,14 @@ func (a *App) GetTimeline(platform, accountID, filter string, limit, offset int)
 	return res, err
 }
 
+// GetArticleDetail は指定された個別記事およびスレッド会話ツリーを取得する Wails バインドメソッドです
+func (a *App) GetArticleDetail(platform, id string) (*models.ArticleDetailResult, error) {
+	if err := a.waitForReady(); err != nil {
+		return nil, err
+	}
+	return a.timelineService.GetArticleDetail(platform, id)
+}
+
 // GetSystemLanguage は config.json (SPEC-CONFIG-001) からシステム言語設定を取得します
 func (a *App) GetSystemLanguage() string {
 	type Config struct {

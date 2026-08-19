@@ -16,8 +16,6 @@ export function useTimeline(platform: string = 'twitter') {
   const loading = ref(false);
   const hasMore = ref(true);
 
-  useKeyboardReload();
-
   const fetchSystemLang = async () => {
     try {
       if (typeof GetSystemLanguage === 'function') {
@@ -65,6 +63,9 @@ export function useTimeline(platform: string = 'twitter') {
     hasMore.value = true;
     await Promise.all([fetchAccounts(), fetchTimeline(true)]);
   };
+
+  // reloadAll 定義後に呼び出し
+  useKeyboardReload(reloadAll);
 
   let unoffReady: (() => void) | null = null;
   onMounted(() => {

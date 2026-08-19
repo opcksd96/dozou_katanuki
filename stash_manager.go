@@ -37,7 +37,7 @@ func (sm *StashManager) WaitForReady(ctx context.Context, timeout time.Duration)
 		}
 		if resp, err := client.Get("http://127.0.0.1:9999/"); err == nil {
 			_ = resp.Body.Close()
-			if sm.ctx != nil {
+			if sm.ctx != nil && sm.ctx.Err() == nil {
 				runtime.EventsEmit(sm.ctx, "stash:ready", true)
 			}
 			return nil
@@ -49,7 +49,6 @@ func (sm *StashManager) WaitForReady(ctx context.Context, timeout time.Duration)
 
 // PurgeZombies は前回の残存プロセスを強制クレンジングします
 func (sm *StashManager) PurgeZombies() {
-	fmt.Println("[StashManager] ゾンビプロセスの事前スキャン＆パージ中...")
 	_ = exec.Command("taskkill", "/F", "/IM", "stash-win.exe").Run()
 }
 
@@ -67,14 +66,8 @@ func (sm *StashManager) Start(ctx context.Context, stashPath string) error {
 	cmd.Dir = filepath.Dir(absPath)
 	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true, CreationFlags: 0x08000000}
 
-	stdout, err := cmd.StdoutPipe()
-	if err != nil {
-		return fmt.Errorf("StdoutPipe 取得失敗: %w", err)
-	}
-	stderr, err := cmd.StderrPipe()
-	if err != nil {
-		return fmt.Errorf("StderrPipe 取得失敗: %w", err)
-	}
+	stdout, _ := cmd.StdoutPipe()
+	stderr, _ := cmd.StderrPipe()
 
 	if err := cmd.Start(); err != nil {
 		return fmt.Errorf("stash-win.exe 起動失敗: %w", err)
@@ -84,25 +77,34 @@ func (sm *StashManager) Start(ctx context.Context, stashPath string) error {
 	sm.Running = true
 	fmt.Printf("[StashManager] Stash ヘッドレス起動完了 (PID: %d)\n", cmd.Process.Pid)
 
-	go sm.scanPipe(stdout, "STDOUT")
-	go sm.scanPipe(stderr, "STDERR")
+	if stdout != nil {
+		go sm.scanPipe(stdout, "STDOUT")
+	}
+	if stderr != nil {
+		go sm.scanPipe(stderr, "STDERR")
+	}
 	return nil
 }
 
 func (sm *StashManager) scanPipe(pipe io.Reader, pipeType string) {
 	scanner := bufio.NewScanner(pipe)
 	for scanner.Scan() {
-		if sm.ctx != nil {
+		if sm.ctx != nil && sm.ctx.Err() == nil {
 			runtime.EventsEmit(sm.ctx, "stash:log", fmt.Sprintf("[%s] %s", pipeType, scanner.Text()))
+		} else {
+			break
 		}
 	}
 }
 
-// Stop は Stash を道連れ終了 (Kill) します
+// Stop は Stash プロセスツリーを非同期・確実に強制終了 (Kill) します
 func (sm *StashManager) Stop() {
 	if sm.cmd != nil && sm.cmd.Process != nil {
-		fmt.Println("[StashManager] Stash を道連れ終了 (Kill) します...")
+		pid := sm.cmd.Process.Pid
+		fmt.Printf("[StashManager] Stash (PID: %d) を強制終了中...\n", pid)
+		_ = exec.Command("taskkill", "/F", "/T", "/PID", fmt.Sprintf("%d", pid)).Run()
 		_ = sm.cmd.Process.Kill()
 		sm.Running = false
 	}
+	_ = exec.Command("taskkill", "/F", "/IM", "stash-win.exe").Run()
 }

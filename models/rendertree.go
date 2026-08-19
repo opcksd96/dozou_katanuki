@@ -63,3 +63,8 @@ type ArticleSearchResult struct {
 	Total int64        `json:"total"`
 }
 
+// ArticleDetailResult は個別記事およびスレッド会話ツリーの返却構造体です
+type ArticleDetailResult struct {
+	Article RenderTree   `json:"article"`
+	Thread  []RenderTree `json:"thread"`
+}
