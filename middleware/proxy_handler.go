@@ -2,6 +2,7 @@
 package middleware
 
 import (
+	"encoding/json"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
@@ -13,6 +14,7 @@ import (
 type UnifiedHandler struct {
 	avatarDir  string
 	stashProxy *httputil.ReverseProxy
+	jobOrch    *JobOrchestrator
 }
 
 func NewUnifiedHandler(avatarDir string, stashURL *url.URL) *UnifiedHandler {
@@ -28,7 +30,7 @@ func NewUnifiedHandler(avatarDir string, stashURL *url.URL) *UnifiedHandler {
 		}
 		proxy.ModifyResponse = func(resp *http.Response) error {
 			resp.Header.Set("Access-Control-Allow-Origin", "*")
-			resp.Header.Set("Access-Control-Allow-Methods", "GET, HEAD, OPTIONS")
+			resp.Header.Set("Access-Control-Allow-Methods", "GET, HEAD, OPTIONS, POST")
 			return nil
 		}
 		proxy.ErrorHandler = func(w http.ResponseWriter, r *http.Request, err error) {
@@ -41,10 +43,30 @@ func NewUnifiedHandler(avatarDir string, stashURL *url.URL) *UnifiedHandler {
 	return &UnifiedHandler{avatarDir: avatarDir, stashProxy: proxy}
 }
 
+// SetJobOrchestrator sets the JobOrchestrator instance for the unified handler
+func (h *UnifiedHandler) SetJobOrchestrator(orch *JobOrchestrator) {
+	h.jobOrch = orch
+}
+
 func (h *UnifiedHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	path := r.URL.Path
 
-	// 1. アバター・ローカルアセット解決 (/avatars/ または /assets/)
+	// 0. CORS preflight
+	if r.Method == http.MethodOptions {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
+	// 1. Job Orchestrator API (/api/jobs/...)
+	if strings.HasPrefix(path, "/api/jobs/") {
+		h.serveJobAPI(w, r)
+		return
+	}
+
+	// 2. アバター・ローカルアセット解決 (/avatars/ または /assets/)
 	if strings.HasPrefix(path, "/avatars/") || strings.HasPrefix(path, "/assets/") {
 		rel := strings.TrimPrefix(path, "/avatars/")
 		if strings.HasPrefix(path, "/assets/") {
@@ -59,7 +81,7 @@ func (h *UnifiedHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// 2. Stash サーバーへのインメモリ・リバースプロキシ (/stash-proxy/...)
+	// 3. Stash サーバーへのインメモリ・リバースプロキシ (/stash-proxy/...)
 	if strings.HasPrefix(path, "/stash-proxy/") {
 		if h.stashProxy != nil {
 			r.URL.Path = strings.TrimPrefix(path, "/stash-proxy")
@@ -74,6 +96,93 @@ func (h *UnifiedHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	http.NotFound(w, r)
+}
+
+func (h *UnifiedHandler) serveJobAPI(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+
+	if h.jobOrch == nil {
+		http.Error(w, `{"error":"Job orchestrator not initialized"}`, http.StatusServiceUnavailable)
+		return
+	}
+
+	path := r.URL.Path
+	switch {
+	case path == "/api/jobs/salvage" && r.Method == http.MethodPost:
+		var body struct {
+			Platform string `json:"platform"`
+			Account  string `json:"account"`
+			Limit    int    `json:"limit"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			http.Error(w, `{"error":"Invalid request payload"}`, http.StatusBadRequest)
+			return
+		}
+		progress, err := h.jobOrch.EnqueueSalvage(body.Platform, body.Account, body.Limit)
+		if err != nil {
+			w.WriteHeader(http.StatusConflict)
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{"error": err.Error(), "job": progress})
+			return
+		}
+		w.WriteHeader(http.StatusAccepted)
+		_ = json.NewEncoder(w).Encode(progress)
+
+	case path == "/api/jobs/import-manual" && r.Method == http.MethodPost:
+		var body struct {
+			WARCPath string `json:"warc_path"`
+			Offline  bool   `json:"offline"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			http.Error(w, `{"error":"Invalid request payload"}`, http.StatusBadRequest)
+			return
+		}
+		progress, err := h.jobOrch.EnqueueManualImport(body.WARCPath, body.Offline)
+		if err != nil {
+			w.WriteHeader(http.StatusConflict)
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{"error": err.Error(), "job": progress})
+			return
+		}
+		w.WriteHeader(http.StatusAccepted)
+		_ = json.NewEncoder(w).Encode(progress)
+
+	case path == "/api/jobs/status" && r.Method == http.MethodGet:
+		id := r.URL.Query().Get("id")
+		if id == "" {
+			// ID 未指定時はアクティブジョブまたは全件一覧
+			active := h.jobOrch.GetActiveJob()
+			if active != nil {
+				_ = json.NewEncoder(w).Encode(active)
+			} else {
+				_ = json.NewEncoder(w).Encode(h.jobOrch.ListJobs())
+			}
+			return
+		}
+		status := h.jobOrch.GetStatus(id)
+		if status == nil {
+			http.Error(w, `{"error":"Job not found"}`, http.StatusNotFound)
+			return
+		}
+		_ = json.NewEncoder(w).Encode(status)
+
+	case path == "/api/jobs/cancel" && r.Method == http.MethodPost:
+		var body struct {
+			ID string `json:"id"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body.ID == "" {
+			http.Error(w, `{"error":"Job ID is required"}`, http.StatusBadRequest)
+			return
+		}
+		if err := h.jobOrch.CancelJob(body.ID); err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			_ = json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+			return
+		}
+		_ = json.NewEncoder(w).Encode(map[string]string{"status": "ok", "message": "Cancel requested"})
+
+	default:
+		http.NotFound(w, r)
+	}
 }
 
 func (h *UnifiedHandler) serveDefaultAvatar(w http.ResponseWriter) {

@@ -5,9 +5,11 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"net/http"
 	"os/exec"
 	"path/filepath"
 	"syscall"
+	"time"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
@@ -20,6 +22,35 @@ type StashManager struct {
 
 func NewStashManager() *StashManager {
 	return &StashManager{}
+}
+
+// WaitForReady は Stash サーバー (http://127.0.0.1:9999) が応答するまで待機します
+func (sm *StashManager) WaitForReady(ctx context.Context, timeout time.Duration) error {
+	client := &http.Client{
+		Timeout: 500 * time.Millisecond,
+	}
+
+	deadline := time.Now().Add(timeout)
+	for time.Now().Before(deadline) {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+		}
+
+		resp, err := client.Get("http://127.0.0.1:9999/")
+		if err == nil {
+			_ = resp.Body.Close()
+			if sm.ctx != nil {
+				runtime.EventsEmit(sm.ctx, "stash:ready", true)
+			}
+			return nil
+		}
+
+		time.Sleep(150 * time.Millisecond)
+	}
+
+	return fmt.Errorf("stash server readiness check timed out after %v", timeout)
 }
 
 // 起動前のゾンビプロセス強制クレンジング

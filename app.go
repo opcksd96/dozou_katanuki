@@ -18,15 +18,18 @@ type App struct {
 	ctx             context.Context
 	timelineService *middleware.TimelineService
 	stashManager    *StashManager
+	jobOrchestrator *middleware.JobOrchestrator
+	unifiedHandler  *middleware.UnifiedHandler
 	ready           chan struct{}
 	readyOnce       sync.Once
 }
 
 // NewApp creates a new App application struct
-func NewApp() *App {
+func NewApp(handler *middleware.UnifiedHandler) *App {
 	return &App{
-		stashManager: NewStashManager(),
-		ready:        make(chan struct{}),
+		stashManager:   NewStashManager(),
+		unifiedHandler: handler,
+		ready:          make(chan struct{}),
 	}
 }
 
@@ -43,15 +46,23 @@ func (a *App) startup(ctx context.Context) {
 	// 2. リポジトリとミドルウェアサービスの組み立て
 	repo := driver.NewRepository(db)
 	a.timelineService = middleware.NewTimelineService(repo)
-	log.Println("[App] Core services and middleware initialized successfully")
 
-	// 3. バックエンドの初期化完了を通知（RPC待機解除）
+	// 3. JobOrchestrator の初期化と Wails イベント発行コールバックのバインド
+	a.jobOrchestrator = middleware.NewJobOrchestrator(ctx, func(eventName string, optionalData ...interface{}) {
+		runtime.EventsEmit(ctx, eventName, optionalData...)
+	})
+	if a.unifiedHandler != nil {
+		a.unifiedHandler.SetJobOrchestrator(a.jobOrchestrator)
+	}
+	log.Println("[App] Core services, middleware, and JobOrchestrator initialized successfully")
+
+	// 4. バックエンドの初期化完了を通知（RPC待機解除）
 	a.readyOnce.Do(func() {
 		close(a.ready)
 	})
 	runtime.EventsEmit(ctx, "app:ready", true)
 
-	// 4. Stash プロセスの自動ヘッドレス起動（非同期で実行し、DBアクセスやUI初期表示をブロックしない）
+	// 5. Stash プロセスの自動ヘッドレス起動（非同期で実行し、DBアクセスやUI初期表示をブロックしない）
 	go func() {
 		if a.stashManager != nil {
 			if err := a.stashManager.Start(ctx, "./bin/stash-win.exe"); err != nil {
@@ -63,13 +74,29 @@ func (a *App) startup(ctx context.Context) {
 
 // domReady is called after front-end resources have been loaded
 func (a *App) domReady(ctx context.Context) {
-	log.Println("[App] Frontend DOM Ready. Displaying window smoothly...")
+	log.Println("[App] Frontend DOM Ready. Stash サーバーの起動待機中...")
+
+	// 🌟 Stash サーバー (:9999) が正常応答するまで待機（最大8秒）
+	// これにより、起動直後のメディア 502 / ECONNREFUSED を完全防止し、完璧な状態でウィンドウを表示する
+	if a.stashManager != nil {
+		if err := a.stashManager.WaitForReady(ctx, 8*time.Second); err != nil {
+			log.Printf("[App] Stash 待機タイムアウトまたは未起動 (ウィンドウをフォールバック表示): %v", err)
+		} else {
+			log.Println("[App] Stash サーバー疎通確認完了 (Ready)。ウィンドウを滑らかに表示します。")
+		}
+	}
+
 	runtime.WindowShow(ctx)
 }
 
 // shutdown is called at application termination
 func (a *App) shutdown(ctx context.Context) {
 	log.Println("[App] Application shutting down safely...")
+
+	// JobOrchestrator の安全停止
+	if a.jobOrchestrator != nil {
+		a.jobOrchestrator.Close()
+	}
 
 	// Stash プロセスの道連れ終了 (Kill)
 	if a.stashManager != nil {

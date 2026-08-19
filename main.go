@@ -20,13 +20,14 @@ import (
 var assets embed.FS
 
 func main() {
-	app := NewApp()
-
 	// Stashapp サーバー URL (ローカル閉塞 :9999)
 	stashURL, err := url.Parse("http://127.0.0.1:9999")
 	if err != nil {
 		println("Stash URL Parse Error:", err.Error())
 	}
+
+	unifiedHandler := middleware.NewUnifiedHandler("./assets", stashURL)
+	app := NewApp(unifiedHandler)
 
 	// OS ネイティブメニュー（Ctrl+R / F5 アクセラレータ登録）
 	appMenu := menu.NewMenu()
@@ -51,7 +52,7 @@ func main() {
 		Menu:             appMenu,
 		AssetServer: &assetserver.Options{
 			Assets:  assets,
-			Handler: middleware.NewUnifiedHandler("./assets", stashURL), // アバター解決 & Stashリバースプロキシ
+			Handler: unifiedHandler, // アバター解決 & Stashリバースプロキシ & Job API
 		},
 		OnStartup:  app.startup,
 		OnDomReady: app.domReady,
