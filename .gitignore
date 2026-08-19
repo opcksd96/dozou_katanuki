@@ -1,0 +1,88 @@
+# ==========================================
+# 1. Node.js & フロントエンド生成物
+# ==========================================
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.pnpm-store/
+frontend/dist/
+frontend/dist-ssr/
+frontend/.local/
+*.local
+
+# ==========================================
+# 2. Go & Wails ビルド生成物
+# ==========================================
+build/bin/
+build/windows/
+frontend/wailsjs/go/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+go.work
+
+# ==========================================
+# 3. ヘッドレス Stash & メディアバイナリ
+# ==========================================
+bin/
+stash/
+ffmpeg*
+ffprobe*
+
+# ==========================================
+# 4. データベース & 永続化ストレージ
+# ==========================================
+*.db
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
+data/
+storage/
+middleware/assets/
+
+# ==========================================
+# 5. バックアップ・WARC原本・一時ダンプ
+# ==========================================
+backups/
+dumps/
+*.warc
+*.warc.gz
+*.tmp
+*.log
+
+# ==========================================
+# 6. Python サイドカー関連
+# ==========================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+pip-log.txt
+
+# ==========================================
+# 7. OS・エディタ固有ファイル
+# ==========================================
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+!.vscode/launch.json
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?

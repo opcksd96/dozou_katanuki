@@ -1,0 +1,31 @@
+[
+  {
+    "id": "1879382757924868404",
+    "platform": "twitter",
+    "createdAt": "2024-01-15T12:30:00Z",
+    "originalUrl": "https://twitter.com/msluo14/status/1879382757924868404",
+    "author": {
+      "platform": "twitter",
+      "username": "msluo14",
+      "displayName": "Yike Luo",
+      "avatarUrl": "https://api.dicebear.com/7.x/bottts/svg?seed=msluo14"
+    },
+    "content": {
+      "original": "Archived snapshot from Wayback Machine. Deep persistence test.",
+      "ja": "Wayback Machineからの魚拓スナップショット。完全オフライン動態保存テスト。",
+      "en": "Archived snapshot from Wayback Machine. Deep persistence test.",
+      "zh": "来自 Wayback Machine 的归档快照。深度持久化测试。"
+    },
+    "media": [
+      {
+        "mediaId": "F8wZ1abXYAAY7kL.jpg",
+        "type": "image",
+        "url": "https://picsum.photos/800/600?random=1"
+      }
+    ],
+    "stats": {
+      "likes": 124,
+      "reposts": 42
+    }
+  }
+]

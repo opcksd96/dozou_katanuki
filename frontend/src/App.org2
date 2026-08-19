@@ -1,0 +1,93 @@
+<script setup>
+import { ref, onMounted } from 'vue'
+import { EventsOn } from '../wailsjs/runtime/runtime'
+
+const status = ref('CONNECTING')
+const logs = ref([])
+
+onMounted(() => {
+  // 1. 接続完了イベントのリスン
+  EventsOn('stash:status', (data) => {
+    status.value = data.status
+  })
+
+  // 2. 標準出力/エラー出力のパイプログをリアルタイム受信
+  EventsOn('stash:log', (msg) => {
+    logs.value.push(msg)
+    // ログが100行を超えたら古いものを削除（軽量化）
+    if (logs.value.length > 100) logs.value.shift()
+  })
+
+  // 3. エラー検知
+  EventsOn('stash:error', (err) => {
+    status.value = `ERROR: ${err}`
+  })
+})
+</script>
+
+<template>
+  <div class="app-container">
+    <header class="status-header">
+      <h1>dozou_katanuki (Chimera PoC)</h1>
+      <div class="status-badge" :class="status.toLowerCase()">
+        STATUS: {{ status }}
+      </div>
+    </header>
+
+    <main class="console-box">
+      <h3>📟 Stash ヘッドレス・パイプ監視ログ</h3>
+      <div class="terminal">
+        <p v-for="(line, idx) in logs" :key="idx">{{ line }}</p>
+        <p v-if="logs.length === 0" class="placeholder">ログ待機中...</p>
+      </div>
+    </main>
+  </div>
+</template>
+
+<style scoped>
+.app-container {
+  padding: 20px;
+  font-family: system-ui, sans-serif;
+  background-color: #1e1e2e;
+  color: #cdd6f4;
+  height: 100vh;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+}
+.status-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #313244;
+  padding-bottom: 10px;
+}
+.status-badge {
+  padding: 6px 14px;
+  border-radius: 6px;
+  font-weight: bold;
+  font-size: 0.9rem;
+}
+.status-badge.connecting { background-color: #fab387; color: #11111b; }
+.status-badge.online { background-color: #a6e3a1; color: #11111b; }
+.status-badge.error { background-color: #f38ba8; color: #11111b; }
+
+.console-box {
+  margin-top: 20px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+.terminal {
+  flex: 1;
+  background-color: #11111b;
+  border: 1px solid #313244;
+  border-radius: 8px;
+  padding: 12px;
+  font-family: 'Consolas', monospace;
+  font-size: 0.85rem;
+  overflow-y: auto;
+  color: #89b4fa;
+}
+.placeholder { color: #585b70; }
+</style>

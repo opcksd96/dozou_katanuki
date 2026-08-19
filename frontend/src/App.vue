@@ -1,0 +1,41 @@
+<script setup lang="ts">
+import { useTimeline } from './composables/useTimeline';
+import ArticleCard from './components/article/ArticleCard.vue';
+
+const { articles, currentLang, setLanguage, toggleLike, retryDownload } = useTimeline();
+</script>
+
+<template>
+  <div class="min-h-screen bg-slate-950 text-slate-100 flex flex-col items-center py-6 px-4">
+    <header class="w-full max-w-2xl flex items-center justify-between pb-4 border-b border-slate-800 mb-6">
+      <div>
+        <h1 class="text-xl font-bold tracking-tight text-white">dozou_katanuki</h1>
+        <p class="text-xs text-slate-400 font-mono">Dynamic Archival System (SPEC-FRONTEND-001)</p>
+      </div>
+      <div class="flex bg-slate-900 border border-slate-800 rounded-lg p-1 text-xs">
+        <button
+          v-for="lang in (['original', 'ja', 'en', 'zh'] as const)"
+          :key="lang"
+          @click="setLanguage(lang)"
+          :class="[
+            'px-2.5 py-1 rounded transition-colors',
+            currentLang === lang ? 'bg-blue-600 text-white font-bold' : 'text-slate-400 hover:text-slate-200'
+          ]"
+        >
+          {{ lang.toUpperCase() }}
+        </button>
+      </div>
+    </header>
+
+    <main class="w-full max-w-2xl">
+      <ArticleCard
+        v-for="article in articles"
+        :key="article.id"
+        :article="article"
+        :currentLang="currentLang"
+        @toggleLike="toggleLike"
+        @retryMedia="retryDownload"
+      />
+    </main>
+  </div>
+</template>
