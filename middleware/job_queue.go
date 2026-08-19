@@ -51,6 +51,18 @@ func (j *JobOrchestrator) EnqueueMediaPoll(platform string) (*models.JobProgress
 	})
 }
 
+func (j *JobOrchestrator) EnqueueRestore(dumpsDir string) (*models.JobProgress, error) {
+	if dumpsDir == "" {
+		dumpsDir = "backups/dumps"
+	}
+	return j.EnqueueJob(&models.JobRequest{
+		ID: fmt.Sprintf("job_restore_%d", time.Now().UnixNano()), Type: models.JobTypeRestore,
+		ScriptPath: "plugins/twitter/scraper/main.py",
+		Args:       []string{"--mode", "restore", "--dumps-dir", dumpsDir},
+		CreatedAt:  time.Now(),
+	})
+}
+
 func (j *JobOrchestrator) EnqueueJob(req *models.JobRequest) (*models.JobProgress, error) {
 	if req.ID == "" { req.ID = fmt.Sprintf("job_%d", time.Now().UnixNano()) }
 	if req.CreatedAt.IsZero() { req.CreatedAt = time.Now() }

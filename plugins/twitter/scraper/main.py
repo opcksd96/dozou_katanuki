@@ -10,6 +10,7 @@ if CURRENT_DIR not in sys.path:
 
 from core.downloader import Downloader
 from core.mutator import Mutator
+from core.restorer import Restorer
 from core.scraper import Scraper
 from core.warc_importer import WarcImporter
 from parsers.twitter_parser import TwitterParser
@@ -51,11 +52,13 @@ def run_auto_salvage(platform: str, account: str, limit: int, db_path: str, stor
 
 def main():
     parser = argparse.ArgumentParser(description="dozou_katanuki Twitter Scraper Sidecar")
-    parser.add_argument("-m", "--mode", choices=["auto", "manual", "download", "poll"], default="auto")
+    parser.add_argument("-m", "--mode", choices=["auto", "manual", "download", "poll", "restore"], default="auto")
     parser.add_argument("-p", "--platform", default="twitter")
     parser.add_argument("-a", "--account", default="")
     parser.add_argument("-l", "--limit", type=int, default=50)
     parser.add_argument("-w", "--warc-path", default="")
+    parser.add_argument("--dumps-dir", default="backups/dumps")
+    parser.add_argument("--avatar-dir", default="assets/avatars")
     parser.add_argument("--media-id", default="")
     parser.add_argument("--article-id", default="")
     parser.add_argument("--offline", action="store_true")
@@ -80,6 +83,9 @@ def main():
         emit_progress(0, 1, "Polling outsourced media directory...")
         c = dl.poll_outsourced_media()
         emit_progress(1, 1, f"Polling completed. Salvaged: {c}")
+    elif args.mode == "restore":
+        res = Restorer(dumps_dir=args.dumps_dir, db_path=args.db_path, storage_dir=args.storage_dir, avatar_dir=args.avatar_dir)
+        res.run_restore(progress_callback=emit_progress)
 
 
 if __name__ == "__main__":

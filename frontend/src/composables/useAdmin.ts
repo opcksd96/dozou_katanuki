@@ -92,6 +92,23 @@ const callCancelJob = async (jobId: string): Promise<any> => {
   return true;
 };
 
+const callTriggerRestore = async (dumpsDir: string, resetDB: boolean): Promise<any> => {
+  const app = getApp();
+  if (app && typeof app.TriggerRestore === 'function') {
+    return await app.TriggerRestore(dumpsDir, resetDB);
+  }
+  return {
+    id: `mock-restore-${Date.now()}`,
+    type: 'restore',
+    status: 'running',
+    current: 1,
+    total: 10,
+    percentage: 10.0,
+    started_at: new Date().toISOString(),
+    logs: ['[Mock] Starting offline recovery restore from ' + (dumpsDir || './backups/dumps')],
+  };
+};
+
 // --- Whitelist RPC & Mock ---
 let localMockWhitelists = [
   { id: 1, type: 'account', value: 'mashu_dev', is_active: true },
@@ -781,6 +798,45 @@ export function useAdmin() {
     }
   };
 
+  // --- Disaster Recovery (SPEC-RECOVERY-001) ---
+  const restoringDB = ref(false);
+  const restoreStatus = ref<{ success: boolean; message: string } | null>(null);
+
+  const triggerRestore = async (dumpsDir?: string, resetDB: boolean = false) => {
+    const confirmMsg = resetDB
+      ? '🚨【完全再構築】現在のDBテーブルを初期化し、全ダンプファイルからオフライン再構築を開始します。よろしいですか？'
+      : '🚨【災害復旧】全ダンプファイルからDBのオフライン再構築・メディア再同期を開始します。よろしいですか？';
+
+    if (!confirm(confirmMsg)) {
+      return;
+    }
+
+    restoringDB.value = true;
+    try {
+      const targetDir = dumpsDir || config.value?.storage?.dumps_dir || './backups/dumps';
+      const job = await callTriggerRestore(targetDir, resetDB);
+      if (job) {
+        activeJob.value = job;
+        if (!jobList.value.some((j: any) => j.id === job.id)) {
+          jobList.value.unshift(job);
+        }
+      }
+      restoreStatus.value = {
+        success: true,
+        message: '災害復旧（全ダンプからDB再構築）ジョブを開始しました',
+      };
+      setTimeout(() => (restoreStatus.value = null), 5000);
+    } catch (err: any) {
+      console.error('[useAdmin] Failed to trigger restore:', err);
+      restoreStatus.value = {
+        success: false,
+        message: `災害復旧ジョブの開始に失敗しました: ${err?.message || err}`,
+      };
+    } finally {
+      restoringDB.value = false;
+    }
+  };
+
   return {
     activeJob,
     jobList,
@@ -831,6 +887,11 @@ export function useAdmin() {
     runAudit,
     purgeOrphanFiles,
     purgeOrphanDBMedia,
+    // Disaster Recovery (SPEC-RECOVERY-001)
+    restoringDB,
+    restoreStatus,
+    triggerRestore,
   };
 }
+
 

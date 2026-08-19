@@ -364,3 +364,25 @@ func (r *Repository) PurgeOrphanDBMedia(mediaIDs []string) (int, error) {
 	return DeleteDBMediaByIDs(r.db, mediaIDs)
 }
 
+// ResetDatabase は全テーブルのデータを安全に初期化（物理削除）します
+func (r *Repository) ResetDatabase() error {
+	return r.db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Exec("DELETE FROM media").Error; err != nil {
+			return err
+		}
+		if err := tx.Exec("DELETE FROM url_redirects").Error; err != nil {
+			return err
+		}
+		if err := tx.Exec("DELETE FROM articles").Error; err != nil {
+			return err
+		}
+		if err := tx.Exec("DELETE FROM account_profile_histories").Error; err != nil {
+			return err
+		}
+		if err := tx.Exec("DELETE FROM accounts").Error; err != nil {
+			return err
+		}
+		return nil
+	})
+}
+

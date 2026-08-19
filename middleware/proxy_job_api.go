@@ -54,6 +54,20 @@ func (h *UnifiedHandler) serveJobAPI(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusAccepted)
 		_ = json.NewEncoder(w).Encode(p)
 
+	case path == "/api/jobs/restore" && r.Method == http.MethodPost:
+		var body struct {
+			DumpsDir string `json:"dumps_dir"`
+		}
+		_ = json.NewDecoder(r.Body).Decode(&body)
+		p, err := h.jobOrch.EnqueueRestore(body.DumpsDir)
+		if err != nil {
+			w.WriteHeader(http.StatusConflict)
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{"error": err.Error(), "job": p})
+			return
+		}
+		w.WriteHeader(http.StatusAccepted)
+		_ = json.NewEncoder(w).Encode(p)
+
 	case path == "/api/jobs/status" && r.Method == http.MethodGet:
 		id := r.URL.Query().Get("id")
 		if id == "" {

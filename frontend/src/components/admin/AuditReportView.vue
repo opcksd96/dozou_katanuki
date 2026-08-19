@@ -6,13 +6,16 @@ const props = defineProps<{
   loading: boolean;
   purgingFiles: boolean;
   purgingDB: boolean;
+  restoring?: boolean;
   statusMessage: { success: boolean; message: string } | null;
+  restoreStatus?: { success: boolean; message: string } | null;
 }>();
 
 const emit = defineEmits<{
   (e: 'runAudit', purgeFiles?: boolean, purgeDB?: boolean): void;
   (e: 'purgeOrphanFiles', paths?: string[]): void;
   (e: 'purgeOrphanDBMedia', mediaIDs?: string[]): void;
+  (e: 'triggerRestore', resetDB?: boolean): void;
 }>();
 
 const formatBytes = (bytes: number): string => {
@@ -293,6 +296,67 @@ onMounted(() => {
           </table>
         </div>
       </div>
+
+      <!-- 5. 災害復旧 ＆ 全ダンプ一括リストア (SPEC-RECOVERY-001) -->
+      <div
+        class="border rounded-xl p-4 space-y-3 transition-all"
+        :class="
+          !report.integrity_ok
+            ? 'bg-rose-950/40 border-rose-600/70 shadow-lg shadow-rose-950/50'
+            : 'bg-slate-900/40 border-slate-800'
+        "
+      >
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-3">
+          <div>
+            <div class="flex items-center gap-2">
+              <h4 class="text-xs font-bold text-slate-100 flex items-center gap-1.5">
+                <span>🚨</span> 災害復旧（全ダンプからDB再構築）
+              </h4>
+              <span class="text-[10px] font-mono bg-rose-950 text-rose-300 border border-rose-700/50 px-2 py-0.5 rounded">
+                SPEC-RECOVERY-001
+              </span>
+            </div>
+            <p class="text-[11px] text-slate-400 mt-1">
+              データベース全損時やスキーマ刷新時に、Layer 2 (<code>backups/dumps/</code>) 内の <code>metadata.json</code> および <code>snapshot.warc.gz</code> から外部通信ゼロ・完全オフラインでデータベースとメディア状態を100%自動再構築します。
+            </p>
+          </div>
+
+          <div class="flex items-center gap-2">
+            <button
+              @click="emit('triggerRestore', false)"
+              :disabled="restoring"
+              class="px-4 py-2 bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold rounded-lg transition-all shadow-lg shadow-rose-600/30 flex items-center gap-1.5 disabled:opacity-50 whitespace-nowrap"
+            >
+              <span :class="{ 'animate-spin': restoring }">🚨</span>
+              全ダンプからDB再構築
+            </button>
+
+            <button
+              @click="emit('triggerRestore', true)"
+              :disabled="restoring"
+              class="px-3 py-2 bg-slate-800 hover:bg-rose-900/80 text-rose-300 border border-rose-800/50 text-xs font-bold rounded-lg transition-all flex items-center gap-1.5 disabled:opacity-50 whitespace-nowrap"
+              title="現在のテーブルを空にしてからクリーン再構築します"
+            >
+              <span>🧹</span>
+              初期化して完全再構築
+            </button>
+          </div>
+        </div>
+
+        <div
+          v-if="restoreStatus"
+          class="p-2.5 rounded-lg text-xs font-semibold flex items-center gap-2"
+          :class="
+            restoreStatus.success
+              ? 'bg-emerald-950/70 border border-emerald-500/40 text-emerald-300'
+              : 'bg-rose-950/70 border border-rose-500/40 text-rose-300'
+          "
+        >
+          <span>{{ restoreStatus.success ? '✅' : '⚠️' }}</span>
+          <span>{{ restoreStatus.message }}</span>
+        </div>
+      </div>
     </div>
   </div>
 </template>
+

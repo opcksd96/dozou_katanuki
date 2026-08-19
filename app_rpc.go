@@ -340,3 +340,28 @@ func (a *App) PurgeOrphanDBMedia(mediaIDs []string) (int, error) {
 	}
 	return a.auditService.PurgeOrphanDBMedia(mediaIDs)
 }
+
+// TriggerRestore は Layer 2 (dumps/) からの完全オフライン自動リストア (SPEC-RECOVERY-001) をキックする Wails バインドメソッドです
+func (a *App) TriggerRestore(dumpsDir string, resetDB bool) (*models.JobProgress, error) {
+	if err := a.waitForReady(); err != nil {
+		return nil, err
+	}
+	if dumpsDir == "" {
+		dumpsDir = "./backups/dumps"
+		cfg, err := a.GetConfig()
+		if err == nil && cfg != nil && cfg.Storage.DumpsDir != "" {
+			dumpsDir = cfg.Storage.DumpsDir
+		}
+	}
+
+	if resetDB && a.repo != nil {
+		log.Println("[Wails RPC] TriggerRestore: Resetting database before restore...")
+		if err := a.repo.ResetDatabase(); err != nil {
+			log.Printf("[Wails RPC] TriggerRestore: Database reset warning: %v", err)
+		}
+	}
+
+	log.Printf("[Wails RPC] TriggerRestore: Starting restore job from %s (resetDB: %v)", dumpsDir, resetDB)
+	return a.jobOrchestrator.EnqueueRestore(dumpsDir)
+}
+

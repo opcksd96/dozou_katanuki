@@ -68,7 +68,16 @@ const {
   runAudit,
   purgeOrphanFiles,
   purgeOrphanDBMedia,
+  // Disaster Recovery (SPEC-RECOVERY-001)
+  restoringDB,
+  restoreStatus,
+  triggerRestore,
 } = useAdmin();
+
+const handleTriggerRestore = async (resetDB: boolean = false) => {
+  await triggerRestore(config.value?.storage?.dumps_dir, resetDB);
+  activeTab.value = 'jobs';
+};
 
 // モーダルオープン時にデータ取得とイベントリスナー設定
 watch(
@@ -318,10 +327,13 @@ onUnmounted(() => {
               :loading="loadingAudit"
               :purgingFiles="purgingFiles"
               :purgingDB="purgingDB"
+              :restoring="restoringDB"
               :statusMessage="auditStatus"
+              :restoreStatus="restoreStatus"
               @runAudit="runAudit"
               @purgeOrphanFiles="purgeOrphanFiles"
               @purgeOrphanDBMedia="purgeOrphanDBMedia"
+              @triggerRestore="handleTriggerRestore"
             />
           </div>
         </div>

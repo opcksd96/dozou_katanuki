@@ -12,6 +12,7 @@ const (
 	JobTypeImportManual  JobType = "import-manual"
 	JobTypeMediaDownload JobType = "download"
 	JobTypeMediaPoll     JobType = "poll"
+	JobTypeRestore       JobType = "restore"
 	JobTypeScrape        JobType = "scrape"
 	JobTypeCustom        JobType = "custom"
 )
