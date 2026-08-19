@@ -18,6 +18,7 @@ const emit = defineEmits<{
   (e: 'back'): void;
   (e: 'selectArticle', id: string): void;
   (e: 'toggleLike', id: string): void;
+  (e: 'retryMedia', mediaId: string): void;
   (e: 'clickMedia', media: RenderMedia, list?: RenderMedia[], article?: RenderTree): void;
   (e: 'clickTag', tag: string): void;
   (e: 'clickMention', handle: string): void;
@@ -120,6 +121,7 @@ onUnmounted(() => {
                 <MediaGrid
                   v-if="t.media && t.media.length > 0"
                   :media="t.media"
+                  @retry="(mId) => emit('retryMedia', mId)"
                   @clickMedia="(m, list) => emit('clickMedia', m, list, t)"
                 />
               </div>
@@ -164,6 +166,7 @@ onUnmounted(() => {
         <div v-if="article.media && article.media.length > 0" class="pt-2">
           <MediaGrid
             :media="article.media"
+            @retry="(mId) => emit('retryMedia', mId)"
             @clickMedia="(m, list) => emit('clickMedia', m, list, article)"
           />
         </div>
@@ -213,6 +216,7 @@ onUnmounted(() => {
                 <MediaGrid
                   v-if="t.media && t.media.length > 0"
                   :media="t.media"
+                  @retry="(mId) => emit('retryMedia', mId)"
                   @clickMedia="(m, list) => emit('clickMedia', m, list, t)"
                 />
               </div>

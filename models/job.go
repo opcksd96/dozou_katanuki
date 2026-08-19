@@ -8,10 +8,11 @@ import (
 type JobType string
 
 const (
-	JobTypeSalvage      JobType = "salvage"
-	JobTypeImportManual JobType = "import-manual"
-	JobTypeScrape       JobType = "scrape"
-	JobTypeCustom       JobType = "custom"
+	JobTypeSalvage       JobType = "salvage"
+	JobTypeImportManual  JobType = "import-manual"
+	JobTypeMediaDownload JobType = "download"
+	JobTypeScrape        JobType = "scrape"
+	JobTypeCustom        JobType = "custom"
 )
 
 // JobStatus はジョブの実行ステータスを表します

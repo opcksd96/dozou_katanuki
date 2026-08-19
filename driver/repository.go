@@ -216,3 +216,22 @@ func (r *Repository) UpdateArticleTranslations(id string, ja, en, zh string) err
 
 	return r.db.Model(&models.Article{}).Where("id = ?", id).Updates(updates).Error
 }
+
+// ResetMediaStatus は指定されたメディアのダウンロードステータスを QUEUED にリセットします
+func (r *Repository) ResetMediaStatus(mediaID string) error {
+	return r.db.Model(&models.Media{}).Where("media_id = ?", mediaID).Updates(map[string]interface{}{
+		"download_status": "QUEUED",
+		"failed_reason":   nil,
+	}).Error
+}
+
+// GetMediaByID は指定されたメディアIDのレコードを取得します
+func (r *Repository) GetMediaByID(mediaID string) (*models.Media, error) {
+	var m models.Media
+	err := r.db.Where("media_id = ?", mediaID).First(&m).Error
+	if err != nil {
+		return nil, err
+	}
+	return &m, nil
+}
+

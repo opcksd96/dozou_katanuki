@@ -19,7 +19,7 @@ const activeArticleId = ref<string | null>(null);
 const {
   articles, accounts, selectedAccount, currentFilter, searchQuery, systemLang,
   loading, hasMore, selectAccount, setFilter, setSearchQuery, clearSearchQuery,
-  toggleLike, loadMore, reloadAll,
+  toggleLike, retryMedia, loadMore, reloadAll,
 } = useTimeline();
 
 const {
@@ -155,6 +155,7 @@ onUnmounted(() => {
             @back="closeArticleDetail"
             @selectArticle="openArticleDetail"
             @toggleLike="toggleLike"
+            @retryMedia="retryMedia"
             @clickTag="handleTagClick"
             @clickMention="handleMentionClick"
             @clickMedia="(media, list, art) => openMedia(media, list, art)"
@@ -216,6 +217,7 @@ onUnmounted(() => {
               :targetLang="systemLang"
               @clickArticle="openArticleDetail"
               @toggleLike="toggleLike"
+              @retryMedia="retryMedia"
               @clickTag="handleTagClick"
               @clickMention="handleMentionClick"
               @clickMedia="(media, list, art) => openMedia(media, list, art)"

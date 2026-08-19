@@ -1,5 +1,5 @@
 import { ref, onMounted, onUnmounted } from 'vue';
-import { GetTimeline, GetAccounts, GetSystemLanguage, SearchArticles } from '../../wailsjs/go/main/App';
+import { GetTimeline, GetAccounts, GetSystemLanguage, SearchArticles, RetryMediaDownload } from '../../wailsjs/go/main/App';
 import { EventsOn } from '../../wailsjs/runtime/runtime';
 import type { RenderTree, RenderAuthor } from '../models/RenderTree';
 import { useKeyboardReload } from './useKeyboardReload';
@@ -115,6 +115,25 @@ export function useTimeline(platform: string = 'twitter') {
       const target = articles.value.find((item) => item.id === id);
       if (target) target.is_liked = !target.is_liked;
     },
+    retryMedia: async (mediaId: string) => {
+      for (const art of articles.value) {
+        const m = art.media.find((item) => item.id === mediaId);
+        if (m) {
+          m.download_status = 'QUEUED';
+          m.failed_reason = undefined;
+          break;
+        }
+      }
+      try {
+        if (typeof RetryMediaDownload === 'function') {
+          await RetryMediaDownload(mediaId);
+        }
+      } catch (e) {
+        console.warn('[useTimeline] RetryMediaDownload error:', e);
+      }
+    },
     reloadAll, loadMore: () => fetchTimeline(false),
   };
 }
+
+

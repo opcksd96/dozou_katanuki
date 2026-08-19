@@ -7,6 +7,8 @@ import (
 
 	"dozou_katanuki/middleware"
 	"dozou_katanuki/models"
+
+	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 // GetAccounts は登録されている全アカウントのリストを供給する Wails バインドメソッドです
@@ -252,4 +254,25 @@ func (a *App) UpdateArticleTranslations(id, ja, en, zh string) error {
 		id, len(ja), len(en), len(zh))
 	return nil
 }
+
+// RetryMediaDownload は指定されたメディアのダウンロードステータスをリセットし再試行ジョブをキックする Wails バインドメソッドです
+func (a *App) RetryMediaDownload(mediaID string) error {
+	if err := a.waitForReady(); err != nil {
+		return err
+	}
+	if err := a.repo.ResetMediaStatus(mediaID); err != nil {
+		log.Printf("[Wails RPC] RetryMediaDownload ResetMediaStatus error: %v", err)
+		return err
+	}
+	_, err := a.jobOrchestrator.EnqueueMediaDownload("twitter", mediaID)
+	if err != nil {
+		log.Printf("[Wails RPC] RetryMediaDownload EnqueueMediaDownload error: %v", err)
+		return err
+	}
+	log.Printf("[Wails RPC] RetryMediaDownload triggered successfully for media: %s", mediaID)
+	runtime.EventsEmit(a.ctx, "media:retried", map[string]string{"media_id": mediaID})
+	return nil
+}
+
+
 

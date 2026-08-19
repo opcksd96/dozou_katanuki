@@ -43,37 +43,43 @@ def run_auto_salvage(platform: str, account: str, limit: int, db_path: str, stor
         if raw_text:
             parsed = parser.parse_record(raw_text, orig)
             if parsed and mutator.upsert_record(parsed):
-                post_id = parsed["post"]["id"]
-                downloader.process_queued_media(post_id)
+                downloader.process_queued_media(parsed["post"]["id"])
                 success_count += 1
         time.sleep(0.05)
-
     emit_progress(total_snaps, total_snaps, f"Completed: Saved {success_count}/{total_snaps} posts.")
 
 
 def main():
     parser = argparse.ArgumentParser(description="dozou_katanuki Twitter Scraper Sidecar")
-    parser.add_argument("-m", "--mode", choices=["auto", "manual"], default="auto", help="Execution mode")
-    parser.add_argument("-p", "--platform", default="twitter", help="Target platform")
-    parser.add_argument("-a", "--account", default="", help="Target account handle")
-    parser.add_argument("-l", "--limit", type=int, default=50, help="Max posts limit")
-    parser.add_argument("-w", "--warc-path", default="", help="WARC file path for manual import")
-    parser.add_argument("--offline", action="store_true", help="Offline flag")
-    parser.add_argument("--db-path", default="archive.db", help="Path to SQLite archive.db")
-    parser.add_argument("--storage-dir", default="", help="Path to media storage directory")
+    parser.add_argument("-m", "--mode", choices=["auto", "manual", "download", "poll"], default="auto")
+    parser.add_argument("-p", "--platform", default="twitter")
+    parser.add_argument("-a", "--account", default="")
+    parser.add_argument("-l", "--limit", type=int, default=50)
+    parser.add_argument("-w", "--warc-path", default="")
+    parser.add_argument("--media-id", default="")
+    parser.add_argument("--article-id", default="")
+    parser.add_argument("--offline", action="store_true")
+    parser.add_argument("--db-path", default="archive.db")
+    parser.add_argument("--storage-dir", default="")
     args = parser.parse_args()
 
+    dl = Downloader(db_path=args.db_path, storage_dir=args.storage_dir)
     if args.mode == "auto":
         if not args.account:
-            print("[FATAL] --account is required in auto mode", file=sys.stderr)
-            sys.exit(1)
+            print("[FATAL] --account is required in auto mode", file=sys.stderr); sys.exit(1)
         run_auto_salvage(args.platform, args.account, args.limit, args.db_path, args.storage_dir)
-    else:
+    elif args.mode == "manual":
         if not args.warc_path:
-            print("[FATAL] --warc-path is required in manual mode", file=sys.stderr)
-            sys.exit(1)
-        importer = WarcImporter(args.warc_path, db_path=args.db_path, storage_dir=args.storage_dir)
-        importer.run_import(progress_callback=emit_progress)
+            print("[FATAL] --warc-path is required in manual mode", file=sys.stderr); sys.exit(1)
+        WarcImporter(args.warc_path, db_path=args.db_path, storage_dir=args.storage_dir).run_import(progress_callback=emit_progress)
+    elif args.mode == "download":
+        emit_progress(0, 1, f"Processing media download (media_id: {args.media_id or 'all_queued'})...")
+        c = dl.process_queued_media(article_id=args.article_id or None, media_id=args.media_id or None)
+        emit_progress(1, 1, f"Finished media download. Processed: {c}")
+    elif args.mode == "poll":
+        emit_progress(0, 1, "Polling outsourced media directory...")
+        c = dl.poll_outsourced_media()
+        emit_progress(1, 1, f"Polling completed. Salvaged: {c}")
 
 
 if __name__ == "__main__":
