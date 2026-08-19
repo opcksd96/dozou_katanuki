@@ -1,11 +1,11 @@
+// main.go (100行以下)
 package main
 
 import (
 	"embed"
-	"net/http"
-	"net/http/httputil"
 	"net/url"
-	"strings"
+
+	"dozou_katanuki/middleware"
 
 	"github.com/wailsapp/wails/v2"
 	"github.com/wailsapp/wails/v2/pkg/options"
@@ -18,26 +18,19 @@ var assets embed.FS
 func main() {
 	app := NewApp()
 
-	// Stash (:9999) へのインメモリ・リバースプロキシターゲット
-	stashURL, _ := url.Parse("http://127.0.0.1:9999")
-	proxy := httputil.NewSingleHostReverseProxy(stashURL)
+	// Stashapp サーバー URL (ローカル閉塞 :9999)
+	stashURL, err := url.Parse("http://127.0.0.1:9999")
+	if err != nil {
+		println("Stash URL Parse Error:", err.Error())
+	}
 
-	err := wails.Run(&options.App{
-		Title:  "dozou_katanuki (Chimera PoC)",
-		Width:  1280,
-		Height: 800,
+	err = wails.Run(&options.App{
+		Title:  "dozou_katanuki",
+		Width:  1024,
+		Height: 768,
 		AssetServer: &assetserver.Options{
-			Assets: assets,
-			// インメモリ・リバースプロキシ（外部TCPポートを全廃し、メモリ内でStashへ中継）
-			Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				if strings.HasPrefix(r.URL.Path, "/stash-proxy/") {
-					// パス書き換え: /stash-proxy/xxx -> /xxx
-					r.URL.Path = strings.TrimPrefix(r.URL.Path, "/stash-proxy")
-					proxy.ServeHTTP(w, r)
-					return
-				}
-				http.NotFound(w, r)
-			}),
+			Assets:  assets,
+			Handler: middleware.NewUnifiedHandler("./assets", stashURL), // アバター解決 & Stashリバースプロキシ
 		},
 		OnStartup:  app.startup,
 		OnShutdown: app.shutdown,

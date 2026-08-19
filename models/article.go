@@ -1,3 +1,4 @@
+// models/article.go (100行以下)
 package models
 
 import (
@@ -5,7 +6,7 @@ import (
 	"time"
 )
 
-// Article represents articles table (Generic Timeline Item)
+// Article represents articles table (Generic Timeline Item Specification)
 type Article struct {
 	ID             string         `gorm:"primaryKey;column:id;type:text" json:"id"`
 	AccountID      string         `gorm:"index;column:account_id;type:text;not null" json:"account_id"`
@@ -23,7 +24,6 @@ type Article struct {
 	IsLiked        bool           `gorm:"index;column:is_liked;type:boolean;not null;default:false" json:"is_liked"`
 	WaybackURL     string         `gorm:"column:wayback_url;type:text;not null" json:"wayback_url"`
 
-	// Relationships
-	Account Account `gorm:"foreignKey:AccountID;references:NumericID" json:"account"`
-	Media   []Media `gorm:"foreignKey:ArticleID;references:ID" json:"media"`
+	Account Account `gorm:"foreignKey:AccountID;references:NumericID" json:"account,omitempty"`
+	Media   []Media `gorm:"foreignKey:ArticleID;references:ID" json:"media,omitempty"`
 }

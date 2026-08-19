@@ -1,12 +1,10 @@
+// driver/repository.go (100行以下)
 package driver
 
 import (
-	"fmt"
-	"time"
-
 	"dozou_katanuki/models"
+
 	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
 )
 
 type Repository struct {
@@ -17,14 +15,21 @@ func NewRepository(db *gorm.DB) *Repository {
 	return &Repository{db: db}
 }
 
-// GetArticles は条件に応じたタイムライン投稿を時系列降順で取得します
-func (r *Repository) GetArticles(accountID, filter string, limit, offset int) ([]models.Article, error) {
+func (r *Repository) GetAccountHistories(accountID string) ([]models.AccountProfileHistory, error) {
+	var histories []models.AccountProfileHistory
+	err := r.db.Where("account_id = ?", accountID).Order("avatar_seq desc").Find(&histories).Error
+	return histories, err
+}
+
+// FetchArticles はインデックスを活用して最大50件の生記事データを取得します
+func (r *Repository) FetchArticles(accountID, filter string, limit, offset int) ([]models.Article, error) {
 	query := r.db.Model(&models.Article{}).
 		Preload("Account").
+		Preload("Account.ProfileHistory").
 		Preload("Media").
 		Order("created_at DESC")
 
-	if accountID != "all" && accountID != "" {
+	if accountID != "all" {
 		query = query.Where("account_id = ?", accountID)
 	}
 
@@ -38,36 +43,6 @@ func (r *Repository) GetArticles(accountID, filter string, limit, offset int) ([
 	}
 
 	var articles []models.Article
-	if err := query.Limit(limit).Offset(offset).Find(&articles).Error; err != nil {
-		return nil, fmt.Errorf("failed to fetch articles: %w", err)
-	}
-	return articles, nil
-}
-
-// UpsertArticleTx は共通中間JSONデータ（記事・アカウント・メディア）を一括保存します
-func (r *Repository) UpsertArticleTx(article *models.Article) error {
-	return r.db.Transaction(func(tx *gorm.DB) error {
-		// 1. アカウント & アバター世代監査
-		if _, err := AuditAndResolveAvatar(tx, &article.Account); err != nil {
-			return err
-		}
-		article.Account.UpdatedAt = time.Now()
-		if err := tx.Clauses(clause.OnConflict{UpdateAll: true}).Create(&article.Account).Error; err != nil {
-			return err
-		}
-
-		// 2. 記事本体のUpsert
-		if err := tx.Clauses(clause.OnConflict{UpdateAll: true}).Create(article).Error; err != nil {
-			return err
-		}
-
-		// 3. 添付メディアのUpsert
-		for i := range article.Media {
-			article.Media[i].ArticleID = article.ID
-			if err := tx.Clauses(clause.OnConflict{UpdateAll: true}).Create(&article.Media[i]).Error; err != nil {
-				return err
-			}
-		}
-		return nil
-	})
+	err := query.Limit(limit).Offset(offset).Find(&articles).Error
+	return articles, err
 }

@@ -1,8 +1,9 @@
+// models/media.go (100行以下)
 package models
 
 import "database/sql"
 
-// Media represents media table (Stashapp Mapping & 3-Stage Recovery)
+// Media represents media table (Stashapp Mapping and 3-Stage Recovery status)
 type Media struct {
 	MediaID        string         `gorm:"primaryKey;column:media_id;type:text" json:"media_id"`
 	ArticleID      string         `gorm:"index;column:article_id;type:text;not null" json:"article_id"`

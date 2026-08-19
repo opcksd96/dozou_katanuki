@@ -45,6 +45,8 @@ ffprobe*
 *.sqlite3
 data/
 storage/
+/assets/
+/avater/
 middleware/assets/
 
 # ==========================================

@@ -1,3 +1,4 @@
+// frontend/src/composables/useTimeline.ts (100行以下)
 import { ref, onMounted } from 'vue';
 import { GetTimeline } from '../../wailsjs/go/main/App';
 import type { RenderTree } from '../models/RenderTree';
@@ -11,11 +12,17 @@ export function useTimeline(platform: string = 'twitter') {
   const currentLang = ref<LanguageCode>('ja');
 
   // Wails Goバックエンドからタイムライン取得
-  const fetchTimeline = async (accountID: string = 'all', filter: string = 'all', limit: number = 50, offset: number = 0) => {
+  const fetchTimeline = async (
+    accountID: string = 'all',
+    filter: string = 'all',
+    limit: number = 50,
+    offset: number = 0
+  ) => {
     loading.value = true;
     error.value = null;
     try {
       const result = await GetTimeline(platform, accountID, filter, limit, offset);
+      console.log('[useTimeline] 受領データ:', result);
       if (result) {
         articles.value = offset === 0 ? result : [...articles.value, ...result];
       }
