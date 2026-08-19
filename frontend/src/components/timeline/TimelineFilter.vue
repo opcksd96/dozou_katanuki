@@ -18,7 +18,7 @@ const tabs: { label: string; subLabel: string; value: FilterType }[] = [
 </script>
 
 <template>
-  <div class="flex items-center justify-around border-b border-slate-800 bg-slate-950/90 backdrop-blur sticky top-12 z-20">
+  <div class="flex items-center justify-around border-b border-slate-800 bg-slate-950/95 backdrop-blur">
     <button
       v-for="tab in tabs"
       :key="tab.value"
