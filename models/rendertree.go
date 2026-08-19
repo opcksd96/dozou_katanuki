@@ -31,6 +31,8 @@ type RenderMedia struct {
 	URLs           RenderMediaURLs `json:"urls"`
 	Width          int             `json:"width,omitempty"`
 	Height         int             `json:"height,omitempty"`
+	StashSceneID   string          `json:"stash_scene_id,omitempty"`
+	StashImageID   string          `json:"stash_image_id,omitempty"`
 }
 
 type RenderMetrics struct {
@@ -54,3 +56,10 @@ type RenderTree struct {
 	SourceURL      string        `json:"source_url"`
 	ParentID       string        `json:"parent_id,omitempty"`
 }
+
+// ArticleSearchResult は記事検索のページネーション付き結果構造体です
+type ArticleSearchResult struct {
+	Items []RenderTree `json:"items"`
+	Total int64        `json:"total"`
+}
+

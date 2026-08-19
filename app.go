@@ -16,6 +16,7 @@ import (
 
 type App struct {
 	ctx             context.Context
+	repo            *driver.Repository
 	timelineService *middleware.TimelineService
 	stashManager    *StashManager
 	jobOrchestrator *middleware.JobOrchestrator
@@ -39,7 +40,8 @@ func (a *App) startup(ctx context.Context) {
 		log.Fatalf("Failed to initialize database: %v", err)
 	}
 
-	a.timelineService = middleware.NewTimelineService(driver.NewRepository(db))
+	a.repo = driver.NewRepository(db)
+	a.timelineService = middleware.NewTimelineService(a.repo)
 	a.jobOrchestrator = middleware.NewJobOrchestrator(ctx, func(event string, data ...interface{}) {
 		runtime.EventsEmit(ctx, event, data...)
 	})

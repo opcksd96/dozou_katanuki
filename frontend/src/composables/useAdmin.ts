@@ -92,6 +92,157 @@ const callCancelJob = async (jobId: string): Promise<any> => {
   return true;
 };
 
+// --- Whitelist RPC & Mock ---
+let localMockWhitelists = [
+  { id: 1, type: 'account', value: 'mashu_dev', is_active: true },
+  { id: 2, type: 'keyword', value: 'NES_APU', is_active: true },
+  { id: 3, type: 'account', value: 'famicom_history', is_active: false },
+];
+
+const callGetWhitelists = async (): Promise<any[]> => {
+  const app = getApp();
+  if (app && typeof app.GetWhitelists === 'function') {
+    return await app.GetWhitelists();
+  }
+  return [...localMockWhitelists];
+};
+
+const callAddWhitelist = async (type: string, value: string): Promise<any> => {
+  const app = getApp();
+  if (app && typeof app.AddWhitelist === 'function') {
+    return await app.AddWhitelist(type, value);
+  }
+  const newItem = {
+    id: localMockWhitelists.length > 0 ? Math.max(...localMockWhitelists.map((w) => w.id)) + 1 : 1,
+    type,
+    value,
+    is_active: true,
+  };
+  localMockWhitelists.push(newItem);
+  return newItem;
+};
+
+const callUpdateWhitelist = async (id: number, type: string, value: string, isActive: boolean): Promise<any> => {
+  const app = getApp();
+  if (app && typeof app.UpdateWhitelist === 'function') {
+    return await app.UpdateWhitelist(id, type, value, isActive);
+  }
+  const idx = localMockWhitelists.findIndex((w) => w.id === id);
+  if (idx !== -1) {
+    localMockWhitelists[idx] = { id, type, value, is_active: isActive };
+  }
+  return true;
+};
+
+const callDeleteWhitelist = async (id: number): Promise<any> => {
+  const app = getApp();
+  if (app && typeof app.DeleteWhitelist === 'function') {
+    return await app.DeleteWhitelist(id);
+  }
+  localMockWhitelists = localMockWhitelists.filter((w) => w.id !== id);
+  return true;
+};
+
+const callToggleWhitelist = async (id: number): Promise<any> => {
+  const app = getApp();
+  if (app && typeof app.ToggleWhitelist === 'function') {
+    return await app.ToggleWhitelist(id);
+  }
+  const item = localMockWhitelists.find((w) => w.id === id);
+  if (item) {
+    item.is_active = !item.is_active;
+  }
+  return true;
+};
+
+// --- Database & Article Search / Translation RPC & Mock ---
+let localMockArticles: any[] = [
+  {
+    id: 'mock_art_1',
+    conversation_id: 'mock_art_1',
+    created_at: new Date().toISOString(),
+    content: {
+      original: 'Famicom 2A03 APU register $4000 pulse channel configuration test note.',
+      ja: 'ファミコン 2A03 APU レジスタ $4000 矩形波チャンネル設定テスト記録。',
+      en: 'Famicom 2A03 APU register $4000 pulse channel configuration test note.',
+      zh: '红白机 2A03 APU 寄存器 $4000 脉冲通道配置测试记录。',
+    },
+    author: {
+      numeric_id: '1001',
+      handle: 'senpai_apu',
+      display_name: '先輩マスター',
+      avatar_url: '',
+    },
+    media: [],
+    metrics: { replies: 2, retweets: 5, likes: 18 },
+    is_liked: true,
+    is_pinned: false,
+    source_url: 'https://web.archive.org/web/mock_art_1',
+  },
+  {
+    id: 'mock_art_2',
+    conversation_id: 'mock_art_2',
+    created_at: new Date(Date.now() - 3600000).toISOString(),
+    content: {
+      original: 'Dozou Katanuki v4.0 Wails & Stash integration is progressing smoothly!',
+      ja: '土蔵・型抜き v4.0 Wails ＆ Stash 統合が極めて順調に進んでいます！',
+      en: 'Dozou Katanuki v4.0 Wails & Stash integration is progressing smoothly!',
+      zh: '',
+    },
+    author: {
+      numeric_id: '1002',
+      handle: 'mashu_dev',
+      display_name: 'マシュ・キリエライト',
+      avatar_url: '',
+    },
+    media: [],
+    metrics: { replies: 0, retweets: 3, likes: 12 },
+    is_liked: false,
+    is_pinned: false,
+    source_url: 'https://web.archive.org/web/mock_art_2',
+  },
+];
+
+const callSearchArticles = async (query: string, accountId: string, filter: string, limit: number, offset: number): Promise<{ items: any[]; total: number }> => {
+  const app = getApp();
+  if (app && typeof app.SearchArticles === 'function') {
+    return await app.SearchArticles(query, accountId, filter, limit, offset);
+  }
+  let filtered = [...localMockArticles];
+  if (query) {
+    const q = query.toLowerCase();
+    filtered = filtered.filter(
+      (a) =>
+        a.id.toLowerCase().includes(q) ||
+        a.content.original.toLowerCase().includes(q) ||
+        (a.content.ja && a.content.ja.toLowerCase().includes(q)) ||
+        (a.content.en && a.content.en.toLowerCase().includes(q)) ||
+        (a.content.zh && a.content.zh.toLowerCase().includes(q))
+    );
+  }
+  if (accountId && accountId !== 'all') {
+    filtered = filtered.filter((a) => a.author.numeric_id === accountId || a.author.handle === accountId);
+  }
+  const total = filtered.length;
+  const items = filtered.slice(offset, offset + limit);
+  return { items, total };
+};
+
+const callUpdateArticleTranslations = async (id: string, ja: string, en: string, zh: string): Promise<any> => {
+  const app = getApp();
+  if (app && typeof app.UpdateArticleTranslations === 'function') {
+    return await app.UpdateArticleTranslations(id, ja, en, zh);
+  }
+  const art = localMockArticles.find((a) => a.id === id);
+  if (art) {
+    art.content.ja = ja;
+    art.content.en = en;
+    art.content.zh = zh;
+  }
+  return true;
+};
+
+
 export function useAdmin() {
   const activeJob = ref<models.JobProgress | null>(null);
   const jobList = ref<models.JobProgress[]>([]);
@@ -310,6 +461,147 @@ export function useAdmin() {
     } catch (_) {}
   };
 
+  // --- Whitelist 管理状態 ---
+  const whitelistList = ref<Array<{ id: number; type: string; value: string; is_active: boolean }>>([]);
+  const loadingWhitelist = ref(false);
+  const whitelistStatus = ref<{ success: boolean; message: string } | null>(null);
+
+  const fetchWhitelists = async () => {
+    loadingWhitelist.value = true;
+    try {
+      const list = await callGetWhitelists();
+      whitelistList.value = list || [];
+    } catch (err: any) {
+      console.error('[useAdmin] Failed to fetch whitelists:', err);
+    } finally {
+      loadingWhitelist.value = false;
+    }
+  };
+
+  const addWhitelist = async (type: string, value: string) => {
+    if (!value.trim()) return;
+    try {
+      await callAddWhitelist(type, value.trim());
+      await fetchWhitelists();
+      whitelistStatus.value = { success: true, message: `[${type}] ${value} を追加しました` };
+      setTimeout(() => (whitelistStatus.value = null), 3000);
+    } catch (err: any) {
+      console.error('[useAdmin] Failed to add whitelist:', err);
+      whitelistStatus.value = { success: false, message: `追加に失敗しました: ${err?.message || err}` };
+    }
+  };
+
+  const updateWhitelist = async (id: number, type: string, value: string, isActive: boolean) => {
+    try {
+      await callUpdateWhitelist(id, type, value.trim(), isActive);
+      await fetchWhitelists();
+      whitelistStatus.value = { success: true, message: `ID:${id} を更新しました` };
+      setTimeout(() => (whitelistStatus.value = null), 3000);
+    } catch (err: any) {
+      console.error('[useAdmin] Failed to update whitelist:', err);
+      whitelistStatus.value = { success: false, message: `更新に失敗しました: ${err?.message || err}` };
+    }
+  };
+
+  const deleteWhitelist = async (id: number) => {
+    try {
+      await callDeleteWhitelist(id);
+      await fetchWhitelists();
+      whitelistStatus.value = { success: true, message: `ID:${id} を削除しました` };
+      setTimeout(() => (whitelistStatus.value = null), 3000);
+    } catch (err: any) {
+      console.error('[useAdmin] Failed to delete whitelist:', err);
+      whitelistStatus.value = { success: false, message: `削除に失敗しました: ${err?.message || err}` };
+    }
+  };
+
+  const toggleWhitelist = async (id: number) => {
+    try {
+      await callToggleWhitelist(id);
+      await fetchWhitelists();
+    } catch (err: any) {
+      console.error('[useAdmin] Failed to toggle whitelist:', err);
+    }
+  };
+
+  // --- Database 閲覧 ＆ 翻訳エディタ状態 ---
+  const dbArticles = ref<models.RenderTree[]>([]);
+  const totalArticles = ref(0);
+  const selectedArticle = ref<models.RenderTree | null>(null);
+  const loadingArticles = ref(false);
+  const savingTranslation = ref(false);
+  const translationStatus = ref<{ success: boolean; message: string } | null>(null);
+
+  const dbSearchParams = reactive({
+    query: '',
+    accountID: 'all',
+    filter: 'all',
+    page: 1,
+    limit: 10,
+  });
+
+  const searchArticles = async () => {
+    loadingArticles.value = true;
+    try {
+      const offset = (dbSearchParams.page - 1) * dbSearchParams.limit;
+      const res = await callSearchArticles(
+        dbSearchParams.query.trim(),
+        dbSearchParams.accountID,
+        dbSearchParams.filter,
+        dbSearchParams.limit,
+        offset
+      );
+      dbArticles.value = (res.items || []).map((item: any) => models.RenderTree.createFrom(item));
+      totalArticles.value = res.total || 0;
+
+      // 選択中記事があれば更新または最新を選択
+      if (selectedArticle.value) {
+        const found = dbArticles.value.find((a) => a.id === selectedArticle.value?.id);
+        if (found) {
+          selectedArticle.value = found;
+        }
+      } else if (dbArticles.value.length > 0) {
+        selectedArticle.value = dbArticles.value[0];
+      }
+    } catch (err: any) {
+      console.error('[useAdmin] Failed to search articles:', err);
+    } finally {
+      loadingArticles.value = false;
+    }
+  };
+
+  const selectArticle = (art: models.RenderTree) => {
+    selectedArticle.value = art;
+    translationStatus.value = null;
+  };
+
+  const saveArticleTranslations = async (id: string, ja: string, en: string, zh: string) => {
+    savingTranslation.value = true;
+    translationStatus.value = null;
+    try {
+      await callUpdateArticleTranslations(id, ja, en, zh);
+      if (selectedArticle.value && selectedArticle.value.id === id) {
+        selectedArticle.value.content.ja = ja;
+        selectedArticle.value.content.en = en;
+        selectedArticle.value.content.zh = zh;
+      }
+      // リスト側の該当記事も同期
+      const idx = dbArticles.value.findIndex((a) => a.id === id);
+      if (idx !== -1) {
+        dbArticles.value[idx].content.ja = ja;
+        dbArticles.value[idx].content.en = en;
+        dbArticles.value[idx].content.zh = zh;
+      }
+      translationStatus.value = { success: true, message: '3言語翻訳テキストを保存しました' };
+      setTimeout(() => (translationStatus.value = null), 4000);
+    } catch (err: any) {
+      console.error('[useAdmin] Failed to save translations:', err);
+      translationStatus.value = { success: false, message: `翻訳の保存に失敗しました: ${err?.message || err}` };
+    } finally {
+      savingTranslation.value = false;
+    }
+  };
+
   return {
     activeJob,
     jobList,
@@ -331,5 +623,26 @@ export function useAdmin() {
     clearLogs,
     setupEventListeners,
     cleanupEventListeners,
+    // Whitelist
+    whitelistList,
+    loadingWhitelist,
+    whitelistStatus,
+    fetchWhitelists,
+    addWhitelist,
+    updateWhitelist,
+    deleteWhitelist,
+    toggleWhitelist,
+    // Database
+    dbArticles,
+    totalArticles,
+    selectedArticle,
+    loadingArticles,
+    savingTranslation,
+    translationStatus,
+    dbSearchParams,
+    searchArticles,
+    selectArticle,
+    saveArticleTranslations,
   };
 }
+

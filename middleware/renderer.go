@@ -69,6 +69,8 @@ func mapMediaToRenderMedia(mediaList []models.Media) []models.RenderMedia {
 			URLs:           mediaURLs,
 			Width:          m.Width,
 			Height:         m.Height,
+			StashSceneID:   m.StashSceneID.String,
+			StashImageID:   m.StashImageID.String,
 		})
 	}
 	return result

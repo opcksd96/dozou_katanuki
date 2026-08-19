@@ -2,6 +2,8 @@
 package twitter_renderer
 
 import (
+	"fmt"
+
 	"dozou_katanuki/models"
 )
 
@@ -19,20 +21,40 @@ func (r *TwitterRenderer) RenderTweet(art *models.Article) *models.RenderTree {
 
 	mediaItems := make([]models.RenderMedia, 0, len(art.Media))
 	for _, m := range art.Media {
+		var mediaURLs models.RenderMediaURLs
+		mediaURLs.Original = m.DownloadURL
+
+		if m.DownloadStatus == "COMPLETED" && (m.StashSceneID.Valid || m.StashImageID.Valid) {
+			if m.Type == "video" || m.Type == "gif" {
+				mediaURLs.Stream = fmt.Sprintf("/stash-proxy/scene/%s/stream", m.StashSceneID.String)
+			} else {
+				mediaURLs.Image = fmt.Sprintf("/stash-proxy/image/%s/image", m.StashImageID.String)
+				mediaURLs.Thumbnail = fmt.Sprintf("/stash-proxy/image/%s/thumbnail", m.StashImageID.String)
+			}
+		} else {
+			if m.Type == "video" || m.Type == "gif" {
+				mediaURLs.Stream = m.DownloadURL
+			} else {
+				mediaURLs.Image = m.DownloadURL
+				mediaURLs.Thumbnail = m.DownloadURL
+			}
+		}
+
 		mediaItems = append(mediaItems, models.RenderMedia{
-			ID:          m.ID,
-			Type:        m.Type,
-			DirectURL:   m.URL,
-			LocalPath:   "/media-local/" + m.ID,
-			StashStream: "/stash-proxy/scene/" + m.StashSceneID + "/stream",
-			Width:       m.Width,
-			Height:      m.Height,
-			AspectRatio: calculateAspectRatio(m.Width, m.Height),
+			ID:             m.MediaID,
+			Type:           m.Type,
+			DownloadStatus: m.DownloadStatus,
+			FailedReason:   m.FailedReason.String,
+			URLs:           mediaURLs,
+			Width:          m.Width,
+			Height:         m.Height,
+			StashSceneID:   m.StashSceneID.String,
+			StashImageID:   m.StashImageID.String,
 		})
 	}
 
 	author := models.RenderAuthor{
-		ID:          art.Account.ID,
+		NumericID:   art.Account.NumericID,
 		Handle:      art.Account.Username,
 		DisplayName: art.Account.DisplayName,
 		AvatarURL:   art.Account.AvatarURL,
@@ -40,23 +62,18 @@ func (r *TwitterRenderer) RenderTweet(art *models.Article) *models.RenderTree {
 
 	return &models.RenderTree{
 		ID:             art.ID,
-		Platform:       "twitter",
-		Author:         author,
-		OriginalPost:   models.RenderPost{FullText: art.FullText, CreatedAt: art.CreatedAt.Format("2006-01-02T15:04:05Z")},
-		DecoratedDOM:   models.RenderDOM{Japanese: art.FullTextJA, English: art.FullTextEN, Chinese: art.FullTextZH},
-		Media:          mediaItems,
-		IsLiked:        art.IsLiked,
-		IsRepost:       art.IsRepost,
 		ConversationID: art.ConversationID,
+		CreatedAt:      art.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
+		Content: models.RenderContent{
+			Original: art.FullText,
+			JA:       art.FullTextJA.String,
+			EN:       art.FullTextEN.String,
+			ZH:       art.FullTextZH.String,
+		},
+		Author:    author,
+		Media:     mediaItems,
+		IsLiked:   art.IsLiked,
+		SourceURL: art.WaybackURL,
 	}
 }
 
-func calculateAspectRatio(w, h int) string {
-	if w <= 0 || h <= 0 {
-		return "16/9"
-	}
-	if w == h {
-		return "1/1"
-	}
-	return "16/9"
-}

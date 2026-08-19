@@ -4,6 +4,8 @@ import { useAdmin } from '../../composables/useAdmin';
 import JobController from './JobController.vue';
 import ConfigPortal from './ConfigPortal.vue';
 import StashStatusView from './StashStatusView.vue';
+import WhitelistView from './WhitelistView.vue';
+import DatabaseView from './DatabaseView.vue';
 
 const props = defineProps<{
   isOpen: boolean;
@@ -36,6 +38,26 @@ const {
   clearLogs,
   setupEventListeners,
   cleanupEventListeners,
+  // Whitelist
+  whitelistList,
+  loadingWhitelist,
+  whitelistStatus,
+  fetchWhitelists,
+  addWhitelist,
+  updateWhitelist,
+  deleteWhitelist,
+  toggleWhitelist,
+  // Database
+  dbArticles,
+  totalArticles,
+  selectedArticle,
+  loadingArticles,
+  savingTranslation,
+  translationStatus,
+  dbSearchParams,
+  searchArticles,
+  selectArticle,
+  saveArticleTranslations,
 } = useAdmin();
 
 // モーダルオープン時にデータ取得とイベントリスナー設定
@@ -46,11 +68,26 @@ watch(
       setupEventListeners();
       fetchJobs();
       loadConfig();
+      fetchWhitelists();
+      searchArticles();
     } else {
       cleanupEventListeners();
     }
   },
   { immediate: true }
+);
+
+// タブ切り替え時のデータ最新化
+watch(
+  () => activeTab.value,
+  (tab) => {
+    if (!props.isOpen) return;
+    if (tab === 'whitelist') {
+      fetchWhitelists();
+    } else if (tab === 'db') {
+      searchArticles();
+    }
+  }
 );
 
 const handleKeyDown = (e: KeyboardEvent) => {
@@ -77,7 +114,7 @@ onUnmounted(() => {
       @click.self="emit('close')"
     >
       <div
-        class="bg-slate-950 border border-slate-800 rounded-2xl w-full max-w-4xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden"
+        class="bg-slate-950 border border-slate-800 rounded-2xl w-full max-w-5xl max-h-[92vh] flex flex-col shadow-2xl overflow-hidden"
       >
         <!-- モーダルヘッダー -->
         <div class="px-6 py-4 border-b border-slate-800 flex items-center justify-between bg-slate-900/50">
@@ -87,12 +124,12 @@ onUnmounted(() => {
             </div>
             <div>
               <h2 class="text-base font-bold text-white flex items-center gap-2">
-                Admin Board ＆ ジョブ監視ダッシュボード
+                Admin Board ＆ 管理コンソール
                 <span class="text-[10px] font-mono font-normal bg-slate-800 text-slate-400 px-2 py-0.5 rounded border border-slate-700">
                   SPEC-ADMINBOARD-001
                 </span>
               </h2>
-              <p class="text-xs text-slate-400">システム設定・サルベージジョブ管理・外部連携制御</p>
+              <p class="text-xs text-slate-400">システム設定・ジョブ監視・Whitelist統治・DB翻訳エディタ</p>
             </div>
           </div>
           <button
@@ -145,31 +182,36 @@ onUnmounted(() => {
             <span>📦</span> Stash 連携
           </button>
 
-          <!-- 次期拡張用プレースホルダー -->
+          <!-- 実稼働 Whitelist 管理 -->
           <button
             @click="activeTab = 'whitelist'"
             class="py-3 px-3.5 border-b-2 font-semibold transition-all flex items-center gap-1.5 whitespace-nowrap"
             :class="
               activeTab === 'whitelist'
                 ? 'border-blue-500 text-blue-400 bg-blue-500/5'
-                : 'border-transparent text-slate-500 hover:text-slate-300'
+                : 'border-transparent text-slate-400 hover:text-slate-200'
             "
           >
             <span>📋</span> Whitelist 管理
-            <span class="text-[9px] bg-slate-800 text-slate-400 px-1 py-0.2 rounded border border-slate-700">次期</span>
+            <span
+              v-if="whitelistList.length > 0"
+              class="text-[10px] bg-slate-800 text-slate-300 px-1.5 py-0.2 rounded-full border border-slate-700 font-mono"
+            >
+              {{ whitelistList.length }}
+            </span>
           </button>
 
+          <!-- 実稼働 データベース閲覧 ＆ 翻訳エディタ -->
           <button
             @click="activeTab = 'db'"
             class="py-3 px-3.5 border-b-2 font-semibold transition-all flex items-center gap-1.5 whitespace-nowrap"
             :class="
               activeTab === 'db'
                 ? 'border-blue-500 text-blue-400 bg-blue-500/5'
-                : 'border-transparent text-slate-500 hover:text-slate-300'
+                : 'border-transparent text-slate-400 hover:text-slate-200'
             "
           >
-            <span>🗄️</span> データベース閲覧
-            <span class="text-[9px] bg-slate-800 text-slate-400 px-1 py-0.2 rounded border border-slate-700">次期</span>
+            <span>🗄️</span> データベース閲覧 ＆ 翻訳
           </button>
         </div>
 
@@ -210,28 +252,40 @@ onUnmounted(() => {
             <StashStatusView :config="config" />
           </div>
 
-          <!-- 4. Whitelist 管理（プレースホルダー） -->
-          <div v-show="activeTab === 'whitelist'" class="py-12 text-center text-slate-400 space-y-3">
-            <div class="text-3xl">📋</div>
-            <h4 class="text-sm font-bold text-slate-200">Whitelist 管理ビュー (次期実装予定)</h4>
-            <p class="text-xs text-slate-500 max-w-md mx-auto">
-              対象アカウントおよびキーワードの自動収集ルール（CRUD・トグル）をこの画面から集中管理可能になる予定です。
-            </p>
+          <!-- 4. Whitelist 管理（実稼働） -->
+          <div v-show="activeTab === 'whitelist'">
+            <WhitelistView
+              :whitelistList="whitelistList"
+              :loading="loadingWhitelist"
+              :statusMessage="whitelistStatus"
+              @fetch="fetchWhitelists"
+              @add="addWhitelist"
+              @update="updateWhitelist"
+              @delete="deleteWhitelist"
+              @toggle="toggleWhitelist"
+            />
           </div>
 
-          <!-- 5. データベース閲覧（プレースホルダー） -->
-          <div v-show="activeTab === 'db'" class="py-12 text-center text-slate-400 space-y-3">
-            <div class="text-3xl">🗄️</div>
-            <h4 class="text-sm font-bold text-slate-200">データベースビューアー ＆ 個別編集 (次期実装予定)</h4>
-            <p class="text-xs text-slate-500 max-w-md mx-auto">
-              保存済みアーカイブ記事の直接検索・閲覧や、3言語翻訳テキスト（full_text_ja/en/zh）の手動微調整が可能になる予定です。
-            </p>
+          <!-- 5. データベース閲覧 ＆ 3言語翻訳エディタ（実稼働） -->
+          <div v-show="activeTab === 'db'">
+            <DatabaseView
+              :articles="dbArticles"
+              :total="totalArticles"
+              :selectedArticle="selectedArticle"
+              :loading="loadingArticles"
+              :saving="savingTranslation"
+              :statusMessage="translationStatus"
+              :searchParams="dbSearchParams"
+              @search="searchArticles"
+              @select="selectArticle"
+              @saveTranslations="saveArticleTranslations"
+            />
           </div>
         </div>
 
         <!-- モーダルフッター -->
         <div class="px-6 py-3 border-t border-slate-800 bg-slate-900/40 flex items-center justify-between text-xs text-slate-500 font-mono">
-          <span>dozou_katanuki Admin v1.0</span>
+          <span>dozou_katanuki Admin v1.0 • SPEC-ADMINBOARD-001</span>
           <button
             @click="emit('close')"
             class="px-4 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg transition-colors font-semibold"
@@ -243,3 +297,4 @@ onUnmounted(() => {
     </div>
   </Teleport>
 </template>
+

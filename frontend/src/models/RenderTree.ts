@@ -28,6 +28,8 @@ export interface RenderMedia {
   };
   width?: number;
   height?: number;
+  stash_scene_id?: string;
+  stash_image_id?: string;
 }
 
 export interface RenderTree {
