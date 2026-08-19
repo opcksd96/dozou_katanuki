@@ -1,0 +1,81 @@
+// middleware/job_queue.go (100行以下)
+package middleware
+
+import (
+	"fmt"
+	"strconv"
+	"time"
+
+	"dozou_katanuki/models"
+)
+
+func (j *JobOrchestrator) EnqueueSalvage(platform, account string, limit int) (*models.JobProgress, error) {
+	if limit <= 0 {
+		limit = 50
+	}
+	req := &models.JobRequest{
+		ID:         fmt.Sprintf("job_salvage_%d", time.Now().UnixNano()),
+		Type:       models.JobTypeSalvage,
+		Platform:   platform,
+		Account:    account,
+		Limit:      limit,
+		ScriptPath: fmt.Sprintf("plugins/%s/scraper/main.py", platform),
+		Args:       []string{"--account", account, "--limit", strconv.Itoa(limit)},
+		CreatedAt:  time.Now(),
+	}
+	return j.EnqueueJob(req)
+}
+
+func (j *JobOrchestrator) EnqueueManualImport(warcPath string, offline bool) (*models.JobProgress, error) {
+	args := []string{"--warc", warcPath}
+	if offline {
+		args = append(args, "--offline")
+	}
+	req := &models.JobRequest{
+		ID:         fmt.Sprintf("job_import_%d", time.Now().UnixNano()),
+		Type:       models.JobTypeImportManual,
+		WARCPath:   warcPath,
+		Offline:    offline,
+		ScriptPath: "cmd/warc_importer/main.py",
+		Args:       args,
+		CreatedAt:  time.Now(),
+	}
+	return j.EnqueueJob(req)
+}
+
+func (j *JobOrchestrator) EnqueueJob(req *models.JobRequest) (*models.JobProgress, error) {
+	if req.ID == "" {
+		req.ID = fmt.Sprintf("job_%d", time.Now().UnixNano())
+	}
+	if req.CreatedAt.IsZero() {
+		req.CreatedAt = time.Now()
+	}
+
+	progress := &models.JobProgress{
+		ID:         req.ID,
+		Type:       req.Type,
+		Status:     models.JobStatusPending,
+		Current:    0,
+		Total:      req.Limit,
+		Percentage: 0,
+		Message:    "Queued (Waiting for worker)",
+		Logs:       make([]string, 0),
+	}
+
+	j.mu.Lock()
+	j.jobs[req.ID] = progress
+	j.mu.Unlock()
+
+	select {
+	case j.queue <- req:
+		j.emitEvent("job:queued", progress)
+		return progress, nil
+	default:
+		j.mu.Lock()
+		progress.Status = models.JobStatusFailed
+		progress.Message = "Queue is full"
+		progress.Error = "job queue overflow"
+		j.mu.Unlock()
+		return progress, fmt.Errorf("job queue is full")
+	}
+}
