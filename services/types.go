@@ -1,6 +1,5 @@
 package services
 
-// RenderContent represents localized and decorated text blocks
 type RenderContent struct {
 	Original string `json:"original"`
 	JA       string `json:"ja"`
@@ -8,7 +7,6 @@ type RenderContent struct {
 	ZH       string `json:"zh"`
 }
 
-// RenderAuthor represents sanitized author profile presentation
 type RenderAuthor struct {
 	NumericID   string `json:"numeric_id"`
 	Handle      string `json:"handle"`
@@ -17,23 +15,28 @@ type RenderAuthor struct {
 	Bio         string `json:"bio"`
 }
 
-// RenderMediaURLs represents media stream and direct image URLs
 type RenderMediaURLs struct {
 	Stream string `json:"stream"`
 	Image  string `json:"image"`
 }
 
-// RenderMediaItem represents media resource presentation
 type RenderMediaItem struct {
 	MediaID      string          `json:"media_id"`
-	Type         string          `json:"type"` // "image" | "video" | "gif"
+	Type         string          `json:"type"`
 	URLs         RenderMediaURLs `json:"urls"`
 	Width        int             `json:"width"`
 	Height       int             `json:"height"`
 	FailedReason string          `json:"failed_reason,omitempty"`
 }
 
-// RenderTree represents timeline UI render unit (SSOT Presentation DTO)
+type RenderMetrics struct {
+	Replies   int `json:"replies"`
+	Retweets  int `json:"retweets"`
+	Likes     int `json:"likes"`
+	Bookmarks int `json:"bookmarks"`
+	Quotes    int `json:"quotes"`
+}
+
 type RenderTree struct {
 	ID             string            `json:"id"`
 	ConversationID string            `json:"conversation_id"`
@@ -41,6 +44,7 @@ type RenderTree struct {
 	Content        RenderContent     `json:"content"`
 	Author         RenderAuthor      `json:"author"`
 	Media          []RenderMediaItem `json:"media"`
+	Metrics        RenderMetrics     `json:"metrics"`
 	IsLiked        bool              `json:"is_liked"`
 	SourceURL      string            `json:"source_url"`
 }

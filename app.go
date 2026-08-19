@@ -2,43 +2,49 @@ package main
 
 import (
 	"context"
-	"path/filepath"
-	"time"
+	"fmt"
+	"log"
 
-	"github.com/wailsapp/wails/v2/pkg/runtime"
+	"dozou_katanuki/driver"
+	"dozou_katanuki/services"
 )
 
+// App struct
 type App struct {
-	ctx          context.Context
-	stashManager *StashManager
+	ctx             context.Context
+	timelineService *services.TimelineService
 }
 
+// NewApp creates a new App application struct
 func NewApp() *App {
-	return &App{
-		stashManager: NewStashManager(),
-	}
+	return &App{}
 }
 
+// startup is called when the app starts.
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
 
-	// 1. Stash のヘッドレスキックスタート
-	stashBin := filepath.Join(".", "bin", "stash-win.exe")
-	go func() {
-		time.Sleep(500 * time.Millisecond) // 初期化マージン
-		if err := a.stashManager.Start(ctx, stashBin); err != nil {
-			runtime.EventsEmit(ctx, "stash:error", err.Error())
-			return
-		}
-		// 疎通シグナル送信
-		runtime.EventsEmit(ctx, "stash:status", map[string]interface{}{
-			"status": "ONLINE",
-			"port":   9999,
-		})
-	}()
+	// 1. データベース初期化 (WALモード & AutoMigrate)
+	db, err := driver.InitDB("archive.db")
+	if err != nil {
+		log.Fatalf("Failed to initialize database: %v", err)
+	}
+
+	// 2. リポジトリとミドルウェアサービスの組み立て
+	repo := driver.NewRepository(db)
+	a.timelineService = services.NewTimelineService(repo)
+	log.Println("[App] Core services and middleware initialized successfully")
 }
 
+// shutdown is called at application termination
 func (a *App) shutdown(ctx context.Context) {
-	// 2. 親ウィンドウ終了時に Stash を完全道連れ終了
-	a.stashManager.Stop()
+	log.Println("[App] Application shutting down safely...")
+}
+
+// GetTimeline はフロントエンドへRenderTree配列を供給するWailsバインドメソッドです
+func (a *App) GetTimeline(platform, accountID, filter string, limit, offset int) ([]services.RenderTree, error) {
+	if a.timelineService == nil {
+		return nil, fmt.Errorf("timeline service is not initialized")
+	}
+	return a.timelineService.FetchTimeline(platform, accountID, filter, limit, offset)
 }
