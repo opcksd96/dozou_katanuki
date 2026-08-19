@@ -1,0 +1,18 @@
+CREATE TABLE `accounts` (`numeric_id` text,`username` text NOT NULL,`display_name` text NOT NULL,`avatar_url` text NOT NULL,`updated_at` datetime NOT NULL,PRIMARY KEY (`numeric_id`));
+CREATE INDEX `idx_accounts_username` ON `accounts`(`username`);
+CREATE TABLE `account_profile_histories` (`id` integer PRIMARY KEY AUTOINCREMENT,`account_id` text NOT NULL,`display_name` text NOT NULL,`avatar_original_url` text NOT NULL,`avatar_seq` integer NOT NULL,`avatar_virtual_key` text NOT NULL,`observed_at` datetime NOT NULL,CONSTRAINT `fk_accounts_profile_history` FOREIGN KEY (`account_id`) REFERENCES `accounts`(`numeric_id`));
+CREATE TABLE sqlite_sequence(name,seq);
+CREATE INDEX `idx_account_profile_histories_account_id` ON `account_profile_histories`(`account_id`);
+CREATE TABLE `articles` (`id` text,`account_id` text NOT NULL,`conversation_id` text NOT NULL,`reply_to_id` text,`reply_to_handle` text,`created_at` datetime NOT NULL,`full_text` text NOT NULL,`lang` text NOT NULL DEFAULT "ja",`full_text_ja` text,`full_text_en` text,`full_text_zh` text,`via` text NOT NULL,`is_repost` boolean NOT NULL DEFAULT false,`is_liked` boolean NOT NULL DEFAULT false,`wayback_url` text NOT NULL,PRIMARY KEY (`id`),CONSTRAINT `fk_accounts_articles` FOREIGN KEY (`account_id`) REFERENCES `accounts`(`numeric_id`));
+CREATE INDEX `idx_articles_is_liked` ON `articles`(`is_liked`);
+CREATE INDEX `idx_articles_created_at` ON `articles`(`created_at`);
+CREATE INDEX `idx_articles_conversation_id` ON `articles`(`conversation_id`);
+CREATE INDEX `idx_articles_account_id` ON `articles`(`account_id`);
+CREATE TABLE `media` (`media_id` text,`article_id` text NOT NULL,`type` text NOT NULL,`download_url` text NOT NULL,`width` integer NOT NULL,`height` integer NOT NULL,`download_status` text NOT NULL DEFAULT "QUEUED",`failed_reason` text,`stash_scene_id` text,`stash_image_id` text,PRIMARY KEY (`media_id`),CONSTRAINT `fk_articles_media` FOREIGN KEY (`article_id`) REFERENCES `articles`(`id`));
+CREATE UNIQUE INDEX `idx_media_stash_image_id` ON `media`(`stash_image_id`);
+CREATE UNIQUE INDEX `idx_media_stash_scene_id` ON `media`(`stash_scene_id`);
+CREATE INDEX `idx_media_article_id` ON `media`(`article_id`);
+CREATE TABLE `url_redirects` (`short_url` text,`expanded_url` text NOT NULL,`article_id` text NOT NULL,PRIMARY KEY (`short_url`));
+CREATE INDEX `idx_url_redirects_article_id` ON `url_redirects`(`article_id`);
+CREATE TABLE `whitelists` (`id` integer PRIMARY KEY AUTOINCREMENT,`type` text NOT NULL,`value` text NOT NULL,`is_active` boolean NOT NULL DEFAULT true);
+CREATE UNIQUE INDEX `idx_whitelists_value` ON `whitelists`(`value`);
