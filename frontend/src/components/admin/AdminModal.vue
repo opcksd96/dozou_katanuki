@@ -7,6 +7,7 @@ import StashStatusView from './StashStatusView.vue';
 import WhitelistView from './WhitelistView.vue';
 import DatabaseView from './DatabaseView.vue';
 import AuditReportView from './AuditReportView.vue';
+import SkinFontEditor from './SkinFontEditor.vue';
 
 const props = defineProps<{
   isOpen: boolean;
@@ -16,7 +17,7 @@ const emit = defineEmits<{
   (e: 'close'): void;
 }>();
 
-const activeTab = ref<'jobs' | 'config' | 'stash' | 'whitelist' | 'db' | 'audit'>('jobs');
+const activeTab = ref<'jobs' | 'config' | 'skin' | 'stash' | 'whitelist' | 'db' | 'audit'>('jobs');
 
 const {
   activeJob,
@@ -72,6 +73,17 @@ const {
   restoringDB,
   restoreStatus,
   triggerRestore,
+  // Skin CSS ＆ Font 微調整 (SPEC-ADMINBOARD-001 第5・第6ピース)
+  skinCSS,
+  loadingSkin,
+  savingSkin,
+  skinStatus,
+  selectedSkinPlatform,
+  fontPresets,
+  fetchSkinCSS,
+  saveSkinCSS,
+  applyDynamicSkinCSS,
+  applyFontVariables,
 } = useAdmin();
 
 const handleTriggerRestore = async (resetDB: boolean = false) => {
@@ -89,6 +101,7 @@ watch(
       loadConfig();
       fetchWhitelists();
       searchArticles();
+      fetchSkinCSS(selectedSkinPlatform.value);
     } else {
       cleanupEventListeners();
     }
@@ -105,6 +118,8 @@ watch(
       fetchWhitelists();
     } else if (tab === 'db') {
       searchArticles();
+    } else if (tab === 'skin') {
+      fetchSkinCSS(selectedSkinPlatform.value);
     } else if (tab === 'audit' && !auditReport.value) {
       runAudit(false, false);
     }
@@ -189,6 +204,19 @@ onUnmounted(() => {
             "
           >
             <span>⚙️</span> システム設定 (Config)
+          </button>
+
+          <!-- 実稼働 CSSスキンエディタ ＆ フォント微調整パネル (SPEC-ADMINBOARD-001 第5・第6ピース) -->
+          <button
+            @click="activeTab = 'skin'"
+            class="py-3 px-3.5 border-b-2 font-semibold transition-all flex items-center gap-1.5 whitespace-nowrap"
+            :class="
+              activeTab === 'skin'
+                ? 'border-cyan-500 text-cyan-400 bg-cyan-500/5'
+                : 'border-transparent text-slate-400 hover:text-slate-200'
+            "
+          >
+            <span>🎨</span> スキン ＆ フォント
           </button>
 
           <button
@@ -285,12 +313,32 @@ onUnmounted(() => {
             />
           </div>
 
-          <!-- 3. Stash連携 -->
+          <!-- 3. スキン ＆ フォント (実稼働 SPEC-ADMINBOARD-001 第5・第6ピース) -->
+          <div v-show="activeTab === 'skin'">
+            <SkinFontEditor
+              :skinCSS="skinCSS"
+              :loadingSkin="loadingSkin"
+              :savingSkin="savingSkin"
+              :skinStatus="skinStatus"
+              :selectedPlatform="selectedSkinPlatform"
+              :fontPresets="fontPresets"
+              :config="config"
+              :savingConfig="savingConfig"
+              :saveStatus="saveStatus"
+              @fetchSkin="fetchSkinCSS"
+              @saveSkin="saveSkinCSS"
+              @applyDynamicSkin="applyDynamicSkinCSS"
+              @applyFontVariables="applyFontVariables"
+              @saveConfig="saveConfig"
+            />
+          </div>
+
+          <!-- 4. Stash連携 -->
           <div v-show="activeTab === 'stash'">
             <StashStatusView :config="config" />
           </div>
 
-          <!-- 4. Whitelist 管理（実稼働） -->
+          <!-- 5. Whitelist 管理（実稼働） -->
           <div v-show="activeTab === 'whitelist'">
             <WhitelistView
               :whitelistList="whitelistList"

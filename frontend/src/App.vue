@@ -78,32 +78,75 @@ const handleGlobalKeyDown = (e: KeyboardEvent) => {
   }
 };
 
-onMounted(() => {
-  try {
-    EventsOn('open:admin', () => {
-      isAdminOpen.value = true;
-    });
-  } catch (err) {
-    console.warn('Wails EventsOn not available:', err);
-  }
-
-  window.addEventListener('keydown', handleGlobalKeyDown);
-
-  observer = new IntersectionObserver((entries) => {
-    if (entries[0].isIntersecting && hasMore.value && !loading.value && !activeArticleId.value) {
-      loadMore();
+  const applyInitialFontsAndSkin = async () => {
+    try {
+      const app = (window as any)?.go?.main?.App;
+      if (app && typeof app.GetConfig === 'function') {
+        const cfg = await app.GetConfig();
+        if (cfg?.appearance) {
+          const root = document.documentElement;
+          if (cfg.appearance.font_family_ja) root.style.setProperty('--font-family-ja', cfg.appearance.font_family_ja);
+          if (cfg.appearance.font_family_en) root.style.setProperty('--font-family-en', cfg.appearance.font_family_en);
+          if (cfg.appearance.font_family_zh) root.style.setProperty('--font-family-zh', cfg.appearance.font_family_zh);
+        }
+      }
+      if (app && typeof app.GetSkinCSS === 'function') {
+        const css = await app.GetSkinCSS('twitter');
+        if (css) {
+          let styleEl = document.getElementById('dynamic-skin-css') as HTMLStyleElement | null;
+          if (!styleEl) {
+            styleEl = document.createElement('style');
+            styleEl.id = 'dynamic-skin-css';
+            document.head.appendChild(styleEl);
+          }
+          styleEl.textContent = css;
+        }
+      }
+    } catch (e) {
+      console.warn('[App] Failed to apply initial fonts/skin:', e);
     }
-  }, { rootMargin: '200px' });
-  if (observerTarget.value) observer.observe(observerTarget.value);
-});
+  };
 
-onUnmounted(() => {
-  observer?.disconnect();
-  window.removeEventListener('keydown', handleGlobalKeyDown);
-  try {
-    EventsOff('open:admin');
-  } catch {}
-});
+  onMounted(() => {
+    applyInitialFontsAndSkin();
+
+    try {
+      EventsOn('open:admin', () => {
+        isAdminOpen.value = true;
+      });
+      EventsOn('skin:updated', (payload: any) => {
+        if (payload?.css) {
+          let styleEl = document.getElementById('dynamic-skin-css') as HTMLStyleElement | null;
+          if (!styleEl) {
+            styleEl = document.createElement('style');
+            styleEl.id = 'dynamic-skin-css';
+            document.head.appendChild(styleEl);
+          }
+          styleEl.textContent = payload.css;
+        }
+      });
+    } catch (err) {
+      console.warn('Wails EventsOn not available:', err);
+    }
+
+    window.addEventListener('keydown', handleGlobalKeyDown);
+
+    observer = new IntersectionObserver((entries) => {
+      if (entries[0].isIntersecting && hasMore.value && !loading.value && !activeArticleId.value) {
+        loadMore();
+      }
+    }, { rootMargin: '200px' });
+    if (observerTarget.value) observer.observe(observerTarget.value);
+  });
+
+  onUnmounted(() => {
+    observer?.disconnect();
+    window.removeEventListener('keydown', handleGlobalKeyDown);
+    try {
+      EventsOff('open:admin');
+      EventsOff('skin:updated');
+    } catch {}
+  });
 </script>
 
 <template>

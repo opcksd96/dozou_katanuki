@@ -17,6 +17,115 @@ const defaultMockConfig = {
 
 let localMockConfig = JSON.parse(JSON.stringify(defaultMockConfig));
 
+let localMockSkinCSS = `/* plugins/twitter/skin/design.css (SPEC-PLUGIN-001) */
+.twitter-card {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 16px;
+  background-color: #020617;
+  border-bottom: 1px solid #1e293b;
+  text-align: left;
+  transition: background-color 0.15s ease;
+}
+
+.twitter-card:hover {
+  background-color: rgba(255, 255, 255, 0.02);
+}
+
+.twitter-avatar-col {
+  flex-shrink: 0;
+  width: 40px;
+}
+
+.twitter-content-col {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  text-align: left;
+}
+
+.twitter-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  line-height: 1.25;
+}
+
+.twitter-display-name {
+  font-weight: 700;
+  color: #f8fafc;
+  font-size: 14px;
+}
+
+.twitter-handle {
+  color: #64748b;
+  font-size: 13px;
+  font-family: ui-monospace, monospace;
+}
+
+.twitter-timestamp {
+  color: #64748b;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.twitter-body-text {
+  font-size: 14px;
+  line-height: 1.5;
+  color: #f1f5f9;
+  word-break: break-word;
+  white-space: pre-wrap;
+}
+
+.twitter-accent-text,
+.twitter-card a,
+.hashtag-link,
+.mention-link,
+.external-link {
+  color: #1d9bf0;
+  text-decoration: none;
+}
+
+.twitter-card a:hover,
+.hashtag-link:hover,
+.mention-link:hover,
+.external-link:hover {
+  text-decoration: underline;
+}
+
+.twitter-actions-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  max-width: 420px;
+  margin-top: 4px;
+  color: #64748b;
+  font-size: 12px;
+}
+`;
+
+const callGetSkinCSS = async (platform: string = 'twitter'): Promise<string> => {
+  const app = getApp();
+  if (app && typeof app.GetSkinCSS === 'function') {
+    return await app.GetSkinCSS(platform);
+  }
+  return localMockSkinCSS;
+};
+
+const callSaveSkinCSS = async (platform: string, cssContent: string): Promise<any> => {
+  const app = getApp();
+  if (app && typeof app.SaveSkinCSS === 'function') {
+    return await app.SaveSkinCSS(platform, cssContent);
+  }
+  localMockSkinCSS = cssContent;
+  return true;
+};
+
 const callGetConfig = async (): Promise<any> => {
   const app = getApp();
   if (app && typeof app.GetConfig === 'function') {
@@ -837,6 +946,110 @@ export function useAdmin() {
     }
   };
 
+  // --- Skin CSS ＆ Font 微調整 (SPEC-ADMINBOARD-001 第5・第6ピース) ---
+  const skinCSS = ref<string>('');
+  const loadingSkin = ref<boolean>(false);
+  const savingSkin = ref<boolean>(false);
+  const skinStatus = ref<{ success: boolean; message: string } | null>(null);
+  const selectedSkinPlatform = ref<string>('twitter');
+
+  // DOMへの動的CSS注入 (リアルタイム即時反映)
+  const applyDynamicSkinCSS = (css: string) => {
+    let styleEl = document.getElementById('dynamic-skin-css') as HTMLStyleElement | null;
+    if (!styleEl) {
+      styleEl = document.createElement('style');
+      styleEl.id = 'dynamic-skin-css';
+      document.head.appendChild(styleEl);
+    }
+    styleEl.textContent = css;
+  };
+
+  // CSS変数へのフォント適用
+  const applyFontVariables = (cfg?: models.AppConfig | null) => {
+    const target = cfg || config.value;
+    if (!target?.appearance) return;
+    const root = document.documentElement;
+    if (target.appearance.font_family_ja) {
+      root.style.setProperty('--font-family-ja', target.appearance.font_family_ja);
+    }
+    if (target.appearance.font_family_en) {
+      root.style.setProperty('--font-family-en', target.appearance.font_family_en);
+    }
+    if (target.appearance.font_family_zh) {
+      root.style.setProperty('--font-family-zh', target.appearance.font_family_zh);
+    }
+  };
+
+  const fetchSkinCSS = async (platform: string = 'twitter') => {
+    loadingSkin.value = true;
+    skinStatus.value = null;
+    try {
+      selectedSkinPlatform.value = platform;
+      const css = await callGetSkinCSS(platform);
+      skinCSS.value = css;
+    } catch (err: any) {
+      console.error('[useAdmin] Failed to fetch Skin CSS:', err);
+      skinStatus.value = {
+        success: false,
+        message: `スキンCSSの読み込みに失敗しました: ${err?.message || err}`,
+      };
+    } finally {
+      loadingSkin.value = false;
+    }
+  };
+
+  const saveSkinCSS = async (platform: string, css: string) => {
+    savingSkin.value = true;
+    skinStatus.value = null;
+    try {
+      await callSaveSkinCSS(platform, css);
+      skinCSS.value = css;
+      // 即時DOM反映
+      applyDynamicSkinCSS(css);
+      skinStatus.value = {
+        success: true,
+        message: `スキンCSSを正常に保存しました (plugins/${platform}/skin/design.css)`,
+      };
+      setTimeout(() => {
+        if (skinStatus.value?.success) {
+          skinStatus.value = null;
+        }
+      }, 4000);
+    } catch (err: any) {
+      console.error('[useAdmin] Failed to save Skin CSS:', err);
+      skinStatus.value = {
+        success: false,
+        message: `スキンCSSの保存に失敗しました: ${err?.message || err}`,
+      };
+    } finally {
+      savingSkin.value = false;
+    }
+  };
+
+  // フォントプリセット定義
+  const fontPresets = {
+    ja: [
+      { label: 'モダン標準 (Hiragino/Meiryo)', value: 'Hiragino Sans, Meiryo, sans-serif' },
+      { label: 'Windows標準 (游ゴシック)', value: 'Yu Gothic, "游ゴシック", "YuGothic", sans-serif' },
+      { label: 'ユニバーサル (BIZ UDPGothic)', value: '"BIZ UDPGothic", "BIZ UDPゴシック", sans-serif' },
+      { label: 'Google WebFont (Noto Sans JP)', value: '"Noto Sans JP", sans-serif' },
+      { label: 'クラシック (ＭＳ Ｐゴシック)', value: '"MS PGothic", "ＭＳ Ｐゴシック", sans-serif' },
+    ],
+    en: [
+      { label: 'モダン丸み (Nunito)', value: 'Nunito, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' },
+      { label: 'クリーンUI (Inter)', value: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' },
+      { label: 'マテリアル (Roboto)', value: 'Roboto, -apple-system, BlinkMacSystemFont, sans-serif' },
+      { label: 'OSネイティブ (system-ui)', value: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' },
+      { label: 'サイバー/等幅 (Fira Code)', value: '"Fira Code", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace' },
+    ],
+    zh: [
+      { label: '標準雅黑 (Microsoft YaHei)', value: '"Microsoft YaHei", SimHei, sans-serif' },
+      { label: 'Apple蘋方 (PingFang SC)', value: '"PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif' },
+      { label: '思源黑体 (Noto Sans SC)', value: '"Noto Sans SC", "Source Han Sans CN", sans-serif' },
+      { label: '宋体明朝 (SimSun)', value: 'SimSun, "Songti SC", serif' },
+    ],
+  };
+
   return {
     activeJob,
     jobList,
@@ -891,6 +1104,17 @@ export function useAdmin() {
     restoringDB,
     restoreStatus,
     triggerRestore,
+    // Skin CSS ＆ Font 微調整 (SPEC-ADMINBOARD-001 第5・第6ピース)
+    skinCSS,
+    loadingSkin,
+    savingSkin,
+    skinStatus,
+    selectedSkinPlatform,
+    fontPresets,
+    fetchSkinCSS,
+    saveSkinCSS,
+    applyDynamicSkinCSS,
+    applyFontVariables,
   };
 }
 

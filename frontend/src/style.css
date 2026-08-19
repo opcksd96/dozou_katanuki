@@ -1,6 +1,12 @@
 @import "tailwindcss";
 @import "../../plugins/twitter/skin/design.css";
 
+:root {
+    --font-family-ja: Hiragino Sans, Meiryo, sans-serif;
+    --font-family-en: Nunito, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    --font-family-zh: "Microsoft YaHei", SimHei, sans-serif;
+}
+
 html {
     background-color: #020617;
     text-align: left;
@@ -12,9 +18,20 @@ body {
     background-color: #020617;
     color: white;
     text-align: left;
-    font-family: "Nunito", -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto",
-    "Oxygen", "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue",
-    sans-serif;
+    font-family: var(--font-family-en), var(--font-family-ja);
+}
+
+/* 多言語フォント適用クラス */
+[lang="ja"], .font-ja {
+    font-family: var(--font-family-ja), var(--font-family-en);
+}
+
+[lang="en"], .font-en {
+    font-family: var(--font-family-en);
+}
+
+[lang="zh"], .font-zh {
+    font-family: var(--font-family-zh), var(--font-family-en);
 }
 
 @font-face {

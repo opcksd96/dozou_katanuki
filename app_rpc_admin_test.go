@@ -3,6 +3,8 @@ package main
 import (
 	"database/sql"
 	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -231,3 +233,35 @@ func TestAuditRPC(t *testing.T) {
 		t.Fatalf("PurgeOrphanDBMedia RPC failed: %v", err)
 	}
 }
+
+func TestSkinCSSRPC(t *testing.T) {
+	app := &App{}
+
+	// 1. GetSkinCSS (twitter)
+	css, err := app.GetSkinCSS("twitter")
+	if err != nil {
+		t.Fatalf("GetSkinCSS failed: %v", err)
+	}
+	if !strings.Contains(css, ".twitter-card") {
+		t.Fatalf("GetSkinCSS expected '.twitter-card', got: %s", css)
+	}
+
+	// 2. SaveSkinCSS (テスト用カスタムプラットフォーム)
+	testPlatform := "test_skin_platform"
+	testCSS := "/* Test Skin CSS */\n.test-card { color: #abcdef; }\n"
+	err = app.SaveSkinCSS(testPlatform, testCSS)
+	if err != nil {
+		t.Fatalf("SaveSkinCSS failed: %v", err)
+	}
+	defer os.RemoveAll(filepath.Join("plugins", testPlatform))
+
+	// 3. GetSkinCSS で保存内容の読み出し確認
+	readCSS, err := app.GetSkinCSS(testPlatform)
+	if err != nil {
+		t.Fatalf("GetSkinCSS for test platform failed: %v", err)
+	}
+	if readCSS != testCSS {
+		t.Fatalf("GetSkinCSS content mismatch. expected: %s, got: %s", testCSS, readCSS)
+	}
+}
+

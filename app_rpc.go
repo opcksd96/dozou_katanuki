@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"log"
 	"os"
+	"path/filepath"
+	"strings"
 
 	"dozou_katanuki/middleware"
 	"dozou_katanuki/models"
@@ -364,4 +366,57 @@ func (a *App) TriggerRestore(dumpsDir string, resetDB bool) (*models.JobProgress
 	log.Printf("[Wails RPC] TriggerRestore: Starting restore job from %s (resetDB: %v)", dumpsDir, resetDB)
 	return a.jobOrchestrator.EnqueueRestore(dumpsDir)
 }
+
+// GetSkinCSS はプラグインの skin/design.css (SPEC-PLUGIN-001) を取得する Wails バインドメソッドです
+func (a *App) GetSkinCSS(platform string) (string, error) {
+	if platform == "" {
+		platform = "twitter"
+	}
+	// ディレクトリトラバーサル防止
+	cleanPlatform := filepath.Clean(platform)
+	if strings.Contains(cleanPlatform, "..") || strings.ContainsAny(cleanPlatform, "/\\") {
+		cleanPlatform = "twitter"
+	}
+
+	skinPath := filepath.Join("plugins", cleanPlatform, "skin", "design.css")
+	data, err := os.ReadFile(skinPath)
+	if err != nil {
+		log.Printf("[Wails RPC] GetSkinCSS error reading %s: %v", skinPath, err)
+		return "", err
+	}
+	return string(data), nil
+}
+
+// SaveSkinCSS はプラグインの skin/design.css (SPEC-PLUGIN-001) を上書き保存する Wails バインドメソッドです
+func (a *App) SaveSkinCSS(platform, cssContent string) error {
+	if platform == "" {
+		platform = "twitter"
+	}
+	cleanPlatform := filepath.Clean(platform)
+	if strings.Contains(cleanPlatform, "..") || strings.ContainsAny(cleanPlatform, "/\\") {
+		cleanPlatform = "twitter"
+	}
+
+	skinDir := filepath.Join("plugins", cleanPlatform, "skin")
+	if err := os.MkdirAll(skinDir, 0755); err != nil {
+		log.Printf("[Wails RPC] SaveSkinCSS mkdir error %s: %v", skinDir, err)
+		return err
+	}
+
+	skinPath := filepath.Join(skinDir, "design.css")
+	if err := os.WriteFile(skinPath, []byte(cssContent), 0644); err != nil {
+		log.Printf("[Wails RPC] SaveSkinCSS write error %s: %v", skinPath, err)
+		return err
+	}
+
+	log.Printf("[Wails RPC] SaveSkinCSS: %s updated successfully (%d bytes)", skinPath, len(cssContent))
+	if a.ctx != nil {
+		runtime.EventsEmit(a.ctx, "skin:updated", map[string]string{
+			"platform": cleanPlatform,
+			"css":      cssContent,
+		})
+	}
+	return nil
+}
+
 
