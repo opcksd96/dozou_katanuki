@@ -22,6 +22,7 @@ type App struct {
 	stashManager    *StashManager
 	jobOrchestrator *middleware.JobOrchestrator
 	scheduler       *middleware.SchedulerService
+	auditService    *middleware.AuditService
 	unifiedHandler  *middleware.UnifiedHandler
 	ready           chan struct{}
 	readyOnce       sync.Once
@@ -51,6 +52,7 @@ func (a *App) startup(ctx context.Context) {
 	if a.unifiedHandler != nil {
 		a.unifiedHandler.SetJobOrchestrator(a.jobOrchestrator)
 	}
+	a.auditService = middleware.NewAuditService(a.repo, emitter)
 
 	cfg, _ := a.GetConfig()
 	schedCfg := models.SchedulerConfig{}

@@ -191,3 +191,43 @@ func TestSchedulerRPC(t *testing.T) {
 		t.Fatalf("Expected JobTypeMediaPoll, got: %+v", job)
 	}
 }
+
+func TestAuditRPC(t *testing.T) {
+	db, tempFile := setupTestDB(t)
+	defer os.Remove(tempFile)
+
+	repo := driver.NewRepository(db)
+	timeline := middleware.NewTimelineService(repo)
+	readyChan := make(chan struct{})
+	close(readyChan)
+
+	app := &App{
+		repo:            repo,
+		timelineService: timeline,
+		ready:           readyChan,
+	}
+
+	auditSvc := middleware.NewAuditService(repo, func(string, ...interface{}) {})
+	app.auditService = auditSvc
+
+	// 1. RunAudit
+	report, err := app.RunAudit(false, false)
+	if err != nil {
+		t.Fatalf("RunAudit RPC failed: %v", err)
+	}
+	if report == nil || !report.IntegrityOK {
+		t.Fatalf("Expected valid report with IntegrityOK true, got: %+v", report)
+	}
+
+	// 2. PurgeOrphanFiles
+	purgedFiles, err := app.PurgeOrphanFiles([]string{})
+	if err != nil || purgedFiles != 0 {
+		t.Fatalf("PurgeOrphanFiles RPC failed: %v", err)
+	}
+
+	// 3. PurgeOrphanDBMedia
+	purgedDB, err := app.PurgeOrphanDBMedia([]string{})
+	if err != nil || purgedDB != 0 {
+		t.Fatalf("PurgeOrphanDBMedia RPC failed: %v", err)
+	}
+}

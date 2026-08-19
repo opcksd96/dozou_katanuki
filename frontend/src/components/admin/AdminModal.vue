@@ -6,6 +6,7 @@ import ConfigPortal from './ConfigPortal.vue';
 import StashStatusView from './StashStatusView.vue';
 import WhitelistView from './WhitelistView.vue';
 import DatabaseView from './DatabaseView.vue';
+import AuditReportView from './AuditReportView.vue';
 
 const props = defineProps<{
   isOpen: boolean;
@@ -15,7 +16,7 @@ const emit = defineEmits<{
   (e: 'close'): void;
 }>();
 
-const activeTab = ref<'jobs' | 'config' | 'stash' | 'whitelist' | 'db'>('jobs');
+const activeTab = ref<'jobs' | 'config' | 'stash' | 'whitelist' | 'db' | 'audit'>('jobs');
 
 const {
   activeJob,
@@ -58,6 +59,15 @@ const {
   searchArticles,
   selectArticle,
   saveArticleTranslations,
+  // Audit (SPEC-AUDIT-001)
+  auditReport,
+  loadingAudit,
+  purgingFiles,
+  purgingDB,
+  auditStatus,
+  runAudit,
+  purgeOrphanFiles,
+  purgeOrphanDBMedia,
 } = useAdmin();
 
 // モーダルオープン時にデータ取得とイベントリスナー設定
@@ -86,6 +96,8 @@ watch(
       fetchWhitelists();
     } else if (tab === 'db') {
       searchArticles();
+    } else if (tab === 'audit' && !auditReport.value) {
+      runAudit(false, false);
     }
   }
 );
@@ -129,7 +141,7 @@ onUnmounted(() => {
                   SPEC-ADMINBOARD-001
                 </span>
               </h2>
-              <p class="text-xs text-slate-400">システム設定・ジョブ監視・Whitelist統治・DB翻訳エディタ</p>
+              <p class="text-xs text-slate-400">システム設定・ジョブ監視・Whitelist統治・DB翻訳エディタ・整合性監査</p>
             </div>
           </div>
           <button
@@ -213,6 +225,23 @@ onUnmounted(() => {
           >
             <span>🗄️</span> データベース閲覧 ＆ 翻訳
           </button>
+
+          <!-- 整合性監査 ＆ 孤立ファイルパージ (実稼働 SPEC-AUDIT-001) -->
+          <button
+            @click="activeTab = 'audit'"
+            class="py-3 px-3.5 border-b-2 font-semibold transition-all flex items-center gap-1.5 whitespace-nowrap"
+            :class="
+              activeTab === 'audit'
+                ? 'border-emerald-500 text-emerald-400 bg-emerald-500/5'
+                : 'border-transparent text-slate-400 hover:text-slate-200'
+            "
+          >
+            <span>🩺</span> 整合性監査 (Audit)
+            <span
+              v-if="auditReport && (!auditReport.integrity_ok || !auditReport.foreign_key_ok || (auditReport.orphan_files && auditReport.orphan_files.length > 0))"
+              class="w-2 h-2 rounded-full bg-amber-400 animate-pulse ml-0.5"
+            ></span>
+          </button>
         </div>
 
         <!-- モーダルボディ（スクロールエリア） -->
@@ -279,6 +308,20 @@ onUnmounted(() => {
               @search="searchArticles"
               @select="selectArticle"
               @saveTranslations="saveArticleTranslations"
+            />
+          </div>
+
+          <!-- 6. 整合性監査 ＆ 孤立ファイルパージ（実稼働 SPEC-AUDIT-001） -->
+          <div v-show="activeTab === 'audit'">
+            <AuditReportView
+              :report="auditReport"
+              :loading="loadingAudit"
+              :purgingFiles="purgingFiles"
+              :purgingDB="purgingDB"
+              :statusMessage="auditStatus"
+              @runAudit="runAudit"
+              @purgeOrphanFiles="purgeOrphanFiles"
+              @purgeOrphanDBMedia="purgeOrphanDBMedia"
             />
           </div>
         </div>

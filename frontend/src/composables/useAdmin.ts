@@ -242,6 +242,87 @@ const callUpdateArticleTranslations = async (id: string, ja: string, en: string,
   return true;
 };
 
+// --- Audit RPC & Mock (SPEC-AUDIT-001) ---
+let localMockAuditReport: any = {
+  executed_at: new Date().toISOString(),
+  integrity_ok: true,
+  integrity_errors: ['ok'],
+  foreign_key_ok: true,
+  foreign_key_errors: [],
+  orphan_db_media: [
+    {
+      media_id: 'mock_orphan_media_1',
+      article_id: 'deleted_art_99',
+      type: 'image',
+      download_url: 'https://example.com/img_orphan.jpg',
+      status: 'QUEUED',
+      reason: '親記事 (deleted_art_99) が存在しません',
+    },
+  ],
+  orphan_files: [
+    {
+      path: './stash/scenes/mock_orphan_scene_101.mp4',
+      file_name: 'mock_orphan_scene_101.mp4',
+      file_size: 15420000,
+      category: 'stash_scene',
+    },
+    {
+      path: './blobs/mock_orphan_blob_202.jpg',
+      file_name: 'mock_orphan_blob_202.jpg',
+      file_size: 245000,
+      category: 'blob',
+    },
+  ],
+  purged_file_count: 0,
+  purged_db_media_count: 0,
+  summary: '要クレンジング (孤立DB:1件, 孤立ファイル:2件)',
+};
+
+const callRunAudit = async (purgeFiles: boolean, purgeDB: boolean): Promise<any> => {
+  const app = getApp();
+  if (app && typeof app.RunAudit === 'function') {
+    return await app.RunAudit(purgeFiles, purgeDB);
+  }
+  const report = JSON.parse(JSON.stringify(localMockAuditReport));
+  report.executed_at = new Date().toISOString();
+  if (purgeFiles) {
+    report.purged_file_count = report.orphan_files.length;
+    report.orphan_files = [];
+    localMockAuditReport.orphan_files = [];
+  }
+  if (purgeDB) {
+    report.purged_db_media_count = report.orphan_db_media.length;
+    report.orphan_db_media = [];
+    localMockAuditReport.orphan_db_media = [];
+  }
+  if (report.orphan_files.length === 0 && report.orphan_db_media.length === 0) {
+    report.summary = '健全';
+  }
+  return report;
+};
+
+const callPurgeOrphanFiles = async (paths: string[]): Promise<number> => {
+  const app = getApp();
+  if (app && typeof app.PurgeOrphanFiles === 'function') {
+    return await app.PurgeOrphanFiles(paths);
+  }
+  localMockAuditReport.orphan_files = localMockAuditReport.orphan_files.filter(
+    (f: any) => !paths.includes(f.path)
+  );
+  return paths.length;
+};
+
+const callPurgeOrphanDBMedia = async (mediaIDs: string[]): Promise<number> => {
+  const app = getApp();
+  if (app && typeof app.PurgeOrphanDBMedia === 'function') {
+    return await app.PurgeOrphanDBMedia(mediaIDs);
+  }
+  localMockAuditReport.orphan_db_media = localMockAuditReport.orphan_db_media.filter(
+    (m: any) => !mediaIDs.includes(m.media_id)
+  );
+  return mediaIDs.length;
+};
+
 
 export function useAdmin() {
   const activeJob = ref<models.JobProgress | null>(null);
@@ -602,6 +683,104 @@ export function useAdmin() {
     }
   };
 
+  // --- Audit 整合性監査 ＆ パージ状態 (SPEC-AUDIT-001) ---
+  const auditReport = ref<any | null>(null);
+  const loadingAudit = ref(false);
+  const purgingFiles = ref(false);
+  const purgingDB = ref(false);
+  const auditStatus = ref<{ success: boolean; message: string } | null>(null);
+
+  const runAudit = async (purgeFiles = false, purgeDB = false) => {
+    loadingAudit.value = true;
+    auditStatus.value = null;
+    try {
+      const report = await callRunAudit(purgeFiles, purgeDB);
+      auditReport.value = report;
+      if (purgeFiles || purgeDB) {
+        auditStatus.value = {
+          success: true,
+          message: `監査とパージが完了しました (退避ファイル: ${report.purged_file_count || 0}件, 削除DBレコード: ${report.purged_db_media_count || 0}件)`,
+        };
+      } else {
+        auditStatus.value = {
+          success: true,
+          message: `整合性監査が完了しました: ${report.summary || '完了'}`,
+        };
+      }
+      setTimeout(() => (auditStatus.value = null), 5000);
+    } catch (err: any) {
+      console.error('[useAdmin] Failed to run audit:', err);
+      auditStatus.value = {
+        success: false,
+        message: `監査の実行に失敗しました: ${err?.message || err}`,
+      };
+    } finally {
+      loadingAudit.value = false;
+    }
+  };
+
+  const purgeOrphanFiles = async (paths?: string[]) => {
+    if (!auditReport.value) return;
+    const targetPaths = paths || (auditReport.value.orphan_files || []).map((f: any) => f.path);
+    if (targetPaths.length === 0) return;
+
+    if (!confirm(`${targetPaths.length} 件の孤立ファイルをOSのごみ箱へ退避しますか？`)) {
+      return;
+    }
+
+    purgingFiles.value = true;
+    try {
+      const count = await callPurgeOrphanFiles(targetPaths);
+      auditReport.value.orphan_files = (auditReport.value.orphan_files || []).filter(
+        (f: any) => !targetPaths.includes(f.path)
+      );
+      auditStatus.value = {
+        success: true,
+        message: `${count} 件の孤立ファイルをOSのごみ箱へ退避しました`,
+      };
+      setTimeout(() => (auditStatus.value = null), 4000);
+    } catch (err: any) {
+      console.error('[useAdmin] Failed to purge files:', err);
+      auditStatus.value = {
+        success: false,
+        message: `ファイル退避に失敗しました: ${err?.message || err}`,
+      };
+    } finally {
+      purgingFiles.value = false;
+    }
+  };
+
+  const purgeOrphanDBMedia = async (mediaIDs?: string[]) => {
+    if (!auditReport.value) return;
+    const targetIDs = mediaIDs || (auditReport.value.orphan_db_media || []).map((m: any) => m.media_id);
+    if (targetIDs.length === 0) return;
+
+    if (!confirm(`${targetIDs.length} 件の孤立DBメディアレコードを削除しますか？`)) {
+      return;
+    }
+
+    purgingDB.value = true;
+    try {
+      const count = await callPurgeOrphanDBMedia(targetIDs);
+      auditReport.value.orphan_db_media = (auditReport.value.orphan_db_media || []).filter(
+        (m: any) => !targetIDs.includes(m.media_id)
+      );
+      auditStatus.value = {
+        success: true,
+        message: `${count} 件の孤立DBレコードを削除しました`,
+      };
+      setTimeout(() => (auditStatus.value = null), 4000);
+    } catch (err: any) {
+      console.error('[useAdmin] Failed to purge DB records:', err);
+      auditStatus.value = {
+        success: false,
+        message: `DBレコード削除に失敗しました: ${err?.message || err}`,
+      };
+    } finally {
+      purgingDB.value = false;
+    }
+  };
+
   return {
     activeJob,
     jobList,
@@ -643,6 +822,15 @@ export function useAdmin() {
     searchArticles,
     selectArticle,
     saveArticleTranslations,
+    // Audit (SPEC-AUDIT-001)
+    auditReport,
+    loadingAudit,
+    purgingFiles,
+    purgingDB,
+    auditStatus,
+    runAudit,
+    purgeOrphanFiles,
+    purgeOrphanDBMedia,
   };
 }
 

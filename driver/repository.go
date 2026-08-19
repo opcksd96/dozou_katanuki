@@ -294,3 +294,73 @@ func (r *Repository) purgeOldBackups(destDir string, maxGenerations int) error {
 	return nil
 }
 
+// AuditDatabase は SQLite3 整合性監査 (PRAGMA) および孤立メディア・ファイルを総合検査します
+func (r *Repository) AuditDatabase(stashDir, blobsDir string) (*models.AuditReport, error) {
+	report := &models.AuditReport{
+		ExecutedAt: time.Now(),
+	}
+
+	// 1. PRAGMA integrity_check
+	integrityOK, integrityMsgs, err := RunIntegrityCheck(r.db)
+	if err != nil {
+		report.IntegrityOK = false
+		report.IntegrityErrors = []string{err.Error()}
+	} else {
+		report.IntegrityOK = integrityOK
+		report.IntegrityErrors = integrityMsgs
+	}
+
+	// 2. PRAGMA foreign_key_check
+	fkViolations, err := RunForeignKeyCheck(r.db)
+	if err != nil {
+		report.ForeignKeyOK = false
+	} else {
+		report.ForeignKeyOK = len(fkViolations) == 0
+		report.ForeignKeyErrors = fkViolations
+	}
+
+	// 3. 孤立 DB メディア検出
+	orphanMedia, err := FindOrphanDBMedia(r.db, stashDir, blobsDir)
+	if err == nil {
+		report.OrphanDBMedia = orphanMedia
+	}
+
+	// 4. 孤立ファイル検出
+	knownKeys, err := GetKnownMediaIdentifiers(r.db)
+	if err == nil {
+		orphanFiles, err := ScanOrphanFiles(stashDir, blobsDir, knownKeys)
+		if err == nil {
+			report.OrphanFiles = orphanFiles
+		}
+	}
+
+	// サマリー生成
+	summary := "健全"
+	if !report.IntegrityOK {
+		summary = "要修復 (SQLite ページ/インデックス破損検知)"
+	} else if !report.ForeignKeyOK {
+		summary = fmt.Sprintf("注意 (外部キー違反: %d件)", len(report.ForeignKeyErrors))
+	} else if len(report.OrphanDBMedia) > 0 || len(report.OrphanFiles) > 0 {
+		summary = fmt.Sprintf("要クレンジング (孤立DB:%d件, 孤立ファイル:%d件)", len(report.OrphanDBMedia), len(report.OrphanFiles))
+	}
+	report.Summary = summary
+
+	return report, nil
+}
+
+// PurgeOrphanFiles は指定された孤立ファイルをOSのごみ箱へ退避します
+func (r *Repository) PurgeOrphanFiles(paths []string) (int, error) {
+	count := 0
+	for _, p := range paths {
+		if err := MoveToRecycleBin(p); err == nil {
+			count++
+		}
+	}
+	return count, nil
+}
+
+// PurgeOrphanDBMedia は指定された media_id の DB レコードを物理削除します
+func (r *Repository) PurgeOrphanDBMedia(mediaIDs []string) (int, error) {
+	return DeleteDBMediaByIDs(r.db, mediaIDs)
+}
+
