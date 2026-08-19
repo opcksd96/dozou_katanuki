@@ -95,3 +95,34 @@ func (a *App) CancelJob(jobID string) error {
 	}
 	return a.jobOrchestrator.CancelJob(jobID)
 }
+
+// GetConfig は config.json (SPEC-CONFIG-001) の全設定を取得する Wails バインドメソッドです
+func (a *App) GetConfig() (*models.AppConfig, error) {
+	data, err := os.ReadFile("config.json")
+	if err != nil {
+		return nil, err
+	}
+	var cfg models.AppConfig
+	if err := json.Unmarshal(data, &cfg); err != nil {
+		return nil, err
+	}
+	return &cfg, nil
+}
+
+// SaveConfig は config.json (SPEC-CONFIG-001) を更新・保存する Wails バインドメソッドです
+func (a *App) SaveConfig(cfg *models.AppConfig) error {
+	if cfg == nil {
+		return nil
+	}
+	data, err := json.MarshalIndent(cfg, "", "  ")
+	if err != nil {
+		return err
+	}
+	// 改行を付与して保存
+	data = append(data, '\n')
+	if err := os.WriteFile("config.json", data, 0644); err != nil {
+		return err
+	}
+	log.Printf("[Wails RPC] SaveConfig: config.json updated successfully")
+	return nil
+}

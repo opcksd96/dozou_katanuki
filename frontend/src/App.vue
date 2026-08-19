@@ -6,6 +6,9 @@ import ArticleCard from './components/article/ArticleCard.vue';
 import AccountSelector from './components/timeline/AccountSelector.vue';
 import TimelineFilter from './components/timeline/TimelineFilter.vue';
 import MediaOverlay from './components/media/MediaOverlay.vue';
+import AdminModal from './components/admin/AdminModal.vue';
+
+const isAdminOpen = ref(false);
 
 const {
   articles, accounts, selectedAccount, currentFilter, systemLang,
@@ -49,6 +52,14 @@ onUnmounted(() => { observer?.disconnect(); });
           </h1>
           <p class="text-xs text-slate-400 font-mono">Dynamic Archival System (SPEC-FRONTEND-001)</p>
         </div>
+        <button
+          @click="isAdminOpen = true"
+          title="管理ダッシュボード ＆ 設定を開く"
+          class="flex items-center gap-1.5 px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-700/80 rounded-lg text-xs font-semibold transition-all shadow-sm"
+        >
+          <span>⚙️</span>
+          <span>設定・ジョブ管理</span>
+        </button>
       </div>
       <AccountSelector :accounts="accounts" :selectedId="selectedAccount" @select="selectAccount" />
     </header>
@@ -105,6 +116,11 @@ onUnmounted(() => { observer?.disconnect(); });
       @close="closeMedia"
       @next="nextMedia"
       @prev="prevMedia"
+    />
+
+    <AdminModal
+      :isOpen="isAdminOpen"
+      @close="isAdminOpen = false"
     />
   </div>
 </template>

@@ -1,12 +1,14 @@
 // frontend/vite.config.js (100行以下)
 import { defineConfig } from 'vite';
 import vue from '@vitejs/plugin-vue';
+import tailwindcss from '@tailwindcss/vite';
 import path from 'path';
 import fs from 'fs';
 
 export default defineConfig({
   plugins: [
     vue(),
+    tailwindcss(),
     {
       name: 'avatar-pure-provider',
       configureServer(server) {
