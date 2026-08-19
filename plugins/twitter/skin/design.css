@@ -1,13 +1,108 @@
-/* plugins/twitter/skin/design.css (100行以下) */
-.twitter-skin-card {
-  border-color: rgba(30, 41, 59, 0.8);
-  transition: all 0.2s ease-in-out;
+/* plugins/twitter/skin/design.css (SPEC-PLUGIN-001 / 100行以下厳守) */
+
+/* Twitter/X 本家準拠カードコンテナ */
+.twitter-card {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 16px;
+  background-color: #020617;
+  border-bottom: 1px solid #1e293b;
+  text-align: left;
+  transition: background-color 0.15s ease;
 }
 
-.twitter-skin-card:hover {
-  border-color: rgba(59, 130, 246, 0.4);
+.twitter-card:hover {
+  background-color: rgba(255, 255, 255, 0.02);
 }
 
-.twitter-accent-text {
+/* 左カラム: アバター */
+.twitter-avatar-col {
+  flex-shrink: 0;
+  width: 40px;
+}
+
+/* 右カラム: メインコンテンツ (ヘッダー、本文、メディア、アクション) */
+.twitter-content-col {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  text-align: left;
+}
+
+/* ユーザーヘッダー行 (名前, handle, 日時) */
+.twitter-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  line-height: 1.25;
+  text-align: left;
+}
+
+.twitter-user-info {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.twitter-display-name {
+  font-weight: 700;
+  color: #f8fafc;
+  font-size: 14px;
+}
+
+.twitter-handle {
+  color: #64748b;
+  font-size: 13px;
+  font-family: ui-monospace, monospace;
+}
+
+.twitter-timestamp {
+  color: #64748b;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+/* 本文テキスト */
+.twitter-body-text {
+  font-size: 14px;
+  line-height: 1.5;
+  color: #f1f5f9;
+  word-break: break-word;
+  white-space: pre-wrap;
+  text-align: left;
+}
+
+/* リンクカラー */
+.twitter-accent-text,
+.twitter-card a,
+.hashtag-link,
+.mention-link,
+.external-link {
   color: #1d9bf0;
+  text-decoration: none;
+}
+
+.twitter-card a:hover,
+.hashtag-link:hover,
+.mention-link:hover,
+.external-link:hover {
+  text-decoration: underline;
+}
+
+/* アクションバー */
+.twitter-actions-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  max-width: 420px;
+  margin-top: 4px;
+  color: #64748b;
+  font-size: 12px;
 }

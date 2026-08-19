@@ -64,12 +64,14 @@ onUnmounted(() => { observer?.disconnect(); });
       <AccountSelector :accounts="accounts" :selectedId="selectedAccount" @select="selectAccount" />
     </header>
 
-    <main class="w-full max-w-2xl">
-      <TimelineFilter :currentFilter="currentFilter" @filter="setFilter" />
+    <main class="w-full max-w-2xl border-x border-slate-800 bg-slate-950 min-h-screen">
+      <div class="p-3 border-b border-slate-800">
+        <TimelineFilter :currentFilter="currentFilter" @filter="setFilter" />
+      </div>
 
       <!-- 初期ロード時のスケルトン表示 -->
-      <div v-if="articles.length === 0 && loading" class="space-y-4">
-        <div v-for="i in 3" :key="i" class="bg-slate-900 border border-slate-800 rounded-xl p-4 animate-pulse">
+      <div v-if="articles.length === 0 && loading" class="p-4 space-y-4">
+        <div v-for="i in 3" :key="i" class="bg-slate-900/50 border border-slate-800/80 rounded-xl p-4 animate-pulse">
           <div class="flex items-center space-x-3 mb-3">
             <div class="w-10 h-10 bg-slate-800 rounded-full"></div>
             <div class="space-y-1.5 flex-1">
@@ -85,14 +87,16 @@ onUnmounted(() => { observer?.disconnect(); });
         </div>
       </div>
 
-      <ArticleCard
-        v-for="article in articles"
-        :key="article.id"
-        :article="article"
-        :targetLang="systemLang"
-        @toggleLike="toggleLike"
-        @clickMedia="(media, list, art) => openMedia(media, list, art)"
-      />
+      <div class="divide-y divide-slate-800">
+        <ArticleCard
+          v-for="article in articles"
+          :key="article.id"
+          :article="article"
+          :targetLang="systemLang"
+          @toggleLike="toggleLike"
+          @clickMedia="(media, list, art) => openMedia(media, list, art)"
+        />
+      </div>
 
       <div ref="observerTarget" class="py-8 flex flex-col items-center justify-center text-xs text-slate-500 font-mono gap-2">
         <span v-if="loading && articles.length > 0">Loading more archives...</span>
