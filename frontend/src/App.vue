@@ -1,12 +1,14 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref } from 'vue';
+import { computed, onMounted, onUnmounted, ref } from 'vue';
 import { useTimeline } from './composables/useTimeline';
 import { useMediaOverlay } from './composables/useMediaOverlay';
 import ArticleCard from './components/article/ArticleCard.vue';
 import AccountSelector from './components/timeline/AccountSelector.vue';
+import AccountHeroHeader from './components/timeline/AccountHeroHeader.vue';
 import TimelineFilter from './components/timeline/TimelineFilter.vue';
 import MediaOverlay from './components/media/MediaOverlay.vue';
 import AdminModal from './components/admin/AdminModal.vue';
+import { EventsOn, EventsOff } from '../wailsjs/runtime/runtime';
 
 const isAdminOpen = ref(false);
 
@@ -20,10 +22,32 @@ const {
   activeMedia, activeArticle, hasNext, hasPrev, openMedia, closeMedia, nextMedia, prevMedia,
 } = useMediaOverlay();
 
+const currentAccountObj = computed(() => {
+  if (selectedAccount.value === 'all') return null;
+  return accounts.value.find((acc) => acc.numeric_id === selectedAccount.value) || null;
+});
+
 const observerTarget = ref<HTMLElement | null>(null);
 let observer: IntersectionObserver | null = null;
 
+const handleGlobalKeyDown = (e: KeyboardEvent) => {
+  if ((e.ctrlKey || e.metaKey) && e.key === ',') {
+    e.preventDefault();
+    isAdminOpen.value = true;
+  }
+};
+
 onMounted(() => {
+  try {
+    EventsOn('open:admin', () => {
+      isAdminOpen.value = true;
+    });
+  } catch (err) {
+    console.warn('Wails EventsOn not available (browser mode?):', err);
+  }
+
+  window.addEventListener('keydown', handleGlobalKeyDown);
+
   observer = new IntersectionObserver((entries) => {
     if (entries[0].isIntersecting && hasMore.value && !loading.value) {
       loadMore();
@@ -32,11 +56,17 @@ onMounted(() => {
   if (observerTarget.value) observer.observe(observerTarget.value);
 });
 
-onUnmounted(() => { observer?.disconnect(); });
+onUnmounted(() => {
+  observer?.disconnect();
+  window.removeEventListener('keydown', handleGlobalKeyDown);
+  try {
+    EventsOff('open:admin');
+  } catch {}
+});
 </script>
 
 <template>
-  <div class="min-h-screen bg-slate-950 text-slate-100 flex flex-col items-center py-6 px-4">
+  <div class="min-h-screen bg-slate-950 text-slate-100 flex flex-col items-center py-6 px-4 relative">
     <header class="w-full max-w-2xl pb-4 border-b border-slate-800 mb-4">
       <div class="flex items-center justify-between mb-3 gap-2">
         <div>
@@ -45,7 +75,7 @@ onUnmounted(() => { observer?.disconnect(); });
             <button
               @click="reloadAll"
               title="データを再読み込み (Ctrl+R / F5)"
-              class="text-xs text-slate-400 hover:text-blue-400 transition-colors p-1 rounded hover:bg-slate-800"
+              class="text-xs text-slate-400 hover:text-blue-400 transition-colors p-1 rounded hover:bg-slate-800 cursor-pointer"
             >
               🔄
             </button>
@@ -54,8 +84,8 @@ onUnmounted(() => { observer?.disconnect(); });
         </div>
         <button
           @click="isAdminOpen = true"
-          title="管理ダッシュボード ＆ 設定を開く"
-          class="flex items-center gap-1.5 px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-700/80 rounded-lg text-xs font-semibold transition-all shadow-sm"
+          title="管理ダッシュボード ＆ 設定を開く (Ctrl+,)"
+          class="flex items-center gap-1.5 px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-700/80 rounded-lg text-xs font-semibold transition-all shadow-sm cursor-pointer"
         >
           <span>⚙️</span>
           <span>設定・ジョブ管理</span>
@@ -65,6 +95,16 @@ onUnmounted(() => { observer?.disconnect(); });
     </header>
 
     <main class="w-full max-w-2xl border-x border-slate-800 bg-slate-950 min-h-screen">
+      <!-- 個別アカウント選択時のヒーローヘッダ (SPEC-FRONTEND-001) -->
+      <div v-if="currentAccountObj" class="p-3 pb-0">
+        <AccountHeroHeader
+          :account="currentAccountObj"
+          :totalArticles="articles.length"
+          @backToAll="selectAccount('all')"
+          @refresh="reloadAll"
+        />
+      </div>
+
       <div class="p-3 border-b border-slate-800">
         <TimelineFilter :currentFilter="currentFilter" @filter="setFilter" />
       </div>
@@ -105,13 +145,24 @@ onUnmounted(() => { observer?.disconnect(); });
           <span>No archive items found.</span>
           <button
             @click="reloadAll"
-            class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded border border-slate-700 text-xs transition-colors flex items-center gap-1.5"
+            class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded border border-slate-700 text-xs transition-colors flex items-center gap-1.5 cursor-pointer"
           >
             <span>🔄</span> 最新の情報に更新 (Ctrl+R)
           </button>
         </template>
       </div>
     </main>
+
+    <!-- フローティングクイック設定ボタン -->
+    <div class="fixed bottom-6 right-6 z-30">
+      <button
+        @click="isAdminOpen = true"
+        title="設定・ジョブ管理を開く (Ctrl+,)"
+        class="w-12 h-12 bg-blue-600 hover:bg-blue-500 text-white rounded-full shadow-lg shadow-blue-600/30 flex items-center justify-center text-xl transition-all transform hover:scale-105 active:scale-95 border border-blue-400/30 cursor-pointer"
+      >
+        ⚙️
+      </button>
+    </div>
 
     <MediaOverlay
       :media="activeMedia"

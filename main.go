@@ -20,7 +20,6 @@ import (
 var assets embed.FS
 
 func main() {
-	// Stashapp サーバー URL (ローカル閉塞 :9999)
 	stashURL, err := url.Parse("http://127.0.0.1:9999")
 	if err != nil {
 		println("Stash URL Parse Error:", err.Error())
@@ -29,15 +28,22 @@ func main() {
 	unifiedHandler := middleware.NewUnifiedHandler("./assets", stashURL)
 	app := NewApp(unifiedHandler)
 
-	// OS ネイティブメニュー（Ctrl+R / F5 アクセラレータ登録）
+	// OS ネイティブメニュー
 	appMenu := menu.NewMenu()
-	viewMenu := appMenu.AddSubmenu("View")
-	viewMenu.AddText("Reload", keys.CmdOrCtrl("r"), func(_ *menu.CallbackData) {
+	toolsMenu := appMenu.AddSubmenu("設定・管理 (Admin)")
+	toolsMenu.AddText("⚙️ 設定・Admin Board...", keys.CmdOrCtrl(","), func(_ *menu.CallbackData) {
+		if app.ctx != nil {
+			runtime.EventsEmit(app.ctx, "open:admin")
+		}
+	})
+
+	viewMenu := appMenu.AddSubmenu("表示 (View)")
+	viewMenu.AddText("再読み込み (Reload)", keys.CmdOrCtrl("r"), func(_ *menu.CallbackData) {
 		if app.ctx != nil {
 			runtime.WindowReload(app.ctx)
 		}
 	})
-	viewMenu.AddText("Refresh", keys.Key("f5"), func(_ *menu.CallbackData) {
+	viewMenu.AddText("リフレッシュ (Refresh)", keys.Key("f5"), func(_ *menu.CallbackData) {
 		if app.ctx != nil {
 			runtime.WindowReload(app.ctx)
 		}
@@ -48,11 +54,11 @@ func main() {
 		Width:            1024,
 		Height:           768,
 		StartHidden:      true,
-		BackgroundColour: &options.RGBA{R: 2, G: 6, B: 23, A: 255}, // slate-950
+		BackgroundColour: &options.RGBA{R: 2, G: 6, B: 23, A: 255},
 		Menu:             appMenu,
 		AssetServer: &assetserver.Options{
 			Assets:  assets,
-			Handler: unifiedHandler, // アバター解決 & Stashリバースプロキシ & Job API
+			Handler: unifiedHandler,
 		},
 		OnStartup:  app.startup,
 		OnDomReady: app.domReady,
@@ -62,9 +68,7 @@ func main() {
 			WebviewIsTransparent: false,
 			WindowIsTranslucent:  false,
 		},
-		Bind: []interface{}{
-			app,
-		},
+		Bind: []interface{}{app},
 	})
 
 	if err != nil {

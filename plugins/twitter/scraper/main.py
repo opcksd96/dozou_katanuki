@@ -1,24 +1,31 @@
 # plugins/twitter/scraper/main.py (100行以下)
 import argparse
+import os
 import sys
 import time
-from core.scraper import Scraper
-from core.mutator import Mutator
+
+CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
+if CURRENT_DIR not in sys.path:
+    sys.path.insert(0, CURRENT_DIR)
+
 from core.downloader import Downloader
+from core.mutator import Mutator
+from core.scraper import Scraper
+from core.warc_importer import WarcImporter
 from parsers.twitter_parser import TwitterParser
 
 
 def emit_progress(current: int, total: int, message: str) -> None:
-    """Go Middleware (job_scanner) 互換の進捗 stdout フラッシュ出力"""
+    """Go Middleware 互換の進捗 stdout フラッシュ出力"""
     print(f"PROGRESS: {current}/{total} | {message}", flush=True)
 
 
-def run_auto_salvage(platform: str, account: str, limit: int) -> None:
+def run_auto_salvage(platform: str, account: str, limit: int, db_path: str, storage_dir: str) -> None:
     emit_progress(0, limit, f"Starting auto salvage for @{account} on {platform}...")
     scraper = Scraper(platform=platform)
     parser = TwitterParser()
-    mutator = Mutator()
-    downloader = Downloader()
+    mutator = Mutator(db_path=db_path)
+    downloader = Downloader(db_path=db_path, storage_dir=storage_dir)
 
     snapshots = scraper.search_cdx(account=account, limit=limit)
     total_snaps = len(snapshots)
@@ -32,14 +39,14 @@ def run_auto_salvage(platform: str, account: str, limit: int) -> None:
         ts = snap.get("timestamp", "")
         orig = snap.get("original", "")
         emit_progress(idx, total_snaps, f"Fetching [{idx}/{total_snaps}] ({ts})...")
-        raw_text = scraper.fetch_snapshot(ts, orig)
+        raw_text = scraper.fetch_snapshot(ts, orig, account=account)
         if raw_text:
             parsed = parser.parse_record(raw_text, orig)
             if parsed and mutator.upsert_record(parsed):
                 post_id = parsed["post"]["id"]
                 downloader.process_queued_media(post_id)
                 success_count += 1
-        time.sleep(0.1)
+        time.sleep(0.05)
 
     emit_progress(total_snaps, total_snaps, f"Completed: Saved {success_count}/{total_snaps} posts.")
 
@@ -52,17 +59,21 @@ def main():
     parser.add_argument("-l", "--limit", type=int, default=50, help="Max posts limit")
     parser.add_argument("-w", "--warc-path", default="", help="WARC file path for manual import")
     parser.add_argument("--offline", action="store_true", help="Offline flag")
+    parser.add_argument("--db-path", default="archive.db", help="Path to SQLite archive.db")
+    parser.add_argument("--storage-dir", default="", help="Path to media storage directory")
     args = parser.parse_args()
 
     if args.mode == "auto":
         if not args.account:
             print("[FATAL] --account is required in auto mode", file=sys.stderr)
             sys.exit(1)
-        run_auto_salvage(args.platform, args.account, args.limit)
+        run_auto_salvage(args.platform, args.account, args.limit, args.db_path, args.storage_dir)
     else:
-        emit_progress(0, 1, f"Manual WARC import mode selected: {args.warc_path}")
-        time.sleep(0.5)
-        emit_progress(1, 1, "WARC extraction completed (manual dummy).")
+        if not args.warc_path:
+            print("[FATAL] --warc-path is required in manual mode", file=sys.stderr)
+            sys.exit(1)
+        importer = WarcImporter(args.warc_path, db_path=args.db_path, storage_dir=args.storage_dir)
+        importer.run_import(progress_callback=emit_progress)
 
 
 if __name__ == "__main__":

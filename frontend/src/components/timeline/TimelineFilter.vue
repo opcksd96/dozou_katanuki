@@ -24,7 +24,7 @@ const tabs: { label: string; value: FilterType }[] = [
       :key="tab.value"
       @click="emit('filter', tab.value)"
       :class="[
-        'flex-1 py-3 text-xs font-semibold transition-colors relative text-center',
+        'flex-1 py-3 text-xs font-semibold transition-colors relative text-center cursor-pointer',
         currentFilter === tab.value ? 'text-blue-400' : 'text-slate-400 hover:text-slate-200'
       ]"
     >
