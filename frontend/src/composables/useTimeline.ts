@@ -1,70 +1,75 @@
 // frontend/src/composables/useTimeline.ts (100行以下)
 import { ref, onMounted } from 'vue';
-import { GetTimeline } from '../../wailsjs/go/main/App';
-import type { RenderTree } from '../models/RenderTree';
+import { GetTimeline, GetAccounts } from '../../wailsjs/go/main/App';
+import type { RenderTree, RenderAuthor, RenderMedia } from '../models/RenderTree';
 
 export type LanguageCode = 'original' | 'ja' | 'en' | 'zh';
+export type FilterType = 'all' | 'media' | 'reposts' | 'bookmarks';
 
 export function useTimeline(platform: string = 'twitter') {
   const articles = ref<RenderTree[]>([]);
-  const loading = ref(false);
-  const error = ref<string | null>(null);
+  const accounts = ref<RenderAuthor[]>([]);
+  const selectedAccount = ref<string>('all');
+  const currentFilter = ref<FilterType>('all');
   const currentLang = ref<LanguageCode>('ja');
+  const loading = ref(false);
+  const hasMore = ref(true);
+  const activeMedia = ref<RenderMedia | null>(null);
 
-  // Wails Goバックエンドからタイムライン取得
-  const fetchTimeline = async (
-    accountID: string = 'all',
-    filter: string = 'all',
-    limit: number = 50,
-    offset: number = 0
-  ) => {
-    loading.value = true;
-    error.value = null;
+  const fetchAccounts = async () => {
     try {
-      const result = await GetTimeline(platform, accountID, filter, limit, offset);
-      console.log('[useTimeline] 受領データ:', result);
-      if (result) {
-        articles.value = offset === 0 ? result : [...articles.value, ...result];
-      }
-    } catch (err: any) {
-      console.error('[useTimeline] Fetch failed:', err);
-      error.value = err?.message || 'Failed to fetch timeline';
+      accounts.value = await GetAccounts(platform) || [];
+    } catch (e) {
+      console.error('[useTimeline] Failed to fetch accounts:', e);
+    }
+  };
+
+  const fetchTimeline = async (reset: boolean = false) => {
+    if (loading.value || (!reset && !hasMore.value)) return;
+    loading.value = true;
+    const offset = reset ? 0 : articles.value.length;
+    try {
+      const res = await GetTimeline(platform, selectedAccount.value, currentFilter.value, 50, offset);
+      if (reset) articles.value = res || [];
+      else articles.value.push(...(res || []));
+      hasMore.value = (res || []).length === 50;
+    } catch (e) {
+      console.error('[useTimeline] Fetch timeline failed:', e);
     } finally {
       loading.value = false;
     }
   };
 
-  // 言語切り替え
-  const setLanguage = (lang: LanguageCode) => {
-    currentLang.value = lang;
+  const selectAccount = (id: string) => {
+    selectedAccount.value = id;
+    hasMore.value = true;
+    fetchTimeline(true);
   };
 
-  // いいね（ブックマーク）状態の即時反転
+  const setFilter = (filter: FilterType) => {
+    currentFilter.value = filter;
+    hasMore.value = true;
+    fetchTimeline(true);
+  };
+
+  const setLanguage = (lang: LanguageCode) => { currentLang.value = lang; };
+
   const toggleLike = (id: string) => {
     const target = articles.value.find((item) => item.id === id);
-    if (target) {
-      target.is_liked = !target.is_liked;
-    }
+    if (target) target.is_liked = !target.is_liked;
   };
 
-  // メディアの再取得ハンドラ
-  const retryDownload = (mediaId: string) => {
-    console.log('[useTimeline] Retry download requested for media:', mediaId);
-  };
+  const openLightbox = (m: RenderMedia) => { activeMedia.value = m; };
+  const closeLightbox = () => { activeMedia.value = null; };
 
-  // マウント時に自動で初期データを取得
   onMounted(() => {
-    fetchTimeline();
+    fetchAccounts();
+    fetchTimeline(true);
   });
 
   return {
-    articles,
-    loading,
-    error,
-    currentLang,
-    setLanguage,
-    toggleLike,
-    retryDownload,
-    fetchTimeline,
+    articles, accounts, selectedAccount, currentFilter, currentLang,
+    loading, hasMore, activeMedia, selectAccount, setFilter, setLanguage,
+    toggleLike, openLightbox, closeLightbox, loadMore: () => fetchTimeline(false),
   };
 }

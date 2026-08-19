@@ -3,9 +3,9 @@ package models
 
 type RenderContent struct {
 	Original string `json:"original"`
-	JA       string `json:"ja"`
-	EN       string `json:"en"`
-	ZH       string `json:"zh"`
+	JA       string `json:"ja,omitempty"`
+	EN       string `json:"en,omitempty"`
+	ZH       string `json:"zh,omitempty"`
 }
 
 type RenderAuthor struct {
@@ -13,20 +13,31 @@ type RenderAuthor struct {
 	Handle      string `json:"handle"`
 	DisplayName string `json:"display_name"`
 	AvatarURL   string `json:"avatar_url"`
-	Bio         string `json:"bio"`
+	Bio         string `json:"bio,omitempty"`
+}
+
+type RenderMediaURLs struct {
+	Stream    string `json:"stream,omitempty"`
+	Image     string `json:"image,omitempty"`
+	Thumbnail string `json:"thumbnail,omitempty"`
+	Original  string `json:"original,omitempty"`
 }
 
 type RenderMedia struct {
-	Type         string   `json:"type"`
-	URLs         []string `json:"urls"`
-	FailedReason string   `json:"failed_reason,omitempty"`
+	ID             string          `json:"id"`
+	Type           string          `json:"type"`
+	DownloadStatus string          `json:"download_status"`
+	FailedReason   string          `json:"failed_reason,omitempty"`
+	URLs           RenderMediaURLs `json:"urls"`
+	Width          int             `json:"width,omitempty"`
+	Height         int             `json:"height,omitempty"`
 }
 
-// RenderMetrics は投稿への反応統計データです
 type RenderMetrics struct {
-	Replies int `json:"replies"`
-	Reposts int `json:"reposts"`
-	Likes   int `json:"likes"`
+	Replies  int `json:"replies"`
+	Retweets int `json:"retweets"`
+	Likes    int `json:"likes"`
+	Views    int `json:"views,omitempty"`
 }
 
 // RenderTree はフロントエンド描画用の完成データ構造体です
@@ -39,5 +50,7 @@ type RenderTree struct {
 	Media          []RenderMedia `json:"media"`
 	Metrics        RenderMetrics `json:"metrics"`
 	IsLiked        bool          `json:"is_liked"`
+	IsPinned       bool          `json:"is_pinned"`
 	SourceURL      string        `json:"source_url"`
+	ParentID       string        `json:"parent_id,omitempty"`
 }

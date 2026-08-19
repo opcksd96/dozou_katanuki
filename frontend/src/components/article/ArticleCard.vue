@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import type { RenderTree } from '../../models/RenderTree';
-import type { SupportedLang } from '../../composables/useTimeline';
+import type { RenderTree, RenderMedia } from '../../models/RenderTree';
+import type { LanguageCode } from '../../composables/useTimeline';
 import ArticleHeader from './ArticleHeader.vue';
 import ArticleBody from './ArticleBody.vue';
 import MediaGrid from '../media/MediaGrid.vue';
@@ -8,12 +8,13 @@ import ArticleStats from './ArticleStats.vue';
 
 defineProps<{
   article: RenderTree;
-  currentLang: SupportedLang;
+  currentLang: LanguageCode;
 }>();
 
 const emit = defineEmits<{
   (e: 'toggleLike', id: string): void;
   (e: 'retryMedia', mediaId: string): void;
+  (e: 'clickMedia', media: RenderMedia): void;
 }>();
 </script>
 
@@ -26,7 +27,11 @@ const emit = defineEmits<{
       :isPinned="article.is_pinned"
     />
     <ArticleBody :content="article.content" :currentLang="currentLang" />
-    <MediaGrid :media="article.media" @retry="(mediaId) => emit('retryMedia', mediaId)" />
+    <MediaGrid
+      :media="article.media"
+      @retry="(mediaId) => emit('retryMedia', mediaId)"
+      @clickMedia="(media) => emit('clickMedia', media)"
+    />
     <ArticleStats :metrics="article.metrics" :isLiked="article.is_liked" @toggleLike="emit('toggleLike', article.id)" />
   </article>
 </template>

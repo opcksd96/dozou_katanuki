@@ -42,6 +42,14 @@ func (a *App) shutdown(ctx context.Context) {
 	log.Println("[App] Application shutting down safely...")
 }
 
+// GetAccounts は登録されている全アカウントのリストを供給する Wails バインドメソッドです
+func (a *App) GetAccounts(platform string) ([]models.RenderAuthor, error) {
+	if a.timelineService == nil {
+		return nil, fmt.Errorf("timeline service is not initialized")
+	}
+	return a.timelineService.GetAccounts(platform)
+}
+
 // GetTimeline はフロントエンドへ RenderTree 配列を供給する Wails バインドメソッドです
 func (a *App) GetTimeline(platform, accountID, filter string, limit, offset int) ([]models.RenderTree, error) {
 	if a.timelineService == nil {

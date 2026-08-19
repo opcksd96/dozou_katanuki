@@ -8,6 +8,7 @@ defineProps<{
 
 const emit = defineEmits<{
   (e: 'retry', mediaId: string): void;
+  (e: 'clickMedia', media: RenderMedia): void;
 }>();
 </script>
 
@@ -19,14 +20,15 @@ const emit = defineEmits<{
         <template v-if="item.download_status === 'COMPLETED'">
           <img
             v-if="item.type === 'image' || item.type === 'gif'"
-            :src="item.urls.image || item.urls.thumbnail"
+            :src="item.urls.image || item.urls.thumbnail || item.urls.original"
             :alt="item.id"
-            class="w-full h-auto max-h-[400px] object-cover hover:opacity-95 transition-opacity"
+            class="w-full h-auto max-h-[400px] object-cover hover:opacity-95 transition-opacity cursor-pointer"
             loading="lazy"
+            @click="emit('clickMedia', item)"
           />
           <video
             v-else-if="item.type === 'video'"
-            :src="item.urls.stream"
+            :src="item.urls.stream || item.urls.original"
             controls
             preload="metadata"
             class="w-full max-h-[400px]"

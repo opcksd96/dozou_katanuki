@@ -17,6 +17,25 @@ func NewTimelineService(repo *driver.Repository) *TimelineService {
 	return &TimelineService{repo: repo}
 }
 
+// GetAccounts は登録されている全アカウントの RenderAuthor リストを返却します
+func (s *TimelineService) GetAccounts(platform string) ([]models.RenderAuthor, error) {
+	accounts, err := s.repo.GetAccounts()
+	if err != nil {
+		return nil, err
+	}
+	authors := make([]models.RenderAuthor, 0, len(accounts))
+	for _, acc := range accounts {
+		avatarURL := AuditAndResolveAvatar(platform, time.Now(), acc.ProfileHistory)
+		authors = append(authors, models.RenderAuthor{
+			NumericID:   acc.NumericID,
+			Handle:      acc.Username,
+			DisplayName: acc.DisplayName,
+			AvatarURL:   avatarURL,
+		})
+	}
+	return authors, nil
+}
+
 // FetchTimeline はパラメータ検証を経て RenderTree 配列を一方向データフローで供給します
 func (s *TimelineService) FetchTimeline(platform, accountID, filter string, limit, offset int) ([]models.RenderTree, error) {
 	if platform == "" || accountID == "" {

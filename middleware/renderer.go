@@ -28,11 +28,12 @@ func ToRenderTree(item models.Article, platform string) models.RenderTree {
 		},
 		Media: mapMediaToRenderMedia(item.Media),
 		Metrics: models.RenderMetrics{
-			Replies: 0,
-			Reposts: 0,
-			Likes:   0,
+			Replies:  0,
+			Retweets: 0,
+			Likes:    0,
 		},
 		IsLiked:   item.IsLiked,
+		IsPinned:  false,
 		SourceURL: item.WaybackURL,
 	}
 }
@@ -40,18 +41,34 @@ func ToRenderTree(item models.Article, platform string) models.RenderTree {
 func mapMediaToRenderMedia(mediaList []models.Media) []models.RenderMedia {
 	result := make([]models.RenderMedia, 0, len(mediaList))
 	for _, m := range mediaList {
-		var urls []string
-		if m.DownloadStatus == "COMPLETED" {
+		var mediaURLs models.RenderMediaURLs
+		mediaURLs.Original = m.DownloadURL
+
+		if m.DownloadStatus == "COMPLETED" && (m.StashSceneID.Valid || m.StashImageID.Valid) {
 			if m.Type == "video" || m.Type == "gif" {
-				urls = append(urls, fmt.Sprintf("/stash-proxy/scene/%s/stream", m.StashSceneID.String))
+				mediaURLs.Stream = fmt.Sprintf("/stash-proxy/scene/%s/stream", m.StashSceneID.String)
 			} else {
-				urls = append(urls, fmt.Sprintf("/stash-proxy/image/%s/file", m.StashImageID.String))
+				mediaURLs.Image = fmt.Sprintf("/stash-proxy/image/%s/file", m.StashImageID.String)
+				mediaURLs.Thumbnail = fmt.Sprintf("/stash-proxy/image/%s/file", m.StashImageID.String)
+			}
+		} else {
+			// 未ダウンロード（Stash未登録）時は原本/Wayback外部URLを直引き
+			if m.Type == "video" || m.Type == "gif" {
+				mediaURLs.Stream = m.DownloadURL
+			} else {
+				mediaURLs.Image = m.DownloadURL
+				mediaURLs.Thumbnail = m.DownloadURL
 			}
 		}
+
 		result = append(result, models.RenderMedia{
-			Type:         m.Type,
-			URLs:         urls,
-			FailedReason: m.FailedReason.String,
+			ID:             m.MediaID,
+			Type:           m.Type,
+			DownloadStatus: m.DownloadStatus,
+			FailedReason:   m.FailedReason.String,
+			URLs:           mediaURLs,
+			Width:          m.Width,
+			Height:         m.Height,
 		})
 	}
 	return result

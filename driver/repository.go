@@ -15,6 +15,12 @@ func NewRepository(db *gorm.DB) *Repository {
 	return &Repository{db: db}
 }
 
+func (r *Repository) GetAccounts() ([]models.Account, error) {
+	var accounts []models.Account
+	err := r.db.Preload("ProfileHistory").Order("username ASC").Find(&accounts).Error
+	return accounts, err
+}
+
 func (r *Repository) GetAccountHistories(accountID string) ([]models.AccountProfileHistory, error) {
 	var histories []models.AccountProfileHistory
 	err := r.db.Where("account_id = ?", accountID).Order("avatar_seq desc").Find(&histories).Error
@@ -28,6 +34,9 @@ func (r *Repository) FetchArticles(accountID, filter string, limit, offset int) 
 		Preload("Account.ProfileHistory").
 		Preload("Media").
 		Order("created_at DESC")
+
+	// 外向きリツイートの排除（リツイート対象がアクティブなホワイトリストに存在しない投稿を除外）
+	query = query.Where("is_repost = ? OR reply_to_handle IN (SELECT value FROM whitelists WHERE is_active = ?)", false, true)
 
 	if accountID != "all" {
 		query = query.Where("account_id = ?", accountID)

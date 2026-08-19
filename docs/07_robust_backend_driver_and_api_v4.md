@@ -246,10 +246,23 @@ Python非常駐サイドカー（Mutator）または手動WARCインポートバ
 | `limit` | int | 任意 | `50` | 最大取得件数（最大50） |
 | `offset` | int | 任意 | `0` | ページネーション開始位置（オフセット） |
 
-*   **データベース最適化クエリ (GORM)**:
+*   **データベース最適化クエリ (GORM) ＆ 統治フィルタリング**:
+    *   **外向きリツイート（Outbound Retweet）のSQLレベル排除**:
+        *   whitelist内のアカウントがwhitelist外のユーザーの投稿をリツイートした場合、タイムラインのノイズとなるため、クエリ段階で排除（`is_repost = false OR reply_to_handle IN (SELECT value FROM whitelists WHERE is_active = true)`）します。
+        *   これにより、ミドルウェアやUI側での件数欠落を防ぎ、50件固定のページネーション整合性を100%維持します。
+    *   **whitelist外アカウントのメディア直引き（ダウンロード回避）ポリシー**:
+        *   whitelist外の投稿（または未保全メディア）は Stash へのダウンロードを回避し、原本/Wayback CDX 等の外部URLを直引き（Direct External Proxy）することでローカルストレージ消費を最小化します。
     ```go
     // GORMクエリの構築例
-    query := db.Model(&models.Article{}).Preload("Account").Preload("Media").Order("created_at DESC")
+    query := db.Model(&models.Article{}).
+        Preload("Account").
+        Preload("Account.ProfileHistory").
+        Preload("Media").
+        Order("created_at DESC")
+
+    // 外向きリツイートの排除
+    query = query.Where("is_repost = ? OR reply_to_handle IN (SELECT value FROM whitelists WHERE is_active = ?)", false, true)
+
     if accountID != "all" {
         query = query.Where("account_id = ?", accountID)
     }
