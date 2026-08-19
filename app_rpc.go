@@ -260,9 +260,8 @@ func (a *App) RetryMediaDownload(mediaID string) error {
 	if err := a.waitForReady(); err != nil {
 		return err
 	}
-	if err := a.repo.ResetMediaStatus(mediaID); err != nil {
-		log.Printf("[Wails RPC] RetryMediaDownload ResetMediaStatus error: %v", err)
-		return err
+	if a.repo.ResetMediaStatus(mediaID) != nil {
+		return a.repo.ResetMediaStatus(mediaID)
 	}
 	_, err := a.jobOrchestrator.EnqueueMediaDownload("twitter", mediaID)
 	if err != nil {
@@ -272,6 +271,28 @@ func (a *App) RetryMediaDownload(mediaID string) error {
 	log.Printf("[Wails RPC] RetryMediaDownload triggered successfully for media: %s", mediaID)
 	runtime.EventsEmit(a.ctx, "media:retried", map[string]string{"media_id": mediaID})
 	return nil
+}
+
+// TriggerBackup は即時オンラインバックアップ (VACUUM INTO) を実行する Wails バインドメソッドです
+func (a *App) TriggerBackup() (string, error) {
+	if err := a.waitForReady(); err != nil {
+		return "", err
+	}
+	if a.scheduler == nil {
+		return "", nil
+	}
+	return a.scheduler.TriggerBackup()
+}
+
+// TriggerPoll は即時第3段階ポーリング (Motrix ➔ Stash 自動回収) を実行する Wails バインドメソッドです
+func (a *App) TriggerPoll() (*models.JobProgress, error) {
+	if err := a.waitForReady(); err != nil {
+		return nil, err
+	}
+	if a.scheduler == nil {
+		return nil, nil
+	}
+	return a.scheduler.TriggerPoll()
 }
 
 

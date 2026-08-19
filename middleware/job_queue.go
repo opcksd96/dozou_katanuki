@@ -40,6 +40,17 @@ func (j *JobOrchestrator) EnqueueMediaDownload(platform, mediaID string) (*model
 	})
 }
 
+func (j *JobOrchestrator) EnqueueMediaPoll(platform string) (*models.JobProgress, error) {
+	if platform == "" {
+		platform = "twitter"
+	}
+	return j.EnqueueJob(&models.JobRequest{
+		ID: fmt.Sprintf("job_poll_%d", time.Now().UnixNano()), Type: models.JobTypeMediaPoll,
+		Platform: platform, ScriptPath: fmt.Sprintf("plugins/%s/scraper/main.py", platform),
+		Args: []string{"--mode", "poll", "--platform", platform}, CreatedAt: time.Now(),
+	})
+}
+
 func (j *JobOrchestrator) EnqueueJob(req *models.JobRequest) (*models.JobProgress, error) {
 	if req.ID == "" { req.ID = fmt.Sprintf("job_%d", time.Now().UnixNano()) }
 	if req.CreatedAt.IsZero() { req.CreatedAt = time.Now() }

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"dozou_katanuki/driver"
+	"dozou_katanuki/middleware"
 	"dozou_katanuki/models"
 
 	"github.com/glebarez/sqlite"
@@ -142,5 +143,51 @@ func TestArticleSearchAndTranslation(t *testing.T) {
 	}
 	if updatedArt.FullTextJA.String != "ファミコン更新" || updatedArt.FullTextEN.String != "NES updated" || updatedArt.FullTextZH.String != "红白机更新" {
 		t.Fatalf("Translations not updated properly: %+v", updatedArt)
+	}
+}
+
+func TestSchedulerRPC(t *testing.T) {
+	db, tempFile := setupTestDB(t)
+	defer os.Remove(tempFile)
+
+	repo := driver.NewRepository(db)
+	timeline := middleware.NewTimelineService(repo)
+	readyChan := make(chan struct{})
+	close(readyChan)
+
+	app := &App{
+		repo:            repo,
+		timelineService: timeline,
+		ready:           readyChan,
+	}
+
+	orch := middleware.NewJobOrchestrator(t.Context(), func(string, ...interface{}) {})
+	defer orch.Close()
+	app.jobOrchestrator = orch
+
+	sched := middleware.NewSchedulerService(models.SchedulerConfig{
+		PollIntervalSec:      10,
+		BackupIntervalHours:  24,
+		MaxBackupGenerations: 3,
+	}, repo, orch, func(string, ...interface{}) {})
+	app.scheduler = sched
+
+	// 1. TriggerBackup RPC
+	backupPath, err := app.TriggerBackup()
+	if err != nil {
+		t.Fatalf("TriggerBackup RPC failed: %v", err)
+	}
+	if backupPath == "" {
+		t.Fatalf("Expected backup path, got empty")
+	}
+	defer os.Remove(backupPath)
+
+	// 2. TriggerPoll RPC
+	job, err := app.TriggerPoll()
+	if err != nil {
+		t.Fatalf("TriggerPoll RPC failed: %v", err)
+	}
+	if job == nil || job.Type != models.JobTypeMediaPoll {
+		t.Fatalf("Expected JobTypeMediaPoll, got: %+v", job)
 	}
 }

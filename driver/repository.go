@@ -2,6 +2,13 @@
 package driver
 
 import (
+	"fmt"
+	"os"
+	"path/filepath"
+	"sort"
+	"strings"
+	"time"
+
 	"dozou_katanuki/models"
 
 	"gorm.io/gorm"
@@ -233,5 +240,57 @@ func (r *Repository) GetMediaByID(mediaID string) (*models.Media, error) {
 		return nil, err
 	}
 	return &m, nil
+}
+
+// BackupDatabase は SQLite の VACUUM INTO を用いてオンラインバックアップを作成し、世代管理上限を超えた古いファイルを削除します
+func (r *Repository) BackupDatabase(destDir string, maxGenerations int) (string, error) {
+	if destDir == "" {
+		destDir = filepath.Join("backups", "database")
+	}
+	if err := os.MkdirAll(destDir, 0755); err != nil {
+		return "", fmt.Errorf("failed to create backup dir: %w", err)
+	}
+
+	timestamp := time.Now().Format("20060102_150405")
+	backupFileName := fmt.Sprintf("archive_%s.db", timestamp)
+	destPath := filepath.Join(destDir, backupFileName)
+
+	// SQLite の VACUUM INTO コマンドはスラッシュ区切りのパスを安全に受け付けます
+	normalizedPath := filepath.ToSlash(destPath)
+	if err := r.db.Exec(fmt.Sprintf("VACUUM INTO '%s'", normalizedPath)).Error; err != nil {
+		return "", fmt.Errorf("failed to execute VACUUM INTO: %w", err)
+	}
+
+	if maxGenerations > 0 {
+		_ = r.purgeOldBackups(destDir, maxGenerations)
+	}
+
+	return destPath, nil
+}
+
+func (r *Repository) purgeOldBackups(destDir string, maxGenerations int) error {
+	entries, err := os.ReadDir(destDir)
+	if err != nil {
+		return err
+	}
+
+	var backupFiles []string
+	for _, entry := range entries {
+		if !entry.IsDir() && strings.HasPrefix(entry.Name(), "archive_") && strings.HasSuffix(entry.Name(), ".db") {
+			backupFiles = append(backupFiles, filepath.Join(destDir, entry.Name()))
+		}
+	}
+
+	if len(backupFiles) <= maxGenerations {
+		return nil
+	}
+
+	// 昇順（古い順）にソート
+	sort.Strings(backupFiles)
+	toDelete := len(backupFiles) - maxGenerations
+	for i := 0; i < toDelete; i++ {
+		_ = os.Remove(backupFiles[i])
+	}
+	return nil
 }
 

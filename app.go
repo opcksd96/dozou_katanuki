@@ -10,6 +10,7 @@ import (
 
 	"dozou_katanuki/driver"
 	"dozou_katanuki/middleware"
+	"dozou_katanuki/models"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
@@ -20,6 +21,7 @@ type App struct {
 	timelineService *middleware.TimelineService
 	stashManager    *StashManager
 	jobOrchestrator *middleware.JobOrchestrator
+	scheduler       *middleware.SchedulerService
 	unifiedHandler  *middleware.UnifiedHandler
 	ready           chan struct{}
 	readyOnce       sync.Once
@@ -42,12 +44,21 @@ func (a *App) startup(ctx context.Context) {
 
 	a.repo = driver.NewRepository(db)
 	a.timelineService = middleware.NewTimelineService(a.repo)
-	a.jobOrchestrator = middleware.NewJobOrchestrator(ctx, func(event string, data ...interface{}) {
+	emitter := func(event string, data ...interface{}) {
 		runtime.EventsEmit(ctx, event, data...)
-	})
+	}
+	a.jobOrchestrator = middleware.NewJobOrchestrator(ctx, emitter)
 	if a.unifiedHandler != nil {
 		a.unifiedHandler.SetJobOrchestrator(a.jobOrchestrator)
 	}
+
+	cfg, _ := a.GetConfig()
+	schedCfg := models.SchedulerConfig{}
+	if cfg != nil {
+		schedCfg = cfg.Scheduler
+	}
+	a.scheduler = middleware.NewSchedulerService(schedCfg, a.repo, a.jobOrchestrator, emitter)
+	a.scheduler.Start(ctx)
 
 	a.readyOnce.Do(func() { close(a.ready) })
 	runtime.EventsEmit(ctx, "app:ready", true)
@@ -73,6 +84,9 @@ func (a *App) domReady(ctx context.Context) {
 
 func (a *App) shutdown(ctx context.Context) {
 	log.Println("[App] Application shutting down...")
+	if a.scheduler != nil {
+		a.scheduler.Stop()
+	}
 	if a.jobOrchestrator != nil {
 		a.jobOrchestrator.Close()
 	}
