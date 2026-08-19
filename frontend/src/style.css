@@ -25,3 +25,18 @@ body {
     height: 100vh;
     text-align: center;
 }
+
+/* Data Decorator Links (SPEC-MIDDLEWARE-001-2) */
+.hashtag-link,
+.mention-link,
+.external-link {
+    transition: color 0.15s ease, text-decoration 0.15s ease;
+    word-break: break-all;
+}
+
+.hashtag-link:hover,
+.mention-link:hover,
+.external-link:hover {
+    text-decoration: underline;
+}
+

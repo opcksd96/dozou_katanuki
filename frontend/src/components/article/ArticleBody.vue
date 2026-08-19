@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
 import type { LanguageCode } from '../../composables/useTimeline';
+import { decorateText } from '../../utils/decorator';
 
 const props = defineProps<{
   content: { original: string; ja?: string; en?: string; zh?: string };
@@ -25,13 +26,18 @@ const hasTranslation = computed(() => {
   return Boolean(trans && trans.trim() !== '' && trans !== props.content.original);
 });
 
-// 表示する本文
-const displayText = computed(() => {
+// 表示するテキスト
+const rawDisplayText = computed(() => {
   if (isTranslated.value) {
     const trans = props.content[props.targetLang as 'ja' | 'en' | 'zh'];
-    return trans && trans.trim() !== '' ? trans : props.content.original;
+    return trans && trans.trim() !== '' ? trans : props.content.original || '';
   }
-  return props.content.original;
+  return props.content.original || '';
+});
+
+// 装飾済みHTML (DOMリンク化 & 改行展開)
+const decoratedHtml = computed(() => {
+  return decorateText(rawDisplayText.value);
 });
 
 const toggleTranslate = () => {
@@ -41,8 +47,8 @@ const toggleTranslate = () => {
 
 <template>
   <div class="my-2.5 text-slate-200 text-sm leading-relaxed">
-    <!-- 本文 -->
-    <p class="whitespace-pre-wrap">{{ displayText }}</p>
+    <!-- 装飾済み本文 (DOMリンク化 ＆ 改行展開) -->
+    <div class="whitespace-pre-line break-words leading-relaxed select-text" v-html="decoratedHtml"></div>
 
     <!-- X (Twitter) ライクな翻訳切り替えリンク -->
     <div class="mt-2 flex items-center gap-2 text-xs font-mono select-none">
