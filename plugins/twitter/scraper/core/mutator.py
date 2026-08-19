@@ -47,6 +47,20 @@ class Mutator:
             post_id = str(post["id"])
             created_at = post.get("created_at") or now_ts
             full_text = post.get("full_text", "")
+            urls = post.get("urls", [])
+
+            # 短縮URLの保存 & 本文置換 (SPEC-MIDDLEWARE-001-2)
+            for u in urls:
+                s_url = u.get("short_url")
+                e_url = u.get("expanded_url")
+                if s_url and e_url:
+                    cur.execute("""
+                        INSERT OR REPLACE INTO url_redirects (short_url, expanded_url, article_id)
+                        VALUES (?, ?, ?)
+                    """, (s_url, e_url, post_id))
+                    if s_url in full_text:
+                        full_text = full_text.replace(s_url, e_url)
+
             cur.execute("""
                 INSERT INTO articles (
                     id, account_id, conversation_id, reply_to_id, reply_to_handle,

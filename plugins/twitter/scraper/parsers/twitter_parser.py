@@ -57,6 +57,13 @@ class TwitterParser(BaseParser):
                     "height": m.get("sizes", {}).get("large", {}).get("h", 0),
                 })
 
+        urls_list: List[Dict[str, str]] = []
+        for u in entities.get("urls", []):
+            short_url = u.get("url")
+            expanded_url = u.get("expanded_url") or u.get("unwound", {}).get("url") or short_url
+            if short_url and expanded_url:
+                urls_list.append({"short_url": short_url, "expanded_url": expanded_url})
+
         return {
             "platform": "twitter",
             "account": {
@@ -73,6 +80,7 @@ class TwitterParser(BaseParser):
                 "created_at": tweet.get("created_at") or "",
                 "full_text": tweet.get("full_text") or tweet.get("text") or "",
                 "wayback_url": uri,
+                "urls": urls_list,
             },
             "media": media_list,
         }
@@ -93,6 +101,6 @@ class TwitterParser(BaseParser):
         return {
             "platform": "twitter",
             "account": {"numeric_id": detect["account"], "username": detect["account"], "display_name": detect["account"], "avatar_url": ""},
-            "post": {"id": post_id, "conversation_id": post_id, "full_text": full_text, "wayback_url": uri},
+            "post": {"id": post_id, "conversation_id": post_id, "full_text": full_text, "wayback_url": uri, "urls": []},
             "media": [],
         }

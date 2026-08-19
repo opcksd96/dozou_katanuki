@@ -1,24 +1,44 @@
-// middleware/renderer.go (100行以下)
 package middleware
 
 import (
 	"fmt"
+	"strings"
+
 	"dozou_katanuki/models"
 )
+
+// expandRedirects は短縮URLマップを適用してテキスト内の短縮URLを展開します
+func expandRedirects(text string, redirects []models.UrlRedirect) string {
+	if text == "" || len(redirects) == 0 {
+		return text
+	}
+	res := text
+	for _, r := range redirects {
+		if r.ShortURL != "" && r.ExpandedURL != "" && strings.Contains(res, r.ShortURL) {
+			res = strings.ReplaceAll(res, r.ShortURL, r.ExpandedURL)
+		}
+	}
+	return res
+}
 
 // ToRenderTree は装飾済みの中間データをフロントエンド描画用構造体へ即時マッピングします
 func ToRenderTree(item models.Article, platform string) models.RenderTree {
 	avatarURL := AuditAndResolveAvatar(platform, item.CreatedAt, item.Account.ProfileHistory)
+
+	orig := expandRedirects(item.FullText, item.UrlRedirects)
+	ja := expandRedirects(item.FullTextJA.String, item.UrlRedirects)
+	en := expandRedirects(item.FullTextEN.String, item.UrlRedirects)
+	zh := expandRedirects(item.FullTextZH.String, item.UrlRedirects)
 
 	return models.RenderTree{
 		ID:             item.ID,
 		ConversationID: item.ConversationID,
 		CreatedAt:      item.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
 		Content: models.RenderContent{
-			Original: item.FullText,
-			JA:       item.FullTextJA.String,
-			EN:       item.FullTextEN.String,
-			ZH:       item.FullTextZH.String,
+			Original: orig,
+			JA:       ja,
+			EN:       en,
+			ZH:       zh,
 		},
 		Author: models.RenderAuthor{
 			NumericID:   item.Account.NumericID,

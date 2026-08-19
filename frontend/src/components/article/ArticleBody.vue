@@ -2,10 +2,16 @@
 import { ref, computed } from 'vue';
 import type { LanguageCode } from '../../composables/useTimeline';
 import { decorateText } from '../../utils/decorator';
+import { BrowserOpenURL } from '../../../wailsjs/runtime/runtime';
 
 const props = defineProps<{
   content: { original: string; ja?: string; en?: string; zh?: string };
   targetLang: LanguageCode; // アプリ設定 (config.json) のシステム言語
+}>();
+
+const emit = defineEmits<{
+  (e: 'clickTag', tag: string): void;
+  (e: 'clickMention', handle: string): void;
 }>();
 
 // 投稿個別の翻訳状態（デフォルトは原文表示）
@@ -43,12 +49,46 @@ const decoratedHtml = computed(() => {
 const toggleTranslate = () => {
   isTranslated.value = !isTranslated.value;
 };
+
+// 本文クリック時のリンク・タグ・メンションのハンドリング
+const handleBodyClick = (e: MouseEvent) => {
+  const target = e.target as HTMLElement;
+  const link = target.closest('a');
+  if (!link) return;
+
+  if (link.classList.contains('hashtag-link')) {
+    e.preventDefault();
+    e.stopPropagation();
+    const tag = link.getAttribute('data-tag') || link.innerText.replace(/^#/, '');
+    if (tag) emit('clickTag', tag);
+  } else if (link.classList.contains('mention-link')) {
+    e.preventDefault();
+    e.stopPropagation();
+    const mention = link.getAttribute('data-mention') || link.innerText.replace(/^@/, '');
+    if (mention) emit('clickMention', mention);
+  } else if (link.classList.contains('external-link')) {
+    e.preventDefault();
+    e.stopPropagation();
+    const url = link.getAttribute('data-url') || link.getAttribute('href');
+    if (url) {
+      try {
+        BrowserOpenURL(url);
+      } catch {
+        window.open(url, '_blank', 'noopener,noreferrer');
+      }
+    }
+  }
+};
 </script>
 
 <template>
   <div class="my-2.5 text-slate-200 text-sm leading-relaxed">
-    <!-- 装飾済み本文 (DOMリンク化 ＆ 改行展開) -->
-    <div class="whitespace-pre-line break-words leading-relaxed select-text" v-html="decoratedHtml"></div>
+    <!-- 装飾済み本文 (DOMリンク化 ＆ 改行展開 ＆ クリック委譲) -->
+    <div
+      @click="handleBodyClick"
+      class="whitespace-pre-line break-words leading-relaxed select-text"
+      v-html="decoratedHtml"
+    ></div>
 
     <!-- X (Twitter) ライクな翻訳切り替えリンク -->
     <div class="mt-2 flex items-center gap-2 text-xs font-mono select-none">

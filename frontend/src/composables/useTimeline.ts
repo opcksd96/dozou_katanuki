@@ -1,5 +1,5 @@
 import { ref, onMounted, onUnmounted } from 'vue';
-import { GetTimeline, GetAccounts, GetSystemLanguage } from '../../wailsjs/go/main/App';
+import { GetTimeline, GetAccounts, GetSystemLanguage, SearchArticles } from '../../wailsjs/go/main/App';
 import { EventsOn } from '../../wailsjs/runtime/runtime';
 import type { RenderTree, RenderAuthor } from '../models/RenderTree';
 import { useKeyboardReload } from './useKeyboardReload';
@@ -12,6 +12,7 @@ export function useTimeline(platform: string = 'twitter') {
   const accounts = ref<RenderAuthor[]>([]);
   const selectedAccount = ref<string>('all');
   const currentFilter = ref<FilterType>('all');
+  const searchQuery = ref<string>('');
   const systemLang = ref<LanguageCode>('ja');
   const loading = ref(false);
   const hasMore = ref(true);
@@ -44,10 +45,18 @@ export function useTimeline(platform: string = 'twitter') {
     loading.value = true;
     const offset = reset ? 0 : articles.value.length;
     try {
-      const res = await GetTimeline(platform, selectedAccount.value, currentFilter.value, 50, offset);
-      if (reset) articles.value = res || [];
-      else articles.value.push(...(res || []));
-      hasMore.value = (res || []).length === 50;
+      let items: RenderTree[] = [];
+      if (searchQuery.value && searchQuery.value.trim() !== '') {
+        const res = await SearchArticles(searchQuery.value.trim(), selectedAccount.value, currentFilter.value, 50, offset);
+        items = (res && res.items) || [];
+      } else {
+        const res = await GetTimeline(platform, selectedAccount.value, currentFilter.value, 50, offset);
+        items = res || [];
+      }
+
+      if (reset) articles.value = items;
+      else articles.value.push(...items);
+      hasMore.value = items.length === 50;
     } catch (e) {
       if (retry > 0) {
         loading.value = false;
@@ -83,11 +92,25 @@ export function useTimeline(platform: string = 'twitter') {
     if (unoffReady) unoffReady();
   });
 
+  const setSearchQuery = (q: string) => {
+    searchQuery.value = q;
+    hasMore.value = true;
+    fetchTimeline(true);
+  };
+
+  const clearSearchQuery = () => {
+    searchQuery.value = '';
+    hasMore.value = true;
+    fetchTimeline(true);
+  };
+
   return {
-    articles, accounts, selectedAccount, currentFilter, systemLang,
+    articles, accounts, selectedAccount, currentFilter, searchQuery, systemLang,
     loading, hasMore,
     selectAccount: (id: string) => { selectedAccount.value = id; hasMore.value = true; fetchTimeline(true); },
     setFilter: (f: FilterType) => { currentFilter.value = f; hasMore.value = true; fetchTimeline(true); },
+    setSearchQuery,
+    clearSearchQuery,
     toggleLike: (id: string) => {
       const target = articles.value.find((item) => item.id === id);
       if (target) target.is_liked = !target.is_liked;

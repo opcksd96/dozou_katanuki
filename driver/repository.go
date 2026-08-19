@@ -33,6 +33,7 @@ func (r *Repository) FetchArticles(accountID, filter string, limit, offset int) 
 		Preload("Account").
 		Preload("Account.ProfileHistory").
 		Preload("Media").
+		Preload("UrlRedirects").
 		Order("created_at DESC")
 
 	query = query.Where("is_repost = ? OR reply_to_handle IN (SELECT value FROM whitelists WHERE is_active = ?)", false, true)
@@ -55,7 +56,7 @@ func (r *Repository) FetchArticles(accountID, filter string, limit, offset int) 
 	return articles, err
 }
 
-// UpsertArticleTx は記事・アカウント・メディアをトランザクション内で保存します
+// UpsertArticleTx は記事・アカウント・メディア・短縮URLをトランザクション内で保存します
 func (r *Repository) UpsertArticleTx(art *models.Article) error {
 	return r.db.Transaction(func(tx *gorm.DB) error {
 		if art.Account.NumericID != "" {
@@ -69,6 +70,12 @@ func (r *Repository) UpsertArticleTx(art *models.Article) error {
 		for i := range art.Media {
 			art.Media[i].ArticleID = art.ID
 			if err := tx.Save(&art.Media[i]).Error; err != nil {
+				return err
+			}
+		}
+		for i := range art.UrlRedirects {
+			art.UrlRedirects[i].ArticleID = art.ID
+			if err := tx.Save(&art.UrlRedirects[i]).Error; err != nil {
 				return err
 			}
 		}
@@ -125,7 +132,8 @@ func (r *Repository) SearchArticles(searchQuery, accountID, filter string, limit
 	query := r.db.Model(&models.Article{}).
 		Preload("Account").
 		Preload("Account.ProfileHistory").
-		Preload("Media")
+		Preload("Media").
+		Preload("UrlRedirects")
 
 	if searchQuery != "" {
 		likePattern := "%" + searchQuery + "%"
@@ -165,6 +173,7 @@ func (r *Repository) GetArticleByID(id string) (*models.Article, error) {
 	err := r.db.Preload("Account").
 		Preload("Account.ProfileHistory").
 		Preload("Media").
+		Preload("UrlRedirects").
 		Where("id = ?", id).
 		First(&article).Error
 	if err != nil {
@@ -179,6 +188,7 @@ func (r *Repository) GetArticlesByConversationID(conversationID string) ([]model
 	err := r.db.Preload("Account").
 		Preload("Account.ProfileHistory").
 		Preload("Media").
+		Preload("UrlRedirects").
 		Where("conversation_id = ?", conversationID).
 		Order("created_at ASC").
 		Find(&articles).Error

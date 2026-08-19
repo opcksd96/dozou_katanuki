@@ -19,6 +19,8 @@ const emit = defineEmits<{
   (e: 'selectArticle', id: string): void;
   (e: 'toggleLike', id: string): void;
   (e: 'clickMedia', media: RenderMedia, list?: RenderMedia[], article?: RenderTree): void;
+  (e: 'clickTag', tag: string): void;
+  (e: 'clickMention', handle: string): void;
 }>();
 
 const copySuccess = ref(false);
@@ -109,7 +111,12 @@ onUnmounted(() => {
                   <span class="text-slate-500">·</span>
                   <span class="text-slate-500 font-mono">{{ t.created_at }}</span>
                 </div>
-                <ArticleBody :content="t.content" :targetLang="targetLang" />
+                <ArticleBody
+                  :content="t.content"
+                  :targetLang="targetLang"
+                  @clickTag="(tag) => emit('clickTag', tag)"
+                  @clickMention="(handle) => emit('clickMention', handle)"
+                />
                 <MediaGrid
                   v-if="t.media && t.media.length > 0"
                   :media="t.media"
@@ -145,7 +152,12 @@ onUnmounted(() => {
 
         <!-- 本文 (大きなフォント) -->
         <div class="text-base text-slate-100 leading-relaxed font-normal whitespace-pre-line break-words pt-1">
-          <ArticleBody :content="article.content" :targetLang="targetLang" />
+          <ArticleBody
+            :content="article.content"
+            :targetLang="targetLang"
+            @clickTag="(tag) => emit('clickTag', tag)"
+            @clickMention="(handle) => emit('clickMention', handle)"
+          />
         </div>
 
         <!-- メディアグリッド (フル解像度) -->
@@ -192,7 +204,12 @@ onUnmounted(() => {
                   <span class="text-slate-500">·</span>
                   <span class="text-slate-500 font-mono">{{ t.created_at }}</span>
                 </div>
-                <ArticleBody :content="t.content" :targetLang="targetLang" />
+                <ArticleBody
+                  :content="t.content"
+                  :targetLang="targetLang"
+                  @clickTag="(tag) => emit('clickTag', tag)"
+                  @clickMention="(handle) => emit('clickMention', handle)"
+                />
                 <MediaGrid
                   v-if="t.media && t.media.length > 0"
                   :media="t.media"

@@ -17,8 +17,8 @@ const isAdminOpen = ref(false);
 const activeArticleId = ref<string | null>(null);
 
 const {
-  articles, accounts, selectedAccount, currentFilter, systemLang,
-  loading, hasMore, selectAccount, setFilter,
+  articles, accounts, selectedAccount, currentFilter, searchQuery, systemLang,
+  loading, hasMore, selectAccount, setFilter, setSearchQuery, clearSearchQuery,
   toggleLike, loadMore, reloadAll,
 } = useTimeline();
 
@@ -52,6 +52,23 @@ const openArticleDetail = (id: string) => {
 const closeArticleDetail = () => {
   activeArticleId.value = null;
   clearDetail();
+};
+
+const handleTagClick = (tag: string) => {
+  closeArticleDetail();
+  setSearchQuery('#' + tag);
+};
+
+const handleMentionClick = (handle: string) => {
+  closeArticleDetail();
+  const found = accounts.value.find(
+    (a) => a.handle.toLowerCase() === handle.toLowerCase() || a.numeric_id === handle
+  );
+  if (found) {
+    selectAccount(found.numeric_id);
+  } else {
+    setSearchQuery('@' + handle);
+  }
 };
 
 const handleGlobalKeyDown = (e: KeyboardEvent) => {
@@ -138,6 +155,8 @@ onUnmounted(() => {
             @back="closeArticleDetail"
             @selectArticle="openArticleDetail"
             @toggleLike="toggleLike"
+            @clickTag="handleTagClick"
+            @clickMention="handleMentionClick"
             @clickMedia="(media, list, art) => openMedia(media, list, art)"
           />
         </div>
@@ -146,6 +165,29 @@ onUnmounted(() => {
         <div v-else>
           <!-- Level 2: コンテンツ種別フィルター -->
           <TimelineFilter :currentFilter="currentFilter" @filter="setFilter" />
+
+          <!-- アクティブ検索・タグ絞り込み表示バー -->
+          <div
+            v-if="searchQuery"
+            class="px-4 py-2.5 bg-blue-950/40 border-b border-blue-900/50 flex items-center justify-between gap-3 text-xs"
+          >
+            <div class="flex items-center gap-2 min-w-0">
+              <span class="text-blue-400 font-semibold flex items-center gap-1">
+                <span>🔍</span> 絞り込み中:
+              </span>
+              <span class="px-2 py-0.5 rounded bg-blue-900/60 text-blue-200 font-mono font-medium truncate border border-blue-700/60">
+                {{ searchQuery }}
+              </span>
+            </div>
+            <button
+              @click="clearSearchQuery"
+              class="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 text-[11px] font-medium transition-colors flex items-center gap-1 cursor-pointer flex-shrink-0"
+              title="絞り込みを解除"
+            >
+              <span>✕</span>
+              <span>解除</span>
+            </button>
+          </div>
 
           <!-- 初期ロード時のスケルトン表示 -->
           <div v-if="articles.length === 0 && loading" class="p-4 space-y-4">
@@ -174,6 +216,8 @@ onUnmounted(() => {
               :targetLang="systemLang"
               @clickArticle="openArticleDetail"
               @toggleLike="toggleLike"
+              @clickTag="handleTagClick"
+              @clickMention="handleMentionClick"
               @clickMedia="(media, list, art) => openMedia(media, list, art)"
             />
           </div>
@@ -183,13 +227,23 @@ onUnmounted(() => {
             <span v-if="loading && articles.length > 0">Loading more archives...</span>
             <span v-else-if="!hasMore && articles.length > 0">End of local archive. ({{ articles.length }} items)</span>
             <template v-else-if="!loading && articles.length === 0">
-              <span>No archive items found.</span>
-              <button
-                @click="reloadAll"
-                class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded border border-slate-700 text-xs transition-colors flex items-center gap-1.5 cursor-pointer"
-              >
-                <span>🔄</span> 最新の情報に更新 (Ctrl+R)
-              </button>
+              <div class="flex flex-col items-center gap-2">
+                <span>No archive items found{{ searchQuery ? ' matching "' + searchQuery + '"' : '' }}.</span>
+                <button
+                  v-if="searchQuery"
+                  @click="clearSearchQuery"
+                  class="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded text-xs transition-colors flex items-center gap-1 cursor-pointer shadow"
+                >
+                  <span>✕</span> 絞り込みをクリア
+                </button>
+                <button
+                  v-else
+                  @click="reloadAll"
+                  class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded border border-slate-700 text-xs transition-colors flex items-center gap-1.5 cursor-pointer"
+                >
+                  <span>🔄</span> 最新の情報に更新 (Ctrl+R)
+                </button>
+              </div>
             </template>
           </div>
         </div>

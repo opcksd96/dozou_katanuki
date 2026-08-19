@@ -17,6 +17,8 @@ const emit = defineEmits<{
   (e: 'toggleLike', id: string): void;
   (e: 'retryMedia', mediaId: string): void;
   (e: 'clickMedia', media: RenderMedia, list?: RenderMedia[], article?: RenderTree): void;
+  (e: 'clickTag', tag: string): void;
+  (e: 'clickMention', handle: string): void;
 }>();
 
 const handleCardClick = (e: MouseEvent) => {
@@ -47,7 +49,12 @@ const handleCardClick = (e: MouseEvent) => {
         :sourceUrl="article.source_url"
         :isPinned="article.is_pinned"
       />
-      <ArticleBody :content="article.content" :targetLang="targetLang" />
+      <ArticleBody
+        :content="article.content"
+        :targetLang="targetLang"
+        @clickTag="(tag) => emit('clickTag', tag)"
+        @clickMention="(handle) => emit('clickMention', handle)"
+      />
       <MediaGrid
         :media="article.media"
         @retry="(mediaId) => emit('retryMedia', mediaId)"
