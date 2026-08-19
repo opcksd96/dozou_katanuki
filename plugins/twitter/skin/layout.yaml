@@ -1,0 +1,11 @@
+# plugins/twitter/skin/layout.yaml (100行以下)
+name: twitter_skin
+version: "1.0.0"
+platform: twitter
+components:
+  card: ArticleCard
+  media_grid: MediaGrid
+  avatar: AvatarView
+styles:
+  primary_color: "#1d9bf0"
+  dark_bg: "#020617"

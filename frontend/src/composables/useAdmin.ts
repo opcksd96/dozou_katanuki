@@ -3,49 +3,93 @@ import { models } from '../../wailsjs/go/models';
 import * as WailsApp from '../../wailsjs/go/main/App';
 import { EventsOn, EventsOff } from '../../wailsjs/runtime/runtime';
 
-// Wails RPC の呼び出しラッパー（キャッシュ差異やモジュール解決の安全化）
-const getRpc = () => (window as any)?.go?.main?.App || WailsApp;
+// Wails RPC の安全な呼び出しヘルパー
+const getApp = () => (window as any)?.go?.main?.App;
+
+// デフォルト設定モック（ブラウザ単体テスト用）
+const defaultMockConfig = {
+  system: { language: 'ja', default_framework: 'twitter', env: 'production' },
+  storage: { db_path: './archive.db', local_media_dir: './blobs', stash_dir: './stash', dumps_dir: './dumps', stash_enabled: true },
+  network: { stash_port: 9999, frontend_port: 5173, internal_bind_address: '127.0.0.1' },
+  scheduler: { poll_interval_sec: 60, backup_interval_hours: 24, max_backup_generations: 7 },
+  appearance: { font_family_ja: 'Hiragino Sans, Meiryo, sans-serif', font_family_en: 'Nunito, sans-serif', font_family_zh: 'Microsoft YaHei, SimHei, sans-serif' },
+};
+
+let localMockConfig = JSON.parse(JSON.stringify(defaultMockConfig));
 
 const callGetConfig = async (): Promise<any> => {
-  const rpc = getRpc();
-  if (typeof rpc.GetConfig === 'function') return rpc.GetConfig();
-  throw new Error('GetConfig RPC is not available yet');
+  const app = getApp();
+  if (app && typeof app.GetConfig === 'function') {
+    return await app.GetConfig();
+  }
+  return localMockConfig;
 };
 
 const callSaveConfig = async (cfg: any): Promise<any> => {
-  const rpc = getRpc();
-  if (typeof rpc.SaveConfig === 'function') return rpc.SaveConfig(cfg);
-  throw new Error('SaveConfig RPC is not available yet');
+  const app = getApp();
+  if (app && typeof app.SaveConfig === 'function') {
+    return await app.SaveConfig(cfg);
+  }
+  localMockConfig = JSON.parse(JSON.stringify(cfg));
+  return true;
 };
 
 const callGetActiveJob = async (): Promise<any> => {
-  const rpc = getRpc();
-  if (typeof rpc.GetActiveJob === 'function') return rpc.GetActiveJob();
+  const app = getApp();
+  if (app && typeof app.GetActiveJob === 'function') {
+    return await app.GetActiveJob();
+  }
   return null;
 };
 
 const callListJobs = async (): Promise<any> => {
-  const rpc = getRpc();
-  if (typeof rpc.ListJobs === 'function') return rpc.ListJobs();
+  const app = getApp();
+  if (app && typeof app.ListJobs === 'function') {
+    return await app.ListJobs();
+  }
   return [];
 };
 
 const callStartSalvageJob = async (platform: string, account: string, limit: number): Promise<any> => {
-  const rpc = getRpc();
-  if (typeof rpc.StartSalvageJob === 'function') return rpc.StartSalvageJob(platform, account, limit);
-  throw new Error('StartSalvageJob RPC is not available');
+  const app = getApp();
+  if (app && typeof app.StartSalvageJob === 'function') {
+    return await app.StartSalvageJob(platform, account, limit);
+  }
+  return {
+    id: `mock-salvage-${Date.now()}`,
+    type: 'salvage',
+    status: 'running',
+    current: 10,
+    total: limit,
+    percentage: (10 / limit) * 100,
+    started_at: new Date().toISOString(),
+    logs: ['[Mock] Starting salvage job for ' + account, '[Mock] Fetching tweets...'],
+  };
 };
 
 const callStartManualImportJob = async (warcPath: string, offline: boolean): Promise<any> => {
-  const rpc = getRpc();
-  if (typeof rpc.StartManualImportJob === 'function') return rpc.StartManualImportJob(warcPath, offline);
-  throw new Error('StartManualImportJob RPC is not available');
+  const app = getApp();
+  if (app && typeof app.StartManualImportJob === 'function') {
+    return await app.StartManualImportJob(warcPath, offline);
+  }
+  return {
+    id: `mock-import-${Date.now()}`,
+    type: 'import',
+    status: 'running',
+    current: 5,
+    total: 20,
+    percentage: 25.0,
+    started_at: new Date().toISOString(),
+    logs: ['[Mock] Starting WARC import: ' + warcPath],
+  };
 };
 
 const callCancelJob = async (jobId: string): Promise<any> => {
-  const rpc = getRpc();
-  if (typeof rpc.CancelJob === 'function') return rpc.CancelJob(jobId);
-  throw new Error('CancelJob RPC is not available');
+  const app = getApp();
+  if (app && typeof app.CancelJob === 'function') {
+    return await app.CancelJob(jobId);
+  }
+  return true;
 };
 
 export function useAdmin() {
@@ -244,18 +288,26 @@ export function useAdmin() {
   const setupEventListeners = () => {
     if (isMounted) return;
     isMounted = true;
-    EventsOn('job:progress', handleJobProgress);
-    EventsOn('job:started', handleJobProgress);
-    EventsOn('job:finished', handleJobFinished);
-    EventsOn('job:log', handleJobLog);
+    try {
+      if (typeof EventsOn === 'function') {
+        EventsOn('job:progress', handleJobProgress);
+        EventsOn('job:started', handleJobProgress);
+        EventsOn('job:finished', handleJobFinished);
+        EventsOn('job:log', handleJobLog);
+      }
+    } catch (_) {}
   };
 
   const cleanupEventListeners = () => {
     isMounted = false;
-    EventsOff('job:progress');
-    EventsOff('job:started');
-    EventsOff('job:finished');
-    EventsOff('job:log');
+    try {
+      if (typeof EventsOff === 'function') {
+        EventsOff('job:progress');
+        EventsOff('job:started');
+        EventsOff('job:finished');
+        EventsOff('job:log');
+      }
+    } catch (_) {}
   };
 
   return {

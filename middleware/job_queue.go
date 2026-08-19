@@ -20,14 +20,19 @@ func (j *JobOrchestrator) EnqueueSalvage(platform, account string, limit int) (*
 		Account:    account,
 		Limit:      limit,
 		ScriptPath: fmt.Sprintf("plugins/%s/scraper/main.py", platform),
-		Args:       []string{"--account", account, "--limit", strconv.Itoa(limit)},
-		CreatedAt:  time.Now(),
+		Args: []string{
+			"--mode", "auto",
+			"--platform", platform,
+			"--account", account,
+			"--limit", strconv.Itoa(limit),
+		},
+		CreatedAt: time.Now(),
 	}
 	return j.EnqueueJob(req)
 }
 
 func (j *JobOrchestrator) EnqueueManualImport(warcPath string, offline bool) (*models.JobProgress, error) {
-	args := []string{"--warc", warcPath}
+	args := []string{"--mode", "manual", "--warc-path", warcPath}
 	if offline {
 		args = append(args, "--offline")
 	}
@@ -36,7 +41,7 @@ func (j *JobOrchestrator) EnqueueManualImport(warcPath string, offline bool) (*m
 		Type:       models.JobTypeImportManual,
 		WARCPath:   warcPath,
 		Offline:    offline,
-		ScriptPath: "cmd/warc_importer/main.py",
+		ScriptPath: "plugins/twitter/scraper/main.py",
 		Args:       args,
 		CreatedAt:  time.Now(),
 	}

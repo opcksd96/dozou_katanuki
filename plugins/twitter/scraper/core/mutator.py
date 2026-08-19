@@ -1,0 +1,80 @@
+# plugins/twitter/scraper/core/mutator.py (100行以下)
+import os
+import sqlite3
+import time
+from typing import Any, Dict, List, Optional
+
+
+class Mutator:
+    """共通正規化辞書の SQLite3 (archive.db) Upsert エンジン (SPEC-PLUGIN-001)"""
+
+    def __init__(self, db_path: str = "archive.db"):
+        self.db_path = db_path
+
+    def _get_conn(self) -> sqlite3.Connection:
+        conn = sqlite3.connect(self.db_path, timeout=10.0)
+        conn.execute("PRAGMA journal_mode = WAL;")
+        conn.execute("PRAGMA foreign_keys = ON;")
+        conn.execute("PRAGMA busy_timeout = 5000;")
+        return conn
+
+    def upsert_record(self, data: Dict[str, Any]) -> bool:
+        """アカウント・記事・メディアのリレーショナル Upsert トランザクション"""
+        account = data.get("account", {})
+        post = data.get("post", {})
+        media_list = data.get("media", [])
+
+        if not post.get("id") or not account.get("username"):
+            return False
+
+        account_id = str(account.get("numeric_id") or account.get("username"))
+        now_ts = time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())
+
+        with self._get_conn() as conn:
+            cur = conn.cursor()
+            # 1. accounts Upsert
+            cur.execute("""
+                INSERT INTO accounts (id, username, display_name, description, avatar_url, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?)
+                ON CONFLICT(id) DO UPDATE SET
+                    display_name = coalesce(excluded.display_name, accounts.display_name),
+                    description = coalesce(excluded.description, accounts.description),
+                    avatar_url = coalesce(excluded.avatar_url, accounts.avatar_url),
+                    updated_at = excluded.updated_at
+            """, (account_id, account["username"], account.get("display_name", account["username"]),
+                  account.get("description", ""), account.get("avatar_url", ""), now_ts))
+
+            # 2. articles Upsert
+            post_id = str(post["id"])
+            cur.execute("""
+                INSERT INTO articles (
+                    id, account_id, platform, conversation_id, reply_to_tweet_id,
+                    full_text, full_text_ja, full_text_en, full_text_zh,
+                    created_at, wayback_url, is_liked, is_repost, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, ?)
+                ON CONFLICT(id) DO UPDATE SET
+                    full_text = excluded.full_text,
+                    wayback_url = coalesce(excluded.wayback_url, articles.wayback_url),
+                    updated_at = excluded.updated_at
+            """, (post_id, account_id, data.get("platform", "twitter"),
+                  post.get("conversation_id", post_id), post.get("reply_to_tweet_id"),
+                  post.get("full_text", ""), post.get("full_text", ""),
+                  post.get("full_text", ""), post.get("full_text", ""),
+                  post.get("created_at") or now_ts, post.get("wayback_url", ""), now_ts))
+
+            # 3. media Insert (初期状態 QUEUED)
+            for m in media_list:
+                m_url = m.get("url")
+                if not m_url:
+                    continue
+                media_id = os.path.basename(m_url.split("?")[0])
+                cur.execute("""
+                    INSERT OR IGNORE INTO media (
+                        id, article_id, url, original_url, type, width, height,
+                        download_status, created_at, updated_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, 'QUEUED', ?, ?)
+                """, (media_id, post_id, m_url, m_url, m.get("type", "image"),
+                      m.get("width", 0), m.get("height", 0), now_ts, now_ts))
+
+            conn.commit()
+            return True

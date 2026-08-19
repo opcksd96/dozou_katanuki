@@ -1,0 +1,13 @@
+/* plugins/twitter/skin/design.css (100行以下) */
+.twitter-skin-card {
+  border-color: rgba(30, 41, 59, 0.8);
+  transition: all 0.2s ease-in-out;
+}
+
+.twitter-skin-card:hover {
+  border-color: rgba(59, 130, 246, 0.4);
+}
+
+.twitter-accent-text {
+  color: #1d9bf0;
+}

@@ -88,3 +88,21 @@ desktop.ini
 *.njsproj
 *.sln
 *.sw?
+.gemini/
+
+# ==========================================
+# 8. テスト・MCP・Playwright アーティファクト
+# ==========================================
+.playwright-mcp/
+playwright-report/
+test-results/
+*.md5
+
+# ==========================================
+# 9. キャッシュ・ローカルストレージ・テンポラリ
+# ==========================================
+blobs/
+cache/
+middleware/temp/
+middleware/non_existent_avatar_dir/
+
