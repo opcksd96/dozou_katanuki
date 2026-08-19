@@ -1,23 +1,75 @@
 <script setup lang="ts">
-import { computed } from 'vue';
-import type { SupportedLang } from '../../composables/useTimeline';
+import { ref, computed } from 'vue';
+import type { LanguageCode } from '../../composables/useTimeline';
 
 const props = defineProps<{
   content: { original: string; ja?: string; en?: string; zh?: string };
-  currentLang: SupportedLang;
+  targetLang: LanguageCode; // アプリ設定 (config.json) のシステム言語
 }>();
 
-const text = computed(() => {
-  if (props.currentLang === 'original') return props.content.original;
-  return props.content[props.currentLang] || props.content.original;
+// 投稿個別の翻訳状態（デフォルトは原文表示）
+const isTranslated = ref(false);
+
+const langLabel = computed(() => {
+  switch (props.targetLang) {
+    case 'ja': return '日本語';
+    case 'en': return '英語';
+    case 'zh': return '中国語';
+    default: return props.targetLang.toUpperCase();
+  }
 });
+
+// アプリ設定言語での翻訳データが存在するか
+const hasTranslation = computed(() => {
+  const trans = props.content[props.targetLang as 'ja' | 'en' | 'zh'];
+  return Boolean(trans && trans.trim() !== '' && trans !== props.content.original);
+});
+
+// 表示する本文
+const displayText = computed(() => {
+  if (isTranslated.value) {
+    const trans = props.content[props.targetLang as 'ja' | 'en' | 'zh'];
+    return trans && trans.trim() !== '' ? trans : props.content.original;
+  }
+  return props.content.original;
+});
+
+const toggleTranslate = () => {
+  isTranslated.value = !isTranslated.value;
+};
 </script>
 
 <template>
-  <div class="my-2 text-slate-200 text-sm leading-relaxed whitespace-pre-wrap">
-    <p>{{ text }}</p>
-    <div v-if="currentLang !== 'original' && content[currentLang]" class="mt-1 text-[11px] text-emerald-400 font-mono">
-      [翻訳: {{ currentLang.toUpperCase() }}]
+  <div class="my-2.5 text-slate-200 text-sm leading-relaxed">
+    <!-- 本文 -->
+    <p class="whitespace-pre-wrap">{{ displayText }}</p>
+
+    <!-- X (Twitter) ライクな翻訳切り替えリンク -->
+    <div class="mt-2 flex items-center gap-2 text-xs font-mono select-none">
+      <button
+        @click="toggleTranslate"
+        type="button"
+        class="text-blue-400 hover:text-blue-300 flex items-center gap-1.5 transition-colors cursor-pointer group py-0.5"
+      >
+        <span class="text-xs group-hover:scale-110 transition-transform">🌐</span>
+        <span v-if="!isTranslated" class="hover:underline">
+          {{ langLabel }} に翻訳
+        </span>
+        <span v-else class="flex items-center gap-1.5">
+          <span class="text-emerald-400 font-semibold bg-emerald-950/60 border border-emerald-800/60 px-1.5 py-0.5 rounded text-[10px]">
+            {{ langLabel }} 翻訳
+          </span>
+          <span class="text-slate-400 hover:text-slate-200 hover:underline">原文を表示</span>
+        </span>
+      </button>
+
+      <!-- 翻訳データ未登録時の控えめな注記 -->
+      <span
+        v-if="isTranslated && !hasTranslation"
+        class="text-[10px] text-amber-400/80 font-sans"
+      >
+        （※ {{ langLabel }} 翻訳データ未登録のため原文を表示中）
+      </span>
     </div>
   </div>
 </template>

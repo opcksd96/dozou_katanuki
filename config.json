@@ -1,0 +1,37 @@
+{
+  "system": {
+    "env": "production",
+    "default_framework": "twitter",
+    "language": "ja"
+  },
+  "network": {
+    "frontend_port": 5173,
+    "stash_proxy_port": 9998,
+    "middleware_port": 5175,
+    "backend_port": 5176,
+    "stash_port": 9999,
+    "public_bind_address": "0.0.0.0",
+    "internal_bind_address": "127.0.0.1"
+  },
+  "storage": {
+    "db_path": "./archive.db",
+    "stash_enabled": true,
+    "local_media_dir": "./media_local",
+    "stash_dir": "./stash",
+    "dumps_dir": "./backups/dumps"
+  },
+  "scheduler": {
+    "poll_interval_sec": 300,
+    "backup_interval_hours": 24,
+    "max_backup_generations": 7
+  },
+  "broadcast": {
+    "enabled": false,
+    "allowed_networks": ["192.168.0.0/16", "10.0.0.0/8"]
+  },
+  "appearance": {
+    "font_family_ja": "Nunito, Noto Sans JP, sans-serif",
+    "font_family_en": "Nunito, sans-serif",
+    "font_family_zh": "Nunito, Noto Sans SC, sans-serif"
+  }
+}

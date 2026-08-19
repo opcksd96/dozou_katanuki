@@ -7,9 +7,9 @@ import TimelineFilter from './components/timeline/TimelineFilter.vue';
 import MediaLightbox from './components/media/MediaLightbox.vue';
 
 const {
-  articles, accounts, selectedAccount, currentFilter, currentLang,
-  loading, hasMore, activeMedia, selectAccount, setFilter, setLanguage,
-  toggleLike, openLightbox, closeLightbox, loadMore,
+  articles, accounts, selectedAccount, currentFilter, systemLang,
+  loading, hasMore, activeMedia, selectAccount, setFilter,
+  toggleLike, openLightbox, closeLightbox, loadMore, reloadAll,
 } = useTimeline();
 
 const observerTarget = ref<HTMLElement | null>(null);
@@ -30,23 +30,19 @@ onUnmounted(() => { observer?.disconnect(); });
 <template>
   <div class="min-h-screen bg-slate-950 text-slate-100 flex flex-col items-center py-6 px-4">
     <header class="w-full max-w-2xl pb-4 border-b border-slate-800 mb-4">
-      <div class="flex items-center justify-between mb-3">
+      <div class="flex items-center justify-between mb-3 gap-2">
         <div>
-          <h1 class="text-xl font-bold tracking-tight text-white">dozou_katanuki</h1>
+          <h1 class="text-xl font-bold tracking-tight text-white flex items-center gap-2">
+            dozou_katanuki
+            <button
+              @click="reloadAll"
+              title="データを再読み込み (Ctrl+R / F5)"
+              class="text-xs text-slate-400 hover:text-blue-400 transition-colors p-1 rounded hover:bg-slate-800"
+            >
+              🔄
+            </button>
+          </h1>
           <p class="text-xs text-slate-400 font-mono">Dynamic Archival System (SPEC-FRONTEND-001)</p>
-        </div>
-        <div class="flex bg-slate-900 border border-slate-800 rounded-lg p-1 text-xs">
-          <button
-            v-for="lang in (['original', 'ja', 'en', 'zh'] as const)"
-            :key="lang"
-            @click="setLanguage(lang)"
-            :class="[
-              'px-2.5 py-1 rounded transition-colors',
-              currentLang === lang ? 'bg-blue-600 text-white font-bold' : 'text-slate-400 hover:text-slate-200'
-            ]"
-          >
-            {{ lang.toUpperCase() }}
-          </button>
         </div>
       </div>
       <AccountSelector :accounts="accounts" :selectedId="selectedAccount" @select="selectAccount" />
@@ -55,18 +51,45 @@ onUnmounted(() => { observer?.disconnect(); });
     <main class="w-full max-w-2xl">
       <TimelineFilter :currentFilter="currentFilter" @filter="setFilter" />
 
+      <!-- 初期ロード時のスケルトン表示 -->
+      <div v-if="articles.length === 0 && loading" class="space-y-4">
+        <div v-for="i in 3" :key="i" class="bg-slate-900 border border-slate-800 rounded-xl p-4 animate-pulse">
+          <div class="flex items-center space-x-3 mb-3">
+            <div class="w-10 h-10 bg-slate-800 rounded-full"></div>
+            <div class="space-y-1.5 flex-1">
+              <div class="h-3.5 bg-slate-800 rounded w-1/3"></div>
+              <div class="h-2.5 bg-slate-800 rounded w-1/4"></div>
+            </div>
+          </div>
+          <div class="space-y-2 mb-3">
+            <div class="h-3 bg-slate-800 rounded w-full"></div>
+            <div class="h-3 bg-slate-800 rounded w-5/6"></div>
+          </div>
+          <div class="h-44 bg-slate-800/60 rounded-lg"></div>
+        </div>
+      </div>
+
       <ArticleCard
         v-for="article in articles"
         :key="article.id"
         :article="article"
-        :currentLang="currentLang"
+        :targetLang="systemLang"
         @toggleLike="toggleLike"
         @clickMedia="openLightbox"
       />
 
-      <div ref="observerTarget" class="py-8 flex justify-center text-xs text-slate-500 font-mono">
-        <span v-if="loading">Loading more archives...</span>
+      <div ref="observerTarget" class="py-8 flex flex-col items-center justify-center text-xs text-slate-500 font-mono gap-2">
+        <span v-if="loading && articles.length > 0">Loading more archives...</span>
         <span v-else-if="!hasMore && articles.length > 0">End of local archive. ({{ articles.length }} items)</span>
+        <template v-else-if="!loading && articles.length === 0">
+          <span>No archive items found.</span>
+          <button
+            @click="reloadAll"
+            class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded border border-slate-700 text-xs transition-colors flex items-center gap-1.5"
+          >
+            <span>🔄</span> 最新の情報に更新 (Ctrl+R)
+          </button>
+        </template>
       </div>
     </main>
 

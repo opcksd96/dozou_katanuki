@@ -8,7 +8,7 @@ import ArticleStats from './ArticleStats.vue';
 
 defineProps<{
   article: RenderTree;
-  currentLang: LanguageCode;
+  targetLang: LanguageCode;
 }>();
 
 const emit = defineEmits<{
@@ -26,7 +26,7 @@ const emit = defineEmits<{
       :sourceUrl="article.source_url"
       :isPinned="article.is_pinned"
     />
-    <ArticleBody :content="article.content" :currentLang="currentLang" />
+    <ArticleBody :content="article.content" :targetLang="targetLang" />
     <MediaGrid
       :media="article.media"
       @retry="(mediaId) => emit('retryMedia', mediaId)"

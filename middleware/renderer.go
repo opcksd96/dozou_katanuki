@@ -48,8 +48,8 @@ func mapMediaToRenderMedia(mediaList []models.Media) []models.RenderMedia {
 			if m.Type == "video" || m.Type == "gif" {
 				mediaURLs.Stream = fmt.Sprintf("/stash-proxy/scene/%s/stream", m.StashSceneID.String)
 			} else {
-				mediaURLs.Image = fmt.Sprintf("/stash-proxy/image/%s/file", m.StashImageID.String)
-				mediaURLs.Thumbnail = fmt.Sprintf("/stash-proxy/image/%s/file", m.StashImageID.String)
+				mediaURLs.Image = fmt.Sprintf("/stash-proxy/image/%s/image", m.StashImageID.String)
+				mediaURLs.Thumbnail = fmt.Sprintf("/stash-proxy/image/%s/thumbnail", m.StashImageID.String)
 			}
 		} else {
 			// 未ダウンロード（Stash未登録）時は原本/Wayback外部URLを直引き
