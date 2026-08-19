@@ -1,10 +1,11 @@
 // frontend/src/composables/useMediaOverlay.ts (100行以下)
 import { ref, computed, onMounted, onUnmounted } from 'vue';
-import type { RenderMedia } from '../models/RenderTree';
+import type { RenderMedia, RenderTree } from '../models/RenderTree';
 
 export function useMediaOverlay() {
   const isOpen = ref(false);
   const mediaList = ref<RenderMedia[]>([]);
+  const activeArticle = ref<RenderTree | null>(null);
   const currentIndex = ref(0);
 
   const activeMedia = computed(() => {
@@ -15,7 +16,8 @@ export function useMediaOverlay() {
   const hasNext = computed(() => currentIndex.value < mediaList.value.length - 1);
   const hasPrev = computed(() => currentIndex.value > 0);
 
-  const openMedia = (media: RenderMedia, list?: RenderMedia[]) => {
+  const openMedia = (media: RenderMedia, list?: RenderMedia[], article?: RenderTree) => {
+    activeArticle.value = article || null;
     if (list && list.length > 0) {
       mediaList.value = list;
       const idx = list.findIndex(m => m.id === media.id);
@@ -30,6 +32,7 @@ export function useMediaOverlay() {
   const closeMedia = () => {
     isOpen.value = false;
     mediaList.value = [];
+    activeArticle.value = null;
     currentIndex.value = 0;
   };
 
@@ -67,6 +70,7 @@ export function useMediaOverlay() {
   return {
     isOpen,
     activeMedia,
+    activeArticle,
     currentIndex,
     mediaList,
     hasNext,
@@ -77,3 +81,4 @@ export function useMediaOverlay() {
     prevMedia,
   };
 }
+

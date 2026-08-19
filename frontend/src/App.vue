@@ -17,7 +17,7 @@ const {
 } = useTimeline();
 
 const {
-  activeMedia, hasNext, hasPrev, openMedia, closeMedia, nextMedia, prevMedia,
+  activeMedia, activeArticle, hasNext, hasPrev, openMedia, closeMedia, nextMedia, prevMedia,
 } = useMediaOverlay();
 
 const observerTarget = ref<HTMLElement | null>(null);
@@ -91,7 +91,7 @@ onUnmounted(() => { observer?.disconnect(); });
         :article="article"
         :targetLang="systemLang"
         @toggleLike="toggleLike"
-        @clickMedia="(media, list) => openMedia(media, list)"
+        @clickMedia="(media, list, art) => openMedia(media, list, art)"
       />
 
       <div ref="observerTarget" class="py-8 flex flex-col items-center justify-center text-xs text-slate-500 font-mono gap-2">
@@ -111,11 +111,14 @@ onUnmounted(() => { observer?.disconnect(); });
 
     <MediaOverlay
       :media="activeMedia"
+      :article="activeArticle"
+      :targetLang="systemLang"
       :hasNext="hasNext"
       :hasPrev="hasPrev"
       @close="closeMedia"
       @next="nextMedia"
       @prev="prevMedia"
+      @toggleLike="toggleLike"
     />
 
     <AdminModal
