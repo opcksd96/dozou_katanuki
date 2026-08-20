@@ -1,11 +1,9 @@
 # plugins/twitter/scraper/core/warc_importer.py (100行以下)
-import os
-import re
-from typing import Callable, Optional
+import os, re
+from typing import Any, Callable, Dict, Optional
 from warcio.archiveiterator import ArchiveIterator
 from .mutator import Mutator
 from .downloader import Downloader
-
 try:
     from parsers.twitter_parser import TwitterParser
 except ImportError:
@@ -13,48 +11,69 @@ except ImportError:
 
 
 class WarcImporter:
-    """手動WARCファイルのオフライン自動監査・パース・メディア抽出 (SPEC-PLUGIN-001)"""
-
-    def __init__(self, warc_path: str, db_path: str = "archive.db", storage_dir: Optional[str] = None):
+    """手動WARCファイルのオフライン自動監査・逆引きパース・メディア抽出 (SPEC-PLUGIN-001)"""
+    def __init__(self, warc_path: str, db_path: str = "archive.db", storage_dir: Optional[str] = None, offline: bool = True):
         self.warc_path = warc_path
+        self.offline = offline
         self.mutator = Mutator(db_path=db_path)
         self.downloader = Downloader(db_path=db_path, storage_dir=storage_dir)
         self.parser = TwitterParser()
 
+    def audit_warc(self) -> Dict[str, Any]:
+        """WARCコンテナ内の通信レコードからプラットフォームとアカウント名を自動監査逆引き"""
+        if not os.path.exists(self.warc_path):
+            return {"platform": "unknown", "account": "", "records": 0}
+        detected = {"platform": "twitter", "account": "", "records": 0, "accounts": set()}
+        with open(self.warc_path, "rb") as s:
+            for r in ArchiveIterator(s):
+                detected["records"] += 1
+                uri = r.rec_headers.get_header("WARC-Target-URI") or ""
+                det = self.parser.detect_platform_and_account(uri)
+                if det and det.get("account"):
+                    detected["accounts"].add(det["account"])
+                    if not detected["account"]: detected["account"] = det["account"]
+        detected["accounts"] = list(detected["accounts"])
+        return detected
+
     def run_import(self, progress_callback: Optional[Callable[[int, int, str], None]] = None) -> int:
         if not os.path.exists(self.warc_path):
-            if progress_callback:
-                progress_callback(1, 1, f"WARC file not found: {self.warc_path}")
+            if progress_callback: progress_callback(1, 1, f"WARC not found: {self.warc_path}")
             return 0
 
-        saved_posts = 0
-        media_extracted = 0
-        with open(self.warc_path, "rb") as stream:
-            for idx, record in enumerate(ArchiveIterator(stream), start=1):
-                if record.rec_type != "response":
-                    continue
+        audit = self.audit_warc()
+        account = audit.get("account") or "unknown"
+        tot = max(audit.get("records", 1), 1)
+        if progress_callback:
+            progress_callback(0, tot, f"Audited WARC: platform={audit['platform']}, account=@{account} (records: {tot})")
 
-                uri = record.rec_headers.get_header("WARC-Target-URI") or ""
-                content_type = record.http_headers.get_header("Content-Type") or "" if record.http_headers else ""
+        saved, extracted = 0, 0
+        with open(self.warc_path, "rb") as s:
+            for idx, r in enumerate(ArchiveIterator(s), start=1):
+                if r.rec_type != "response": continue
+                uri = r.rec_headers.get_header("WARC-Target-URI") or ""
+                c_type = (r.http_headers.get_header("Content-Type") if r.http_headers else "") or ""
 
-                if "json" in content_type or "html" in content_type or "status" in uri:
-                    raw_bytes = record.raw_stream.read()
-                    parsed = self.parser.parse_record(raw_bytes, uri)
+                if "json" in c_type or "html" in c_type or "status" in uri:
+                    raw = r.raw_stream.read()
+                    parsed = self.parser.parse_record(raw, uri)
                     if parsed and self.mutator.upsert_record(parsed):
-                        saved_posts += 1
+                        saved += 1
+                        u = parsed.get("account", {}).get("username") or account
+                        if u and u != "unknown": account = u
                         if progress_callback:
-                            progress_callback(idx, idx + 10, f"Saved post {parsed['post']['id']} (@{parsed['account']['username']})")
-
-                elif any(domain in uri for domain in ["twimg.com", "video.twimg.com"]):
+                            progress_callback(idx, tot, f"Saved post {parsed['post']['id']} (@{u})")
+                elif any(d in uri for d in ["twimg.com", "video.twimg.com"]):
                     media_id = os.path.basename(uri.split("?")[0])
-                    dest_dir = self.downloader.storage_dir
-                    os.makedirs(dest_dir, exist_ok=True)
-                    dest_path = os.path.join(dest_dir, media_id)
-                    with open(dest_path, "wb") as mf:
-                        mf.write(record.raw_stream.read())
-                    self.downloader._update_status(media_id, "COMPLETED", None, None)
-                    media_extracted += 1
+                    dest = self.downloader._get_target_path(account, media_id)
+                    with open(dest, "wb") as mf:
+                        mf.write(r.raw_stream.read())
+                    img_id = self.downloader.stash.find_image_by_path(dest) if not media_id.endswith(".mp4") else None
+                    scn_id = self.downloader.stash.find_scene_by_path(dest) if media_id.endswith(".mp4") else None
+                    self.downloader._update_status(media_id, "COMPLETED", None, img_id, scn_id)
+                    extracted += 1
+                    if progress_callback:
+                        progress_callback(idx, tot, f"Extracted media {media_id} -> COMPLETED")
 
         if progress_callback:
-            progress_callback(100, 100, f"Import finished: {saved_posts} posts, {media_extracted} media extracted.")
-        return saved_posts
+            progress_callback(tot, tot, f"Offline import completed: {saved} posts, {extracted} media extracted.")
+        return saved

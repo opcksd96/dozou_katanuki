@@ -1,12 +1,8 @@
 # plugins/twitter/scraper/main.py (100行以下)
-import argparse
-import os
-import sys
-import time
+import argparse, os, sys, time
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
-if CURRENT_DIR not in sys.path:
-    sys.path.insert(0, CURRENT_DIR)
+if CURRENT_DIR not in sys.path: sys.path.insert(0, CURRENT_DIR)
 
 from core.downloader import Downloader
 from core.mutator import Mutator
@@ -74,7 +70,8 @@ def main():
     elif args.mode == "manual":
         if not args.warc_path:
             print("[FATAL] --warc-path is required in manual mode", file=sys.stderr); sys.exit(1)
-        WarcImporter(args.warc_path, db_path=args.db_path, storage_dir=args.storage_dir).run_import(progress_callback=emit_progress)
+        imp = WarcImporter(args.warc_path, db_path=args.db_path, storage_dir=args.storage_dir, offline=args.offline)
+        imp.run_import(progress_callback=emit_progress)
     elif args.mode == "download":
         emit_progress(0, 1, f"Processing media download (media_id: {args.media_id or 'all_queued'})...")
         c = dl.process_queued_media(article_id=args.article_id or None, media_id=args.media_id or None)

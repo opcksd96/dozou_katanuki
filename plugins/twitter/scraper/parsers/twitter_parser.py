@@ -1,32 +1,28 @@
 # plugins/twitter/scraper/parsers/twitter_parser.py (100行以下)
-import json
-import re
+import json, re
 from typing import Any, Dict, List, Optional
 from .base_parser import BaseParser
 
 
 class TwitterParser(BaseParser):
     """Twitter / X 特化型抽出エンジン (SPEC-PLUGIN-001)"""
-
-    URL_PATTERN = re.compile(r"(?:https?://)?(?:twitter\.com|x\.com)/([a-zA-Z0-9_]+)(?:/status(?:es)?/(\d+))?")
+    URL_PATTERN = re.compile(r"(?:https?://)?(?:[a-zA-Z0-9_.\-]+\.)?(?:twitter\.com|x\.com)/([a-zA-Z0-9_]+)(?:/status(?:es)?/(\d+))?")
+    RESERVED = {"i", "search", "home", "explore", "settings", "intent", "hashtag", "share", "api", "1", "oauth", "account"}
 
     def detect_platform_and_account(self, uri: str) -> Optional[Dict[str, str]]:
         m = self.URL_PATTERN.search(uri)
-        if m:
-            account = m.group(1)
-            status_id = m.group(2) or ""
-            return {"platform": "twitter", "account": account, "status_id": status_id}
+        if m and m.group(1).lower() not in self.RESERVED:
+            return {"platform": "twitter", "account": m.group(1), "status_id": m.group(2) or ""}
         return None
 
     def parse_record(self, raw_data: Any, uri: str) -> Optional[Dict[str, Any]]:
         if isinstance(raw_data, (str, bytes)):
             try:
                 data = json.loads(raw_data)
-                if isinstance(data, dict):
-                    return self._parse_json(data, uri)
-            except Exception:
-                pass
-            return self._parse_html(raw_data.decode("utf-8", errors="ignore") if isinstance(raw_data, bytes) else str(raw_data), uri)
+                if isinstance(data, dict): return self._parse_json(data, uri)
+            except Exception: pass
+            html = raw_data.decode("utf-8", errors="ignore") if isinstance(raw_data, bytes) else str(raw_data)
+            return self._parse_html(html, uri)
         elif isinstance(raw_data, dict):
             return self._parse_json(raw_data, uri)
         return None
@@ -34,47 +30,41 @@ class TwitterParser(BaseParser):
     def _parse_json(self, data: Dict[str, Any], uri: str) -> Optional[Dict[str, Any]]:
         tweet = data.get("tweet") or data.get("data") or data
         user = data.get("user") or (data.get("includes", {}).get("users", [{}])[0] if "includes" in data else {})
-        tweet_id = str(tweet.get("id_str") or tweet.get("id") or "")
-        username = user.get("screen_name") or user.get("username") or ""
+        t_id = str(tweet.get("id_str") or tweet.get("id") or "")
+        u_name = user.get("screen_name") or user.get("username") or ""
 
-        if not tweet_id or not username:
-            detect = self.detect_platform_and_account(uri)
-            if detect:
-                username = username or detect["account"]
-                tweet_id = tweet_id or detect.get("status_id", "")
-        if not tweet_id:
-            return None
+        if not t_id or not u_name:
+            det = self.detect_platform_and_account(uri)
+            if det:
+                u_name, t_id = u_name or det["account"], t_id or det.get("status_id", "")
+        if not t_id: return None
 
         media_list: List[Dict[str, Any]] = []
         entities = tweet.get("extended_entities", {}) or tweet.get("entities", {})
         for m in entities.get("media", []):
-            m_url = m.get("media_url_https") or m.get("media_url") or m.get("url")
-            if m_url:
-                media_list.append({
-                    "url": m_url,
-                    "type": m.get("type", "image"),
-                    "width": m.get("sizes", {}).get("large", {}).get("w", 0),
-                    "height": m.get("sizes", {}).get("large", {}).get("h", 0),
-                })
+            url = m.get("media_url_https") or m.get("media_url") or m.get("url")
+            if url:
+                sizes = m.get("sizes", {}).get("large", {})
+                media_list.append({"url": url, "type": m.get("type", "image"),
+                                   "width": sizes.get("w", 0), "height": sizes.get("h", 0)})
 
-        urls_list: List[Dict[str, str]] = []
+        urls_list = []
         for u in entities.get("urls", []):
-            short_url = u.get("url")
-            expanded_url = u.get("expanded_url") or u.get("unwound", {}).get("url") or short_url
-            if short_url and expanded_url:
-                urls_list.append({"short_url": short_url, "expanded_url": expanded_url})
+            s_url = u.get("url")
+            e_url = u.get("expanded_url") or u.get("unwound", {}).get("url") or s_url
+            if s_url and e_url: urls_list.append({"short_url": s_url, "expanded_url": e_url})
 
         return {
             "platform": "twitter",
             "account": {
-                "numeric_id": str(user.get("id_str") or user.get("id") or username),
-                "username": username,
-                "display_name": user.get("name") or username,
+                "numeric_id": str(user.get("id_str") or user.get("id") or u_name),
+                "username": u_name,
+                "display_name": user.get("name") or u_name,
                 "avatar_url": user.get("profile_image_url_https") or user.get("profile_image_url") or "",
             },
             "post": {
-                "id": tweet_id,
-                "conversation_id": str(tweet.get("conversation_id_str") or tweet_id),
+                "id": t_id,
+                "conversation_id": str(tweet.get("conversation_id_str") or t_id),
                 "reply_to_tweet_id": tweet.get("in_reply_to_status_id_str"),
                 "reply_to_handle": tweet.get("in_reply_to_screen_name"),
                 "created_at": tweet.get("created_at") or "",
@@ -86,21 +76,16 @@ class TwitterParser(BaseParser):
         }
 
     def _parse_html(self, html_text: str, uri: str) -> Optional[Dict[str, Any]]:
-        detect = self.detect_platform_and_account(uri)
-        if not detect:
-            return None
-        post_id = detect.get("status_id")
-        if not post_id:
-            id_m = re.search(r'status(?:es)?/(\d+)', html_text) or re.search(r'data-tweet-id="(\d+)"', html_text)
-            post_id = id_m.group(1) if id_m else ""
-        if not post_id:
-            return None
+        det = self.detect_platform_and_account(uri)
+        if not det: return None
+        p_id = det.get("status_id") or (re.search(r'status(?:es)?/(\d+)', html_text) or re.search(r'data-tweet-id="(\d+)"', html_text) or [None, ""])[1]
+        if not p_id: return None
 
-        text_m = re.search(r'<meta property="og:description" content="([^"]+)"', html_text) or re.search(r'<title>([^<]+)</title>', html_text)
-        full_text = text_m.group(1) if text_m else f"Archived post from {uri}"
+        m_desc = re.search(r'<meta property="og:description" content="([^"]+)"', html_text) or re.search(r'<title>([^<]+)</title>', html_text)
+        txt = m_desc.group(1) if m_desc else f"Archived post from {uri}"
         return {
             "platform": "twitter",
-            "account": {"numeric_id": detect["account"], "username": detect["account"], "display_name": detect["account"], "avatar_url": ""},
-            "post": {"id": post_id, "conversation_id": post_id, "full_text": full_text, "wayback_url": uri, "urls": []},
+            "account": {"numeric_id": det["account"], "username": det["account"], "display_name": det["account"], "avatar_url": ""},
+            "post": {"id": p_id, "conversation_id": p_id, "full_text": txt, "wayback_url": uri, "urls": []},
             "media": [],
         }
