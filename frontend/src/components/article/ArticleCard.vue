@@ -10,6 +10,8 @@ import ArticleStats from './ArticleStats.vue';
 const props = defineProps<{
   article: RenderTree;
   targetLang: LanguageCode;
+  isFocused?: boolean;
+  hasThreadLine?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -22,7 +24,6 @@ const emit = defineEmits<{
 }>();
 
 const handleCardClick = (e: MouseEvent) => {
-  // リンクやボタンをクリックした場合は詳細遷移を発火させない
   const target = e.target as HTMLElement;
   if (target.closest('button') || target.closest('a') || target.closest('.media-click-target')) {
     return;
@@ -34,21 +35,34 @@ const handleCardClick = (e: MouseEvent) => {
 <template>
   <article
     @click="handleCardClick"
-    class="twitter-card flex items-start gap-3 p-4 bg-slate-950/80 border-b border-slate-800 hover:bg-slate-900/40 transition-colors text-left cursor-pointer select-text"
+    :class="[
+      'twitter-card relative flex items-start gap-3 p-4 bg-slate-950/80 border-b border-slate-800 hover:bg-slate-900/40 transition-all text-left cursor-pointer select-text',
+      isFocused ? 'is-focused' : ''
+    ]"
   >
+    <!-- スレッド接続線（親への継続線） -->
+    <div v-if="hasThreadLine" class="twitter-thread-line-vertical"></div>
+
     <!-- 左カラム: アバター (40px) -->
-    <div class="twitter-avatar-col flex-shrink-0 pt-0.5">
+    <div class="twitter-avatar-col relative z-10 flex-shrink-0 pt-0.5">
       <Avatar :avatarUrl="article.author.avatar_url" :handle="article.author.handle" />
     </div>
 
-    <!-- 右カラム: ヘッダー、本文、メディア、アクション -->
-    <div class="twitter-content-col flex-1 min-w-0 space-y-1.5">
+    <!-- 右カラム: ヘッダー、リプライ先、本文、メディア、アクション -->
+    <div class="twitter-content-col relative z-10 flex-1 min-w-0 space-y-1.5">
       <ArticleHeader
         :author="article.author"
         :createdAt="article.created_at"
         :sourceUrl="article.source_url"
         :isPinned="article.is_pinned"
       />
+
+      <!-- リプライ先バッジ -->
+      <div v-if="article.reply_to_handle" class="twitter-reply-badge">
+        <span>返信先:</span>
+        <a @click.stop="emit('clickMention', article.reply_to_handle)">@{{ article.reply_to_handle }}</a>
+      </div>
+
       <ArticleBody
         :content="article.content"
         :targetLang="targetLang"

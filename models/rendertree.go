@@ -55,6 +55,7 @@ type RenderTree struct {
 	IsPinned       bool          `json:"is_pinned"`
 	SourceURL      string        `json:"source_url"`
 	ParentID       string        `json:"parent_id,omitempty"`
+	ReplyToHandle  string        `json:"reply_to_handle,omitempty"`
 }
 
 // ArticleSearchResult は記事検索のページネーション付き結果構造体です
@@ -68,3 +69,12 @@ type ArticleDetailResult struct {
 	Article RenderTree   `json:"article"`
 	Thread  []RenderTree `json:"thread"`
 }
+
+// SkinPackage はプラットフォーム別プレゼンテーションスキンのアセット群です (SPEC-PLUGIN-001)
+type SkinPackage struct {
+	Platform   string `json:"platform"`
+	LayoutYAML string `json:"layout_yaml"`
+	DesignCSS  string `json:"design_css"`
+	Controller string `json:"controller_js"`
+}
+

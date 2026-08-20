@@ -52,9 +52,11 @@ func ToRenderTree(item models.Article, platform string) models.RenderTree {
 			Retweets: 0,
 			Likes:    0,
 		},
-		IsLiked:   item.IsLiked,
-		IsPinned:  false,
-		SourceURL: item.WaybackURL,
+		IsLiked:       item.IsLiked,
+		IsPinned:      false,
+		SourceURL:     item.WaybackURL,
+		ParentID:      item.ReplyToID.String,
+		ReplyToHandle: item.ReplyToHandle.String,
 	}
 }
 

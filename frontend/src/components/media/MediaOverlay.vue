@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted, onUnmounted } from 'vue';
 import type { RenderMedia, RenderTree } from '../../models/RenderTree';
 import type { LanguageCode } from '../../composables/useTimeline';
 import StashPlayer from './StashPlayer.vue';
@@ -34,27 +34,63 @@ const displayText = computed(() => {
   return content.original;
 });
 
+// 現在のメディアインデックス
+const currentIndex = computed(() => {
+  if (!props.article?.media || !props.media) return 0;
+  return props.article.media.findIndex((m) => m.id === props.media?.id);
+});
+
+// タッチスワイプ管理
+let touchStartX = 0;
+let touchStartY = 0;
+
+const handleTouchStart = (e: TouchEvent) => {
+  touchStartX = e.changedTouches[0].screenX;
+  touchStartY = e.changedTouches[0].screenY;
+};
+
+const handleTouchEnd = (e: TouchEvent) => {
+  const diffX = e.changedTouches[0].screenX - touchStartX;
+  const diffY = e.changedTouches[0].screenY - touchStartY;
+  if (Math.abs(diffX) > Math.abs(diffY) && Math.abs(diffX) > 40) {
+    if (diffX < 0 && props.hasNext) emit('next');
+    else if (diffX > 0 && props.hasPrev) emit('prev');
+  }
+};
+
+const handleKeyDown = (e: KeyboardEvent) => {
+  if (!props.media) return;
+  if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') {
+    if (props.hasNext) {
+      e.preventDefault();
+      emit('next');
+    }
+  } else if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') {
+    if (props.hasPrev) {
+      e.preventDefault();
+      emit('prev');
+    }
+  } else if (e.key === 'Escape') {
+    e.preventDefault();
+    emit('close');
+  }
+};
+
+onMounted(() => window.addEventListener('keydown', handleKeyDown));
+onUnmounted(() => window.removeEventListener('keydown', handleKeyDown));
+
 // Stash への直接導線 URL を算出
 const stashDirectUrl = computed(() => {
   if (!props.media) return null;
-
-  if (props.media.stash_scene_id) {
-    return `http://127.0.0.1:9999/scenes/${props.media.stash_scene_id}`;
-  }
-  if (props.media.stash_image_id) {
-    return `http://127.0.0.1:9999/images/${props.media.stash_image_id}`;
-  }
+  if (props.media.stash_scene_id) return `http://127.0.0.1:9999/scenes/${props.media.stash_scene_id}`;
+  if (props.media.stash_image_id) return `http://127.0.0.1:9999/images/${props.media.stash_image_id}`;
   if (props.media.urls?.stream) {
     const match = props.media.urls.stream.match(/\/stash-proxy\/scene\/([^/]+)/);
-    if (match && match[1]) {
-      return `http://127.0.0.1:9999/scenes/${match[1]}`;
-    }
+    if (match && match[1]) return `http://127.0.0.1:9999/scenes/${match[1]}`;
   }
   if (props.media.urls?.image) {
     const match = props.media.urls.image.match(/\/stash-proxy\/image\/([^/]+)/);
-    if (match && match[1]) {
-      return `http://127.0.0.1:9999/images/${match[1]}`;
-    }
+    if (match && match[1]) return `http://127.0.0.1:9999/images/${match[1]}`;
   }
   return 'http://127.0.0.1:9999';
 });
@@ -64,10 +100,12 @@ const stashDirectUrl = computed(() => {
   <Transition name="fade">
     <div
       v-if="media"
+      @touchstart="handleTouchStart"
+      @touchend="handleTouchEnd"
       class="fixed inset-0 z-50 bg-black/95 backdrop-blur-md flex flex-col lg:flex-row items-stretch justify-between overflow-hidden select-none cursor-pointer"
       @click="emit('close')"
     >
-      <!-- 左/中央: メディア表示エリア (背景クリックでオーバーレイ閉じる) -->
+      <!-- 左/中央: メディア表示エリア -->
       <div
         class="relative flex-1 flex items-center justify-center p-4 min-h-[60vh] lg:min-h-full overflow-hidden"
         @click="emit('close')"
@@ -76,7 +114,7 @@ const stashDirectUrl = computed(() => {
         <button
           v-if="hasPrev"
           @click.stop="emit('prev')"
-          title="前のメディア (←)"
+          title="前のメディア (← / A)"
           class="absolute left-4 z-30 text-white/70 hover:text-white bg-black/60 hover:bg-black/80 border border-white/10 p-3 rounded-full transition-colors cursor-pointer"
         >
           <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -88,7 +126,7 @@ const stashDirectUrl = computed(() => {
         <button
           v-if="hasNext"
           @click.stop="emit('next')"
-          title="次のメディア (→)"
+          title="次のメディア (→ / D)"
           class="absolute right-4 z-30 text-white/70 hover:text-white bg-black/60 hover:bg-black/80 border border-white/10 p-3 rounded-full transition-colors cursor-pointer"
         >
           <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -96,18 +134,18 @@ const stashDirectUrl = computed(() => {
           </svg>
         </button>
 
-        <!-- メディア実体 (画像・動画クリック時は閉じないよう @click.stop) -->
-        <div class="relative max-w-full max-h-[88vh] flex items-center justify-center cursor-default">
+        <!-- メディア実体 -->
+        <div class="relative max-w-full max-h-[88vh] flex flex-col items-center justify-center cursor-default">
           <img
             v-if="media.type === 'image' || media.type === 'gif'"
             :src="media.urls.image || media.urls.original"
             :alt="media.id"
-            class="max-w-full max-h-[88vh] object-contain rounded shadow-2xl transition-all select-none"
+            class="max-w-full max-h-[84vh] object-contain rounded shadow-2xl transition-all select-none"
             @click.stop
           />
           <div
             v-else-if="media.type === 'video'"
-            class="w-full max-w-4xl max-h-[85vh] flex items-center justify-center"
+            class="w-full max-w-4xl max-h-[84vh] flex items-center justify-center"
             @click.stop
           >
             <StashPlayer
@@ -118,12 +156,21 @@ const stashDirectUrl = computed(() => {
               :controls="true"
             />
           </div>
+
+          <!-- カルーセルインジケータードット (複数メディア時) -->
+          <div v-if="article?.media && article.media.length > 1" class="twitter-carousel-dots mt-3" @click.stop>
+            <div
+              v-for="(m, idx) in article.media"
+              :key="m.id"
+              :class="['twitter-carousel-dot', idx === currentIndex ? 'active' : '']"
+            ></div>
+          </div>
         </div>
       </div>
 
-      <!-- 右側: 元ツイート詳細サイドバー (クリックイベントを stop して操作可能に) -->
+      <!-- 右側: 元ツイート詳細サイドバー -->
       <div
-        class="w-full lg:w-96 bg-slate-950/95 border-t lg:border-t-0 lg:border-l border-slate-800 flex flex-col justify-between max-h-[40vh] lg:max-h-full overflow-y-auto cursor-default z-40 shadow-2xl backdrop-blur-xl"
+        class="w-full lg:w-96 bg-slate-950/95 border-t lg:border-t-0 lg:border-l border-slate-800 flex flex-col justify-between max-h-[40vh] lg:max-h-full overflow-y-auto cursor-default z-40 shadow-2xl backdrop-blur-xl text-left"
         @click.stop
       >
         <!-- サイドバーヘッダー ＆ 投稿者情報 -->
@@ -194,7 +241,6 @@ const stashDirectUrl = computed(() => {
 
         <!-- 本文エリア ＆ 翻訳セレクタ -->
         <div class="p-5 flex-1 space-y-3 overflow-y-auto">
-          <!-- 翻訳言語切り替えタブ -->
           <div v-if="article?.content?.ja || article?.content?.en || article?.content?.zh" class="flex items-center gap-1 bg-slate-900/80 p-1 rounded-lg border border-slate-800 text-xs w-fit">
             <button
               @click="selectedLang = 'ja'"

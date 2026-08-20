@@ -1,11 +1,31 @@
-# plugins/twitter/skin/layout.yaml (100行以下)
+# plugins/twitter/skin/layout.yaml (SPEC-PLUGIN-001 / 100行以下)
 name: twitter_skin
-version: "1.0.0"
+version: "2.0.0"
 platform: twitter
+display_name: "X (Twitter) Pure Dark"
+author: "dozou_katanuki"
+
 components:
   card: ArticleCard
   media_grid: MediaGrid
-  avatar: AvatarView
+  avatar: Avatar
+  detail: ArticleDetailView
+
 styles:
   primary_color: "#1d9bf0"
+  primary_hover: "#1a8cd8"
   dark_bg: "#020617"
+  card_border: "#1e293b"
+  thread_line: "#334155"
+  focus_ring: "#1d9bf0"
+  heart_color: "#f91880"
+  font_family: "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif"
+
+shortcuts:
+  next_item: "j"
+  prev_item: "k"
+  open_detail: ["Enter", "o", " "]
+  toggle_like: "l"
+  open_media: ["m", "x"]
+  close_detail: "Escape"
+  help_modal: "?"

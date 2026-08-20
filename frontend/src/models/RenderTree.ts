@@ -49,4 +49,6 @@ export interface RenderTree {
   is_liked: boolean;
   is_pinned: boolean;
   parent_id?: string;
+  reply_to_handle?: string;
 }
+

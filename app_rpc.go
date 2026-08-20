@@ -462,4 +462,65 @@ func (a *App) SaveSkinCSS(platform, cssContent string) error {
 	return nil
 }
 
+// GetSkinLayout はプラグインの skin/layout.yaml を取得する Wails バインドメソッドです
+func (a *App) GetSkinLayout(platform string) (string, error) {
+	if platform == "" {
+		platform = "twitter"
+	}
+	cleanPlatform := filepath.Clean(platform)
+	if strings.Contains(cleanPlatform, "..") || strings.ContainsAny(cleanPlatform, "/\\") {
+		cleanPlatform = "twitter"
+	}
+
+	layoutPath := filepath.Join("plugins", cleanPlatform, "skin", "layout.yaml")
+	data, err := os.ReadFile(layoutPath)
+	if err != nil {
+		log.Printf("[Wails RPC] GetSkinLayout error reading %s: %v", layoutPath, err)
+		return "", err
+	}
+	return string(data), nil
+}
+
+// GetSkinController はプラグインの skin/controller.js を取得する Wails バインドメソッドです
+func (a *App) GetSkinController(platform string) (string, error) {
+	if platform == "" {
+		platform = "twitter"
+	}
+	cleanPlatform := filepath.Clean(platform)
+	if strings.Contains(cleanPlatform, "..") || strings.ContainsAny(cleanPlatform, "/\\") {
+		cleanPlatform = "twitter"
+	}
+
+	ctrlPath := filepath.Join("plugins", cleanPlatform, "skin", "controller.js")
+	data, err := os.ReadFile(ctrlPath)
+	if err != nil {
+		log.Printf("[Wails RPC] GetSkinController error reading %s: %v", ctrlPath, err)
+		return "", err
+	}
+	return string(data), nil
+}
+
+// GetSkinPackage はプラグインの skin アセット一式 (layout, css, controller) を取得する Wails バインドメソッドです (SPEC-PLUGIN-001)
+func (a *App) GetSkinPackage(platform string) (*models.SkinPackage, error) {
+	if platform == "" {
+		platform = "twitter"
+	}
+	cleanPlatform := filepath.Clean(platform)
+	if strings.Contains(cleanPlatform, "..") || strings.ContainsAny(cleanPlatform, "/\\") {
+		cleanPlatform = "twitter"
+	}
+
+	layout, _ := a.GetSkinLayout(cleanPlatform)
+	css, _ := a.GetSkinCSS(cleanPlatform)
+	ctrl, _ := a.GetSkinController(cleanPlatform)
+
+	return &models.SkinPackage{
+		Platform:   cleanPlatform,
+		LayoutYAML: layout,
+		DesignCSS:  css,
+		Controller: ctrl,
+	}, nil
+}
+
+
 

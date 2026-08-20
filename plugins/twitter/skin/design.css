@@ -1,7 +1,8 @@
 /* plugins/twitter/skin/design.css (SPEC-PLUGIN-001 / 100行以下厳守) */
 
-/* Twitter/X 本家準拠カードコンテナ */
+/* Twitter/X カードコンテナ & キーボードフォーカス */
 .twitter-card {
+  position: relative;
   display: flex;
   flex-direction: row;
   align-items: flex-start;
@@ -10,99 +11,112 @@
   background-color: #020617;
   border-bottom: 1px solid #1e293b;
   text-align: left;
-  transition: background-color 0.15s ease;
+  transition: background-color 0.15s ease, box-shadow 0.15s ease;
 }
-
 .twitter-card:hover {
-  background-color: rgba(255, 255, 255, 0.02);
+  background-color: rgba(255, 255, 255, 0.025);
+}
+.twitter-card.is-focused {
+  background-color: rgba(29, 155, 240, 0.06) !important;
+  box-shadow: inset 3px 0 0 0 #1d9bf0, 0 0 12px rgba(29, 155, 240, 0.15);
 }
 
-/* 左カラム: アバター */
-.twitter-avatar-col {
-  flex-shrink: 0;
-  width: 40px;
+/* スレッド会話ツリー接続線 */
+.twitter-thread-container {
+  position: relative;
+}
+.twitter-thread-line-vertical {
+  position: absolute;
+  top: 48px;
+  bottom: 0;
+  left: 36px;
+  width: 2px;
+  background-color: #334155;
+  z-index: 1;
+}
+.twitter-thread-line-parent {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 36px;
+  width: 2px;
+  background-color: #334155;
+  z-index: 1;
 }
 
-/* 右カラム: メインコンテンツ (ヘッダー、本文、メディア、アクション) */
-.twitter-content-col {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  text-align: left;
-}
-
-/* ユーザーヘッダー行 (名前, handle, 日時) */
-.twitter-header-row {
-  display: flex;
+/* リプライバッジ */
+.twitter-reply-badge {
+  display: inline-flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 6px;
-  line-height: 1.25;
-  text-align: left;
-}
-
-.twitter-user-info {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  overflow: hidden;
-  white-space: nowrap;
-}
-
-.twitter-display-name {
-  font-weight: 700;
-  color: #f8fafc;
-  font-size: 14px;
-}
-
-.twitter-handle {
-  color: #64748b;
-  font-size: 13px;
-  font-family: ui-monospace, monospace;
-}
-
-.twitter-timestamp {
-  color: #64748b;
+  gap: 4px;
   font-size: 12px;
-  white-space: nowrap;
+  color: #64748b;
+  margin-bottom: 2px;
 }
-
-/* 本文テキスト */
-.twitter-body-text {
-  font-size: 14px;
-  line-height: 1.5;
-  color: #f1f5f9;
-  word-break: break-word;
-  white-space: pre-wrap;
-  text-align: left;
-}
-
-/* リンクカラー */
-.twitter-accent-text,
-.twitter-card a,
-.hashtag-link,
-.mention-link,
-.external-link {
+.twitter-reply-badge a {
   color: #1d9bf0;
   text-decoration: none;
 }
-
-.twitter-card a:hover,
-.hashtag-link:hover,
-.mention-link:hover,
-.external-link:hover {
+.twitter-reply-badge a:hover {
   text-decoration: underline;
 }
 
-/* アクションバー */
-.twitter-actions-bar {
+/* フォーカス詳細メインカード */
+.twitter-main-focus-card {
+  padding: 20px 16px;
+  background-color: #020617;
+}
+.twitter-main-focus-card .twitter-body-text {
+  font-size: 17px;
+  line-height: 1.6;
+  color: #f8fafc;
+  padding-top: 4px;
+}
+
+/* リンク & アクセントテキスト */
+.twitter-accent-text, .twitter-card a, .hashtag-link, .mention-link, .external-link {
+  color: #1d9bf0;
+  text-decoration: none;
+  transition: color 0.15s ease;
+}
+.twitter-card a:hover, .hashtag-link:hover, .mention-link:hover, .external-link:hover {
+  text-decoration: underline;
+  color: #71c9f8;
+}
+
+/* カルーセルスワイプ & インジケーター */
+.twitter-carousel-dots {
   display: flex;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 0;
+}
+.twitter-carousel-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 9999px;
+  background-color: rgba(255, 255, 255, 0.3);
+  transition: all 0.2s ease;
+}
+.twitter-carousel-dot.active {
+  width: 18px;
+  background-color: #1d9bf0;
+}
+
+/* キーボードショートカットガイドバッジ */
+.twitter-shortcut-key {
+  display: inline-flex;
   align-items: center;
-  justify-content: space-between;
-  max-width: 420px;
-  margin-top: 4px;
-  color: #64748b;
-  font-size: 12px;
+  justify-content: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  font-family: ui-monospace, monospace;
+  font-size: 11px;
+  font-weight: 600;
+  color: #cbd5e1;
+  background: #1e293b;
+  border: 1px solid #334155;
+  border-radius: 4px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
 }

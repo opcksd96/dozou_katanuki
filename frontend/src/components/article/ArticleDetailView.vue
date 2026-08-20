@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch, onMounted, onUnmounted } from 'vue';
+import { ref, computed } from 'vue';
 import type { RenderTree, RenderMedia } from '../../models/RenderTree';
 import type { LanguageCode } from '../../composables/useTimeline';
 import Avatar from './Avatar.vue';
@@ -12,6 +12,7 @@ const props = defineProps<{
   thread: RenderTree[];
   targetLang: LanguageCode;
   loading?: boolean;
+  focusedArticleId?: string;
 }>();
 
 const emit = defineEmits<{
@@ -37,25 +38,29 @@ const copyArticleUrl = async () => {
   }
 };
 
-const handleKeyDown = (e: KeyboardEvent) => {
-  if (e.key === 'Escape') {
-    emit('back');
-  }
-};
-
-onMounted(() => {
-  window.addEventListener('keydown', handleKeyDown);
+// 親スレッド（メイン記事より前に投稿された関連ポスト、時系列昇順）
+const parentChain = computed(() => {
+  if (!props.thread || props.thread.length === 0) return [];
+  const mainTime = new Date(props.article.created_at).getTime();
+  return props.thread
+    .filter((t) => t.id !== props.article.id && new Date(t.created_at).getTime() < mainTime)
+    .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
 });
 
-onUnmounted(() => {
-  window.removeEventListener('keydown', handleKeyDown);
+// 子スレッド（メイン記事の後に投稿された関連ポスト、時系列昇順）
+const childReplies = computed(() => {
+  if (!props.thread || props.thread.length === 0) return [];
+  const mainTime = new Date(props.article.created_at).getTime();
+  return props.thread
+    .filter((t) => t.id !== props.article.id && new Date(t.created_at).getTime() >= mainTime)
+    .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
 });
 </script>
 
 <template>
-  <div class="w-full bg-slate-950 min-h-screen">
+  <div class="w-full bg-slate-950 min-h-screen text-left">
     <!-- 上部ナビゲーションバー -->
-    <div class="sticky top-0 z-20 bg-slate-950/80 backdrop-blur border-b border-slate-800 px-4 py-3 flex items-center justify-between">
+    <div class="sticky top-0 z-30 bg-slate-950/85 backdrop-blur border-b border-slate-800 px-4 py-3 flex items-center justify-between">
       <div class="flex items-center gap-3">
         <button
           @click="emit('back')"
@@ -91,65 +96,82 @@ onUnmounted(() => {
       </div>
     </div>
 
-    <div class="divide-y divide-slate-800">
-      <!-- 1. 親スレッド (もし本ポストの前に発言がある場合) -->
-      <div v-if="thread && thread.length > 0" class="divide-y divide-slate-800/60">
-        <template v-for="t in thread" :key="t.id">
-          <div
-            v-if="t.id !== article.id && new Date(t.created_at).getTime() < new Date(article.created_at).getTime()"
-            @click="emit('selectArticle', t.id)"
-            class="p-4 bg-slate-950/40 hover:bg-slate-900/30 transition-colors cursor-pointer relative"
-          >
-            <!-- スレッド接続線 -->
-            <div class="absolute left-9 top-14 bottom-0 w-0.5 bg-slate-800"></div>
+    <div>
+      <!-- 1. 親スレッドチェーン（上位リプライ群） -->
+      <div v-if="parentChain.length > 0" class="divide-y divide-slate-800/40">
+        <div
+          v-for="(t, idx) in parentChain"
+          :key="t.id"
+          @click="emit('selectArticle', t.id)"
+          :class="[
+            'twitter-card relative p-4 bg-slate-950/60 hover:bg-slate-900/40 transition-colors cursor-pointer',
+            focusedArticleId === t.id ? 'is-focused' : ''
+          ]"
+        >
+          <!-- 連続スレッド接続線 -->
+          <div class="absolute left-8 top-12 bottom-0 w-0.5 bg-slate-700"></div>
 
-            <div class="flex items-start gap-3">
-              <Avatar :avatarUrl="t.author.avatar_url" :handle="t.author.handle" />
-              <div class="flex-1 min-w-0 space-y-1">
-                <div class="flex items-center gap-2 text-xs">
-                  <span class="font-bold text-white">{{ t.author.display_name || t.author.handle }}</span>
-                  <span class="text-slate-400 font-mono">@{{ t.author.handle }}</span>
-                  <span class="text-slate-500">·</span>
-                  <span class="text-slate-500 font-mono">{{ t.created_at }}</span>
-                </div>
-                <ArticleBody
-                  :content="t.content"
-                  :targetLang="targetLang"
-                  @clickTag="(tag) => emit('clickTag', tag)"
-                  @clickMention="(handle) => emit('clickMention', handle)"
-                />
-                <MediaGrid
-                  v-if="t.media && t.media.length > 0"
-                  :media="t.media"
-                  @retry="(mId) => emit('retryMedia', mId)"
-                  @clickMedia="(m, list) => emit('clickMedia', m, list, t)"
-                />
-              </div>
-            </div>
+          <div class="twitter-avatar-col relative z-10 flex-shrink-0 pt-0.5">
+            <Avatar :avatarUrl="t.author.avatar_url" :handle="t.author.handle" />
           </div>
-        </template>
+
+          <div class="twitter-content-col relative z-10 flex-1 min-w-0 space-y-1.5">
+            <div class="flex items-center justify-between gap-2 text-xs">
+              <div class="flex items-center gap-1.5 truncate">
+                <span class="font-bold text-white truncate">{{ t.author.display_name || t.author.handle }}</span>
+                <span class="text-slate-400 font-mono">@{{ t.author.handle }}</span>
+              </div>
+              <span class="text-slate-500 font-mono text-[11px] whitespace-nowrap">{{ t.created_at }}</span>
+            </div>
+
+            <div v-if="t.reply_to_handle" class="twitter-reply-badge">
+              <span>返信先:</span>
+              <a @click.stop="emit('clickMention', t.reply_to_handle)">@{{ t.reply_to_handle }}</a>
+            </div>
+
+            <ArticleBody
+              :content="t.content"
+              :targetLang="targetLang"
+              @clickTag="(tag) => emit('clickTag', tag)"
+              @clickMention="(handle) => emit('clickMention', handle)"
+            />
+            <MediaGrid
+              v-if="t.media && t.media.length > 0"
+              :media="t.media"
+              @retry="(mId) => emit('retryMedia', mId)"
+              @clickMedia="(m, list) => emit('clickMedia', m, list, t)"
+            />
+          </div>
+        </div>
       </div>
 
-      <!-- 2. フォーカス中のメインポスト (フルサイズ表示) -->
-      <div class="p-5 bg-slate-950 space-y-4">
+      <!-- 2. フォーカス中のメインポスト（フルサイズ表示） -->
+      <div
+        :class="[
+          'twitter-main-focus-card p-5 bg-slate-950 border-b border-slate-800 space-y-4 relative',
+          focusedArticleId === article.id ? 'is-focused' : ''
+        ]"
+      >
         <!-- 投稿者ヘッダー -->
         <div class="flex items-center gap-3">
-          <img
-            :src="article.author.avatar_url"
-            :alt="article.author.handle"
-            class="w-12 h-12 rounded-full border border-slate-700 object-cover bg-slate-800 shadow"
-          />
+          <Avatar :avatarUrl="article.author.avatar_url" :handle="article.author.handle" class="w-12 h-12" />
           <div class="flex-1 min-w-0">
-            <h3 class="font-bold text-white text-base leading-tight">{{ article.author.display_name || article.author.handle }}</h3>
+            <h3 class="font-bold text-white text-base leading-tight truncate">{{ article.author.display_name || article.author.handle }}</h3>
             <p class="text-xs text-slate-400 font-mono">@{{ article.author.handle }}</p>
           </div>
           <button
             @click="emit('toggleLike', article.id)"
             class="p-2 rounded-full hover:bg-slate-800 transition-colors cursor-pointer"
-            :title="article.is_liked ? 'ブックマーク解除' : 'ブックマーク'"
+            :title="article.is_liked ? 'ブックマーク解除 (L)' : 'ブックマーク (L)'"
           >
             <span :class="article.is_liked ? 'text-pink-500' : 'text-slate-500'">{{ article.is_liked ? '❤️' : '🤍' }}</span>
           </button>
+        </div>
+
+        <!-- リプライ先バッジ -->
+        <div v-if="article.reply_to_handle" class="twitter-reply-badge text-sm">
+          <span>返信先:</span>
+          <a @click.stop="emit('clickMention', article.reply_to_handle)">@{{ article.reply_to_handle }}</a>
         </div>
 
         <!-- 本文 (大きなフォント) -->
@@ -191,38 +213,51 @@ onUnmounted(() => {
       </div>
 
       <!-- 3. 子リプライ・後続スレッド -->
-      <div v-if="thread && thread.length > 0" class="divide-y divide-slate-800/60">
-        <template v-for="t in thread" :key="t.id">
-          <div
-            v-if="t.id !== article.id && new Date(t.created_at).getTime() >= new Date(article.created_at).getTime()"
-            @click="emit('selectArticle', t.id)"
-            class="p-4 bg-slate-950/40 hover:bg-slate-900/30 transition-colors cursor-pointer"
-          >
-            <div class="flex items-start gap-3">
-              <Avatar :avatarUrl="t.author.avatar_url" :handle="t.author.handle" />
-              <div class="flex-1 min-w-0 space-y-1">
-                <div class="flex items-center gap-2 text-xs">
-                  <span class="font-bold text-white">{{ t.author.display_name || t.author.handle }}</span>
-                  <span class="text-slate-400 font-mono">@{{ t.author.handle }}</span>
-                  <span class="text-slate-500">·</span>
-                  <span class="text-slate-500 font-mono">{{ t.created_at }}</span>
-                </div>
-                <ArticleBody
-                  :content="t.content"
-                  :targetLang="targetLang"
-                  @clickTag="(tag) => emit('clickTag', tag)"
-                  @clickMention="(handle) => emit('clickMention', handle)"
-                />
-                <MediaGrid
-                  v-if="t.media && t.media.length > 0"
-                  :media="t.media"
-                  @retry="(mId) => emit('retryMedia', mId)"
-                  @clickMedia="(m, list) => emit('clickMedia', m, list, t)"
-                />
-              </div>
-            </div>
+      <div v-if="childReplies.length > 0" class="divide-y divide-slate-800/40">
+        <div
+          v-for="(t, idx) in childReplies"
+          :key="t.id"
+          @click="emit('selectArticle', t.id)"
+          :class="[
+            'twitter-card relative p-4 bg-slate-950/60 hover:bg-slate-900/40 transition-colors cursor-pointer',
+            focusedArticleId === t.id ? 'is-focused' : ''
+          ]"
+        >
+          <!-- 子スレッド接続線（複数ある場合） -->
+          <div v-if="idx < childReplies.length - 1" class="absolute left-8 top-12 bottom-0 w-0.5 bg-slate-800"></div>
+
+          <div class="twitter-avatar-col relative z-10 flex-shrink-0 pt-0.5">
+            <Avatar :avatarUrl="t.author.avatar_url" :handle="t.author.handle" />
           </div>
-        </template>
+
+          <div class="twitter-content-col relative z-10 flex-1 min-w-0 space-y-1.5">
+            <div class="flex items-center justify-between gap-2 text-xs">
+              <div class="flex items-center gap-1.5 truncate">
+                <span class="font-bold text-white truncate">{{ t.author.display_name || t.author.handle }}</span>
+                <span class="text-slate-400 font-mono">@{{ t.author.handle }}</span>
+              </div>
+              <span class="text-slate-500 font-mono text-[11px] whitespace-nowrap">{{ t.created_at }}</span>
+            </div>
+
+            <div v-if="t.reply_to_handle" class="twitter-reply-badge">
+              <span>返信先:</span>
+              <a @click.stop="emit('clickMention', t.reply_to_handle)">@{{ t.reply_to_handle }}</a>
+            </div>
+
+            <ArticleBody
+              :content="t.content"
+              :targetLang="targetLang"
+              @clickTag="(tag) => emit('clickTag', tag)"
+              @clickMention="(handle) => emit('clickMention', handle)"
+            />
+            <MediaGrid
+              v-if="t.media && t.media.length > 0"
+              :media="t.media"
+              @retry="(mId) => emit('retryMedia', mId)"
+              @clickMedia="(m, list) => emit('clickMedia', m, list, t)"
+            />
+          </div>
+        </div>
       </div>
     </div>
   </div>
