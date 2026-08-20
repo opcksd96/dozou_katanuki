@@ -47,6 +47,17 @@ type AppearanceConfig struct {
 	FontFamilyZh string `json:"font_family_zh"`
 }
 
+// BroadcastStatus は現在のLANキャスト配信の稼働状態を表します
+type BroadcastStatus struct {
+	Enabled         bool     `json:"enabled"`
+	Running         bool     `json:"running"`
+	BindAddress     string   `json:"bind_address"`
+	Port            int      `json:"port"`
+	LocalIPs        []string `json:"local_ips"`
+	AllowedNetworks []string `json:"allowed_networks"`
+	CastURL         string   `json:"cast_url"`
+}
+
 // AppConfig は config.json 全体のルート設定モデル (SPEC-CONFIG-001) です
 type AppConfig struct {
 	System     SystemConfig     `json:"system"`
@@ -56,3 +67,4 @@ type AppConfig struct {
 	Broadcast  BroadcastConfig  `json:"broadcast"`
 	Appearance AppearanceConfig `json:"appearance"`
 }
+

@@ -1,7 +1,8 @@
 <script setup lang="ts">
+import { ref, computed } from 'vue';
 import { models } from '../../../wailsjs/go/models';
 
-defineProps<{
+const props = defineProps<{
   config: models.AppConfig | null;
   loadingConfig: boolean;
   savingConfig: boolean;
@@ -12,6 +13,41 @@ const emit = defineEmits<{
   (e: 'saveConfig'): void;
   (e: 'loadConfig'): void;
 }>();
+
+const copied = ref(false);
+
+const allowedNetworksText = computed({
+  get: () => {
+    if (!props.config?.broadcast?.allowed_networks) return '';
+    return props.config.broadcast.allowed_networks.join(', ');
+  },
+  set: (val: string) => {
+    if (!props.config) return;
+    if (!props.config.broadcast) {
+      props.config.broadcast = {
+        enabled: false,
+        allowed_networks: [],
+      } as unknown as models.BroadcastConfig;
+    }
+    props.config.broadcast.allowed_networks = val
+      .split(',')
+      .map(s => s.trim())
+      .filter(s => s.length > 0);
+  },
+});
+
+const sampleCastURL = computed(() => {
+  const port = props.config?.network?.middleware_port || 5175;
+  return `http://<あなたのPCのIPアドレス>:${port}`;
+});
+
+const copyCastURL = () => {
+  navigator.clipboard.writeText(sampleCastURL.value);
+  copied.value = true;
+  setTimeout(() => {
+    copied.value = false;
+  }, 2000);
+};
 </script>
 
 <template>
@@ -132,14 +168,89 @@ const emit = defineEmits<{
         </div>
       </div>
 
-      <!-- 3. Network ＆ ポート設定 -->
+      <!-- 3. LAN Broadcast ＆ キャスト配信 (SPEC-SCHEDULER-001) -->
+      <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-4 space-y-4">
+        <div class="flex items-center justify-between">
+          <h3 class="text-sm font-bold text-slate-200 flex items-center gap-2">
+            <span>📡</span> 家庭内LAN Broadcast ＆ キャスト配信 (SPEC-SCHEDULER-001)
+          </h3>
+          <label class="flex items-center gap-2 cursor-pointer select-none">
+            <span class="text-xs font-semibold" :class="config.broadcast.enabled ? 'text-emerald-400' : 'text-slate-500'">
+              {{ config.broadcast.enabled ? '配信: オンライン' : '配信: 停止中' }}
+            </span>
+            <input
+              type="checkbox"
+              v-model="config.broadcast.enabled"
+              class="sr-only peer"
+            />
+            <div class="w-9 h-5 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-600 relative"></div>
+          </label>
+        </div>
+
+        <p class="text-[11px] text-slate-400 leading-relaxed bg-slate-950/60 p-2.5 rounded-lg border border-slate-800/80">
+          <strong class="text-slate-300">💡 キャスト配信機能:</strong>
+          PCのデスクを離れても、同一LAN内のスマホ・タブレット・スマートTV等のブラウザからメディアストリーミング・動画・タイムラインを直接鑑賞できます。
+          CORS制限を自動中和し、許可ネットワーク外からのアクセスは <span class="text-rose-400 font-mono font-bold">403 Forbidden</span> で確実に遮断します。
+        </p>
+
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div>
+            <label class="block text-xs text-slate-400 mb-1">配信ポート (middleware_port)</label>
+            <input
+              v-model.number="config.network.middleware_port"
+              type="number"
+              class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-blue-500 font-mono"
+            />
+          </div>
+          <div>
+            <label class="block text-xs text-slate-400 mb-1">パブリックバインドアドレス</label>
+            <input
+              v-model="config.network.public_bind_address"
+              type="text"
+              class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-blue-500 font-mono"
+            />
+          </div>
+          <div>
+            <label class="block text-xs text-slate-400 mb-1">セキュリティゲートウェイ状態</label>
+            <div class="bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-xs flex items-center gap-1.5 text-emerald-400 font-medium">
+              <span>🛡️</span> IP/CIDR フィルタリング有効
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs text-slate-400 mb-1">許可ネットワーク / CIDR サブネット (カンマ区切り)</label>
+          <input
+            v-model="allowedNetworksText"
+            type="text"
+            placeholder="192.168.0.0/16, 10.0.0.0/8, 172.16.0.0/12, 127.0.0.1/32"
+            class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-blue-500 font-mono"
+          />
+          <p class="text-[10px] text-slate-500 mt-1">※ 指定したCIDR/IP以外からのアクセスはすべて自動的に即座に遮断（403）されます。</p>
+        </div>
+
+        <div v-if="config.broadcast.enabled" class="bg-emerald-950/30 border border-emerald-500/30 rounded-lg p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div class="text-xs text-slate-300 flex items-center gap-2">
+            <span class="text-emerald-400">📱 スマホ等からのアクセスURL:</span>
+            <code class="bg-slate-950 px-2 py-0.5 rounded text-emerald-300 font-mono text-[11px] border border-emerald-800/50">
+              {{ sampleCastURL }}
+            </code>
+          </div>
+          <button
+            type="button"
+            @click="copyCastURL"
+            class="px-2.5 py-1 bg-emerald-800/80 hover:bg-emerald-700 text-white rounded text-[11px] font-semibold transition-colors flex items-center gap-1 self-start sm:self-auto"
+          >
+            <span>{{ copied ? '✅ コピー完了' : '📋 URLをコピー' }}</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- 4. Network ＆ 内部ポート設定 -->
       <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-4 space-y-4">
         <h3 class="text-sm font-bold text-slate-200 flex items-center gap-2">
-          <span>🔌</span> ネットワーク設定 (Network)
+          <span>🔌</span> 内部ネットワーク設定 (Network)
         </h3>
-        <p class="text-[11px] text-slate-400">
-          ※ Wails In-Memory プロキシ統合により、Middleware/Backend 間通信はメモリ内で直接完結しています。
-        </p>
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div>
             <label class="block text-xs text-slate-400 mb-1">Stash 外部ポート (stash_port)</label>
@@ -168,7 +279,7 @@ const emit = defineEmits<{
         </div>
       </div>
 
-      <!-- 4. Scheduler 設定 -->
+      <!-- 5. Scheduler 設定 -->
       <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-4 space-y-4">
         <h3 class="text-sm font-bold text-slate-200 flex items-center gap-2">
           <span>⏰</span> スケジューラ ＆ 自動運用設定 (Scheduler)
@@ -204,7 +315,7 @@ const emit = defineEmits<{
         </div>
       </div>
 
-      <!-- 5. Appearance フォント設定 -->
+      <!-- 6. Appearance フォント設定 -->
       <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-4 space-y-4">
         <h3 class="text-sm font-bold text-slate-200 flex items-center gap-2">
           <span>🎨</span> 外観 ＆ 多言語フォント設定 (Appearance)
@@ -260,3 +371,4 @@ const emit = defineEmits<{
     </form>
   </div>
 </template>
+

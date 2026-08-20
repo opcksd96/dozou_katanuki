@@ -21,11 +21,12 @@ type App struct {
 	timelineService *middleware.TimelineService
 	stashManager    *StashManager
 	jobOrchestrator *middleware.JobOrchestrator
-	scheduler       *middleware.SchedulerService
-	auditService    *middleware.AuditService
-	unifiedHandler  *middleware.UnifiedHandler
-	ready           chan struct{}
-	readyOnce       sync.Once
+	scheduler        *middleware.SchedulerService
+	auditService     *middleware.AuditService
+	broadcastService *middleware.BroadcastService
+	unifiedHandler   *middleware.UnifiedHandler
+	ready            chan struct{}
+	readyOnce        sync.Once
 }
 
 func NewApp(handler *middleware.UnifiedHandler) *App {
@@ -56,11 +57,18 @@ func (a *App) startup(ctx context.Context) {
 
 	cfg, _ := a.GetConfig()
 	schedCfg := models.SchedulerConfig{}
+	netCfg := models.NetworkConfig{}
+	bcastCfg := models.BroadcastConfig{}
 	if cfg != nil {
 		schedCfg = cfg.Scheduler
+		netCfg = cfg.Network
+		bcastCfg = cfg.Broadcast
 	}
 	a.scheduler = middleware.NewSchedulerService(schedCfg, a.repo, a.jobOrchestrator, emitter)
 	a.scheduler.Start(ctx)
+
+	a.broadcastService = middleware.NewBroadcastService(netCfg, bcastCfg, a.unifiedHandler, a.timelineService, emitter)
+	_ = a.broadcastService.Start(ctx)
 
 	a.readyOnce.Do(func() { close(a.ready) })
 	runtime.EventsEmit(ctx, "app:ready", true)
@@ -86,6 +94,9 @@ func (a *App) domReady(ctx context.Context) {
 
 func (a *App) shutdown(ctx context.Context) {
 	log.Println("[App] Application shutting down...")
+	if a.broadcastService != nil {
+		_ = a.broadcastService.Stop()
+	}
 	if a.scheduler != nil {
 		a.scheduler.Stop()
 	}
