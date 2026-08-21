@@ -25,7 +25,14 @@ const emit = defineEmits<{
 
 const handleCardClick = (e: MouseEvent) => {
   const target = e.target as HTMLElement;
-  if (target.closest('button') || target.closest('a') || target.closest('.media-click-target')) {
+  if (
+    target.closest('button') ||
+    target.closest('a') ||
+    target.closest('.media-click-target') ||
+    target.closest('.media-grid-container') ||
+    target.closest('.plyr') ||
+    target.closest('.group\\/player')
+  ) {
     return;
   }
   emit('clickArticle', props.article.id);

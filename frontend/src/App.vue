@@ -6,6 +6,7 @@ import { useMediaOverlay } from './composables/useMediaOverlay';
 import { useArticleDetail } from './composables/useArticleDetail';
 import { useSkin } from './composables/useSkin';
 import { useKeyboardNavigation } from './composables/useKeyboardNavigation';
+import { useKeyboardReload } from './composables/useKeyboardReload';
 import GlobalAppBar from './components/layout/GlobalAppBar.vue';
 import AccountScopeSelector from './components/timeline/AccountScopeSelector.vue';
 import AccountHeroHeader from './components/timeline/AccountHeroHeader.vue';
@@ -25,6 +26,7 @@ const {
 const { detail, loading: detailLoading, fetchDetail, clearDetail } = useArticleDetail();
 const { activeMedia, activeArticle, hasNext, hasPrev, openMedia, closeMedia, nextMedia, prevMedia } = useMediaOverlay();
 const { loadSkin } = useSkin();
+useKeyboardReload();
 
 const currentAccountObj = computed(() => accounts.value.find((a) => a.numeric_id === selectedAccount.value) || null);
 const currentNavItems = computed(() => (activeArticleId.value && detail.value) ? [detail.value.article, ...(detail.value.thread || [])] : articles.value);
@@ -41,12 +43,21 @@ const { focusedIndex, isHelpOpen } = useKeyboardNavigation({
 });
 
 const focusedId = computed(() => (focusedIndex.value >= 0 && focusedIndex.value < currentNavItems.value.length) ? currentNavItems.value[focusedIndex.value].id : null);
-onMounted(() => loadSkin('twitter'));
+onMounted(() => {
+  loadSkin('twitter');
+  try {
+    if ((window as any)?.runtime?.EventsOnMultiple) {
+      (window as any).runtime.EventsOnMultiple('open:admin', () => { isAdminOpen.value = true; }, -1);
+    }
+  } catch (_) {}
+});
+
+
 </script>
 
 <template>
   <div class="min-h-screen bg-slate-950 text-slate-100 flex flex-col items-center">
-    <GlobalAppBar :active-article-id="activeArticleId" :active-article-handle="detail?.article?.author.handle || ''" @open-admin="isAdminOpen = true" @reload-all="reloadAll" @back-to-timeline="closeDetail" />
+    <GlobalAppBar :active-article-id="activeArticleId" :active-article-handle="detail?.article?.author.handle || ''" @open-admin="isAdminOpen = true" @back-to-timeline="closeDetail" />
 
     <div class="w-full max-w-2xl px-4 py-4">
       <template v-if="!activeArticleId">

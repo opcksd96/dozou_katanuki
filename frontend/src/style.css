@@ -61,3 +61,29 @@ body {
     text-decoration: underline;
 }
 
+/* Plyr Custom Dark Theme (SPEC-PRESENTATION-001) */
+@import "plyr/dist/plyr.css";
+
+:root {
+    --plyr-color-main: #38bdf8;
+    --plyr-video-background: #000000;
+    --plyr-video-control-color: #f1f5f9;
+    --plyr-video-control-color-hover: #ffffff;
+    --plyr-video-control-background-hover: rgba(56, 189, 248, 0.7);
+    --plyr-control-radius: 6px;
+    --plyr-control-spacing: 8px;
+    --plyr-badge-text-color: #ffffff;
+    --plyr-menu-background: rgba(15, 23, 42, 0.95);
+    --plyr-menu-color: #e2e8f0;
+}
+
+.plyr {
+    font-family: var(--font-family-en), var(--font-family-ja);
+    border-radius: 0.5rem;
+    overflow: hidden;
+}
+
+.plyr--full-ui input[type=range] {
+    color: #38bdf8;
+}
+

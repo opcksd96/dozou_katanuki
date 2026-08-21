@@ -51,6 +51,6 @@ defineEmits<{
       <span v-if="article.via">via {{ article.via }}</span>
     </div>
 
-    <ArticleStats :stats="article.stats" :is-liked="article.is_liked" @toggle-like="$emit('toggleLike', article.id)" />
+    <ArticleStats :metrics="article.metrics" :is-liked="article.is_liked" @toggle-like="$emit('toggleLike', article.id)" @toggleLike="$emit('toggleLike', article.id)" />
   </div>
 </template>

@@ -14,11 +14,19 @@ func main() {
 		return
 	}
 
-	var histories []models.AccountProfileHistory
-	db.Find(&histories)
+	var accounts []models.Account
+	db.Find(&accounts)
+	fmt.Printf("=== アカウント数 (%d件) ===\n", len(accounts))
+	for _, a := range accounts {
+		var count int64
+		db.Model(&models.Article{}).Where("account_id = ?", a.NumericID).Count(&count)
+		fmt.Printf("Account: %s (@%s) -> 記事数: %d件\n", a.DisplayName, a.Username, count)
+	}
 
-	fmt.Printf("=== アバター履歴 (%d件) ===\n", len(histories))
-	for _, h := range histories {
-		fmt.Printf("AccountID: %s | VirtualKey: %s | OriginalURL: %s\n", h.AccountID, h.AvatarVirtualKey, h.AvatarOriginalURL)
+	var whitelists []models.Whitelist
+	db.Find(&whitelists)
+	fmt.Printf("\n=== Whitelist (%d件) ===\n", len(whitelists))
+	for _, w := range whitelists {
+		fmt.Printf("ID: %d | Type: %s | Value: %s | Active: %v\n", w.ID, w.Type, w.Value, w.IsActive)
 	}
 }

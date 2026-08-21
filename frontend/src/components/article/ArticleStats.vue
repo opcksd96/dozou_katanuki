@@ -1,11 +1,21 @@
+<!-- frontend/src/components/article/ArticleStats.vue (100行以下) -->
 <script setup lang="ts">
+import { computed } from 'vue';
 import type { RenderMetrics } from '../../models/RenderTree';
 import { formatStatNumber } from '../../utils/formatters';
 
-defineProps<{
-  metrics: RenderMetrics;
-  isLiked: boolean;
-}>();
+const props = withDefaults(
+  defineProps<{
+    metrics?: RenderMetrics;
+    stats?: RenderMetrics;
+    isLiked?: boolean;
+  }>(),
+  { isLiked: false }
+);
+
+const effectiveMetrics = computed<RenderMetrics>(() => {
+  return props.metrics || props.stats || { replies: 0, retweets: 0, likes: 0 };
+});
 
 const emit = defineEmits<{
   (e: 'toggleLike'): void;
@@ -17,13 +27,13 @@ const emit = defineEmits<{
     <!-- リプライ -->
     <div class="flex items-center gap-1.5 hover:text-sky-400 transition-colors cursor-pointer group" title="返信">
       <span class="group-hover:scale-110 transition-transform">💬</span>
-      <span>{{ formatStatNumber(metrics.replies) }}</span>
+      <span>{{ formatStatNumber(effectiveMetrics.replies || 0) }}</span>
     </div>
 
     <!-- リツイート -->
     <div class="flex items-center gap-1.5 hover:text-emerald-400 transition-colors cursor-pointer group" title="リポスト">
       <span class="group-hover:scale-110 transition-transform">🔁</span>
-      <span>{{ formatStatNumber(metrics.retweets) }}</span>
+      <span>{{ formatStatNumber(effectiveMetrics.retweets || 0) }}</span>
     </div>
 
     <!-- いいね -->
@@ -34,12 +44,12 @@ const emit = defineEmits<{
       title="いいね"
     >
       <span class="group-hover:scale-125 transition-transform">{{ isLiked ? '❤️' : '🤍' }}</span>
-      <span>{{ formatStatNumber(metrics.likes) }}</span>
+      <span>{{ formatStatNumber(effectiveMetrics.likes || 0) }}</span>
     </button>
 
     <!-- 表示回数 -->
-    <span v-if="metrics.views" class="text-slate-500 text-[11px]" title="インプレッション">
-      📊 {{ formatStatNumber(metrics.views) }}
+    <span v-if="effectiveMetrics.views" class="text-slate-500 text-[11px]" title="インプレッション">
+      📊 {{ formatStatNumber(effectiveMetrics.views) }}
     </span>
   </div>
 </template>

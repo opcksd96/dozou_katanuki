@@ -24,8 +24,7 @@ type StashManager struct {
 func NewStashManager() *StashManager { return &StashManager{} }
 
 func (sm *StashManager) WaitForReady(ctx context.Context, timeout time.Duration) error {
-	client := &http.Client{Timeout: 500 * time.Millisecond}
-	deadline := time.Now().Add(timeout)
+	client, deadline := &http.Client{Timeout: 500 * time.Millisecond}, time.Now().Add(timeout)
 	for time.Now().Before(deadline) {
 		select {
 		case <-ctx.Done(): return ctx.Err()
@@ -54,20 +53,25 @@ func (sm *StashManager) Start(ctx context.Context, stashPath string) error {
 	sm.PurgeZombies()
 	absPath, err := filepath.Abs(stashPath)
 	if err != nil { return fmt.Errorf("Stashパスの絶対パス解決失敗: %w", err) }
-
 	cmd := exec.Command(absPath)
 	cmd.Dir = filepath.Dir(absPath)
-	// CREATE_NO_WINDOW (0x08000000) | CREATE_NEW_PROCESS_GROUP (0x00000200)
 	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true, CreationFlags: 0x08000000 | 0x00000200}
 	stdout, _ := cmd.StdoutPipe()
 	stderr, _ := cmd.StderrPipe()
 
 	if err := cmd.Start(); err != nil { return fmt.Errorf("stash-win.exe 起動失敗: %w", err) }
 	sm.cmd, sm.Running = cmd, true
-	fmt.Printf("[StashManager] Stash ヘッドレス起動完了 (PID: %d)\n", cmd.Process.Pid)
+	fmt.Printf("[StashManager] Stash ヘッドレス起動開始 (PID: %d)\n", cmd.Process.Pid)
 
 	if stdout != nil { go sm.scanPipe(stdout, "STDOUT") }
 	if stderr != nil { go sm.scanPipe(stderr, "STDERR") }
+	go func() {
+		if err := sm.WaitForReady(ctx, 15*time.Second); err == nil {
+			fmt.Println("[StashManager] Stash HTTPサーバー疎通完了 (Ready)")
+		} else {
+			fmt.Printf("[StashManager] Stash 疎通確認タイムアウト: %v\n", err)
+		}
+	}()
 	return nil
 }
 
@@ -88,9 +92,7 @@ func (sm *StashManager) Stop() {
 		go func(p int) {
 			ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 			defer cancel()
-			kCmd := exec.CommandContext(ctx, "taskkill", "/F", "/T", "/PID", fmt.Sprintf("%d", p))
-			kCmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true, CreationFlags: 0x08000000}
-			_ = kCmd.Run()
+			_ = exec.CommandContext(ctx, "taskkill", "/F", "/T", "/PID", fmt.Sprintf("%d", p)).Run()
 		}(pid)
 	}
 	go sm.PurgeZombies()

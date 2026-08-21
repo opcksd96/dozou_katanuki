@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
+import { reloadWindow } from '../../composables/useKeyboardReload';
 
 defineProps<{
   activeArticleHandle?: string;
@@ -8,7 +9,6 @@ defineProps<{
 
 const emit = defineEmits<{
   (e: 'openAdmin'): void;
-  (e: 'reloadAll'): void;
   (e: 'backToTimeline'): void;
 }>();
 
@@ -73,12 +73,12 @@ onMounted(() => {
 
         <!-- 再読み込みボタン -->
         <button
-          @click="emit('reloadAll')"
-          title="最新のアーカイブデータを再取得 (Ctrl+R / F5)"
+          @click="reloadWindow()"
+          title="画面と最新データを再読み込み (Ctrl+R / F5)"
           class="p-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-800 text-xs transition-all cursor-pointer flex items-center gap-1"
         >
           <span>🔄</span>
-          <span class="hidden md:inline text-[11px] font-medium">更新</span>
+          <span class="hidden md:inline text-[11px] font-medium">再読み込み</span>
         </button>
 
         <!-- 設定・Admin Board ボタン -->

@@ -83,3 +83,19 @@ func (s *TimelineService) GetArticleDetail(platform, id string) (*models.Article
 		Thread:  threadTrees,
 	}, nil
 }
+
+// SearchArticles は検索クエリに基づいて記事を検索し RenderTree 形式で返却します
+func (s *TimelineService) SearchArticles(query, accountID, filter string, limit, offset int) (*models.ArticleSearchResult, error) {
+	articles, total, err := s.repo.SearchArticles(query, accountID, filter, limit, offset)
+	if err != nil {
+		return nil, err
+	}
+	trees := make([]models.RenderTree, 0, len(articles))
+	for _, article := range articles {
+		trees = append(trees, ToRenderTree(article, "twitter"))
+	}
+	return &models.ArticleSearchResult{
+		Items: trees,
+		Total: total,
+	}, nil
+}

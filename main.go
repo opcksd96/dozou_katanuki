@@ -26,7 +26,7 @@ func main() {
 	}
 
 	unifiedHandler := middleware.NewUnifiedHandler("./assets", stashURL)
-	app := NewApp(unifiedHandler)
+	app := NewApp(unifiedHandler, assets)
 
 	// OS ネイティブメニュー
 	appMenu := menu.NewMenu()
@@ -40,12 +40,7 @@ func main() {
 	viewMenu := appMenu.AddSubmenu("表示 (View)")
 	viewMenu.AddText("再読み込み (Reload)", keys.CmdOrCtrl("r"), func(_ *menu.CallbackData) {
 		if app.ctx != nil {
-			runtime.EventsEmit(app.ctx, "app:refresh")
-		}
-	})
-	viewMenu.AddText("リフレッシュ (Refresh)", keys.Key("f5"), func(_ *menu.CallbackData) {
-		if app.ctx != nil {
-			runtime.EventsEmit(app.ctx, "app:refresh")
+			runtime.WindowReload(app.ctx)
 		}
 	})
 

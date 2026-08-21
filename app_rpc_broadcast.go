@@ -22,6 +22,7 @@ func (a *App) GetBroadcastStatus() (*models.BroadcastStatus, error) {
 			BindAddress:     netCfg.PublicBindAddress,
 			Port:            netCfg.MiddlewarePort,
 			LocalIPs:        middleware.GetLocalIPv4s(),
+			DetectedSubnets: middleware.GetLocalSubnets(),
 			AllowedNetworks: bcastCfg.AllowedNetworks,
 		}, nil
 	}

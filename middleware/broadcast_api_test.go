@@ -47,3 +47,36 @@ func TestBroadcastStatusAPI(t *testing.T) {
 		t.Fatalf("Unexpected status: %+v", status)
 	}
 }
+
+func TestGenerateSelfSignedCert(t *testing.T) {
+	cert, err := GenerateSelfSignedCert([]string{"192.168.10.1", "192.168.3.202", "127.0.0.1"})
+	if err != nil {
+		t.Fatalf("GenerateSelfSignedCert failed: %v", err)
+	}
+	if len(cert.Certificate) == 0 {
+		t.Fatalf("Expected valid certificate chain")
+	}
+}
+
+func TestBroadcastLifecycle(t *testing.T) {
+	service := NewBroadcastService(
+		models.NetworkConfig{MiddlewarePort: 0, PublicBindAddress: "127.0.0.1"},
+		models.BroadcastConfig{Enabled: true},
+		nil, nil, nil,
+	)
+	if err := service.Start(t.Context()); err != nil {
+		t.Fatalf("Failed to start broadcast service: %v", err)
+	}
+	if !service.running {
+		t.Fatalf("Expected service to be running")
+	}
+
+	// Stop must return immediately and clean up resources without hanging
+	if err := service.Stop(); err != nil {
+		t.Fatalf("Failed to stop broadcast service: %v", err)
+	}
+	if service.running {
+		t.Fatalf("Expected service to be stopped")
+	}
+}
+

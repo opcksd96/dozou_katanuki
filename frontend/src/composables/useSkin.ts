@@ -45,24 +45,20 @@ export function useSkin() {
     currentPlatform.value = platform;
     try {
       const app = (window as any)?.go?.main?.App;
-      if (!app) return;
-      let pkg: any = null;
-      if (typeof app.GetSkinPackage === 'function') pkg = await app.GetSkinPackage(platform);
-      if (pkg?.design_css) applyCSS(pkg.design_css);
-      else if (typeof app.GetSkinCSS === 'function') {
-        const css = await app.GetSkinCSS(platform);
-        if (css) applyCSS(css);
-      }
-      if (pkg?.layout_yaml) layoutConfig.value = parseSimpleYAML(pkg.layout_yaml);
-      if (pkg?.controller_js) {
-        try {
-          const blob = new Blob([pkg.controller_js], { type: 'application/javascript' });
-          const url = URL.createObjectURL(blob);
-          const mod = await import(/* @vite-ignore */ url);
-          URL.revokeObjectURL(url);
-          const ctrl = mod.default || mod;
-          if (ctrl?.init) { ctrl.init(ctx || { platform }); controller.value = ctrl; }
-        } catch (_) {}
+      if (app) {
+        let pkg: any = null;
+        if (typeof app.GetSkinPackage === 'function') pkg = await app.GetSkinPackage(platform);
+        if (pkg?.design_css) applyCSS(pkg.design_css);
+        else if (typeof app.GetSkinCSS === 'function') {
+          const css = await app.GetSkinCSS(platform);
+          if (css) applyCSS(css);
+        }
+        if (pkg?.layout_yaml) layoutConfig.value = parseSimpleYAML(pkg.layout_yaml);
+      } else {
+        const cssRes = await fetch(`/plugins/${platform}/skin/design.css`);
+        if (cssRes.ok) applyCSS(await cssRes.text());
+        const yamlRes = await fetch(`/plugins/${platform}/skin/layout.yaml`);
+        if (yamlRes.ok) layoutConfig.value = parseSimpleYAML(await yamlRes.text());
       }
       isLoaded.value = true;
     } catch (_) {}

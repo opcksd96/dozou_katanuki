@@ -4,6 +4,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"io/fs"
 	"log"
 	"sync"
 	"time"
@@ -24,12 +25,13 @@ type App struct {
 	auditService     *middleware.AuditService
 	broadcastService *middleware.BroadcastService
 	unifiedHandler   *middleware.UnifiedHandler
+	distFS           fs.FS
 	ready            chan struct{}
 	readyOnce        sync.Once
 }
 
-func NewApp(handler *middleware.UnifiedHandler) *App {
-	return &App{stashManager: NewStashManager(), unifiedHandler: handler, ready: make(chan struct{})}
+func NewApp(handler *middleware.UnifiedHandler, distFS fs.FS) *App {
+	return &App{stashManager: NewStashManager(), unifiedHandler: handler, distFS: distFS, ready: make(chan struct{})}
 }
 
 func (a *App) startup(ctx context.Context) {
@@ -52,6 +54,9 @@ func (a *App) startup(ctx context.Context) {
 	a.scheduler.Start(ctx)
 
 	a.broadcastService = middleware.NewBroadcastService(netCfg, bcastCfg, a.unifiedHandler, a.timelineService, emitter)
+	if a.distFS != nil {
+		a.broadcastService.SetDistFS(a.distFS)
+	}
 	_ = a.broadcastService.Start(ctx)
 
 	a.readyOnce.Do(func() { close(a.ready) })

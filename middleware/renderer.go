@@ -1,34 +1,57 @@
+// middleware/renderer.go (SPEC-MIDDLEWARE-001-2 / 100行以下)
 package middleware
 
 import (
 	"fmt"
+	"html"
+	"regexp"
 	"strings"
 
 	"dozou_katanuki/models"
 )
 
-// expandRedirects は短縮URLマップを適用してテキスト内の短縮URLを展開します
-func expandRedirects(text string, redirects []models.UrlRedirect) string {
-	if text == "" || len(redirects) == 0 {
-		return text
-	}
+var (
+	reURL     = regexp.MustCompile(`(https?://[^\s<]+)`)
+	reTag     = regexp.MustCompile(`(^|[^\w#&;])#([a-zA-Z0-9_\p{L}\p{N}]+)`)
+	reMention = regexp.MustCompile(`(^|[^\w@&;])@([a-zA-Z0-9_]{1,30})`)
+	reFiller  = regexp.MustCompile(`https?://t\.co/[a-zA-Z0-9_]+\s*$`)
+)
+
+func decorateText(text, platform string, redirects []models.UrlRedirect, hasMedia bool) string {
+	if text == "" { return "" }
 	res := text
 	for _, r := range redirects {
 		if r.ShortURL != "" && r.ExpandedURL != "" && strings.Contains(res, r.ShortURL) {
 			res = strings.ReplaceAll(res, r.ShortURL, r.ExpandedURL)
 		}
 	}
-	return res
+	if hasMedia { res = reFiller.ReplaceAllString(res, "") }
+	res = strings.TrimSpace(res)
+
+	safe := html.EscapeString(res)
+	safe = reURL.ReplaceAllString(safe, `<a href="$1" target="_blank" rel="noopener noreferrer" class="external-link">$1</a>`)
+	safe = reTag.ReplaceAllString(safe, fmt.Sprintf(`$1<a href="/%s/search?q=$2" class="hashtag-link" data-tag="$2">#$2</a>`, platform))
+	safe = reMention.ReplaceAllString(safe, fmt.Sprintf(`$1<a href="/%s/$2" class="mention-link" data-mention="$2">@$2</a>`, platform))
+	return strings.ReplaceAll(safe, "\n", "<br/>")
 }
 
-// ToRenderTree は装飾済みの中間データをフロントエンド描画用構造体へ即時マッピングします
 func ToRenderTree(item models.Article, platform string) models.RenderTree {
+	if platform == "" { platform = "twitter" }
+	hasMedia := len(item.Media) > 0
 	avatarURL := AuditAndResolveAvatar(platform, item.CreatedAt, item.Account.ProfileHistory)
 
-	orig := expandRedirects(item.FullText, item.UrlRedirects)
-	ja := expandRedirects(item.FullTextJA.String, item.UrlRedirects)
-	en := expandRedirects(item.FullTextEN.String, item.UrlRedirects)
-	zh := expandRedirects(item.FullTextZH.String, item.UrlRedirects)
+	orig := decorateText(item.FullText, platform, item.UrlRedirects, hasMedia)
+	ja := item.FullTextJA.String
+	if ja == "" { ja = item.FullText }
+	jaDecorated := decorateText(ja, platform, item.UrlRedirects, hasMedia)
+
+	en := item.FullTextEN.String
+	if en == "" { en = item.FullText }
+	enDecorated := decorateText(en, platform, item.UrlRedirects, hasMedia)
+
+	zh := item.FullTextZH.String
+	if zh == "" { zh = item.FullText }
+	zhDecorated := decorateText(zh, platform, item.UrlRedirects, hasMedia)
 
 	return models.RenderTree{
 		ID:             item.ID,
@@ -36,9 +59,9 @@ func ToRenderTree(item models.Article, platform string) models.RenderTree {
 		CreatedAt:      item.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
 		Content: models.RenderContent{
 			Original: orig,
-			JA:       ja,
-			EN:       en,
-			ZH:       zh,
+			JA:       jaDecorated,
+			EN:       enDecorated,
+			ZH:       zhDecorated,
 		},
 		Author: models.RenderAuthor{
 			NumericID:   item.Account.NumericID,
@@ -48,9 +71,7 @@ func ToRenderTree(item models.Article, platform string) models.RenderTree {
 		},
 		Media: mapMediaToRenderMedia(item.Media),
 		Metrics: models.RenderMetrics{
-			Replies:  0,
-			Retweets: 0,
-			Likes:    0,
+			Replies: 0, Retweets: 0, Likes: 0,
 		},
 		IsLiked:       item.IsLiked,
 		IsPinned:      false,
@@ -65,7 +86,6 @@ func mapMediaToRenderMedia(mediaList []models.Media) []models.RenderMedia {
 	for _, m := range mediaList {
 		var mediaURLs models.RenderMediaURLs
 		mediaURLs.Original = m.DownloadURL
-
 		effectiveStatus := m.DownloadStatus
 		if m.DownloadStatus == "COMPLETED" && (m.StashSceneID.Valid || m.StashImageID.Valid) {
 			if m.Type == "video" || m.Type == "gif" {
@@ -74,22 +94,13 @@ func mapMediaToRenderMedia(mediaList []models.Media) []models.RenderMedia {
 				mediaURLs.Image = fmt.Sprintf("/stash-proxy/image/%s/image", m.StashImageID.String)
 				mediaURLs.Thumbnail = fmt.Sprintf("/stash-proxy/image/%s/thumbnail", m.StashImageID.String)
 			}
-		} else {
-			if effectiveStatus == "COMPLETED" {
-				effectiveStatus = "DEAD_404"
-			}
+		} else if effectiveStatus == "COMPLETED" {
+			effectiveStatus = "DEAD_404"
 		}
-
 		result = append(result, models.RenderMedia{
-			ID:             m.MediaID,
-			Type:           m.Type,
-			DownloadStatus: effectiveStatus,
-			FailedReason:   m.FailedReason.String,
-			URLs:           mediaURLs,
-			Width:          m.Width,
-			Height:         m.Height,
-			StashSceneID:   m.StashSceneID.String,
-			StashImageID:   m.StashImageID.String,
+			ID: m.MediaID, Type: m.Type, DownloadStatus: effectiveStatus,
+			FailedReason: m.FailedReason.String, URLs: mediaURLs, Width: m.Width, Height: m.Height,
+			StashSceneID: m.StashSceneID.String, StashImageID: m.StashImageID.String,
 		})
 	}
 	return result

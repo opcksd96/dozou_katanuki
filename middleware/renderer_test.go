@@ -37,13 +37,13 @@ func TestToRenderTree_ExpandRedirects(t *testing.T) {
 	renderTree := ToRenderTree(art, "twitter")
 
 	// Original の検証
-	expectedOrig := "Check out this site! https://example.com/nes-apu-manual and https://example.com/famitracker"
+	expectedOrig := `Check out this site! <a href="https://example.com/nes-apu-manual" target="_blank" rel="noopener noreferrer" class="external-link">https://example.com/nes-apu-manual</a> and <a href="https://example.com/famitracker" target="_blank" rel="noopener noreferrer" class="external-link">https://example.com/famitracker</a>`
 	if renderTree.Content.Original != expectedOrig {
 		t.Errorf("expected Content.Original = %q, got %q", expectedOrig, renderTree.Content.Original)
 	}
 
 	// JA の検証
-	expectedJA := "このサイトを見て！ https://example.com/nes-apu-manual"
+	expectedJA := `このサイトを見て！ <a href="https://example.com/nes-apu-manual" target="_blank" rel="noopener noreferrer" class="external-link">https://example.com/nes-apu-manual</a>`
 	if renderTree.Content.JA != expectedJA {
 		t.Errorf("expected Content.JA = %q, got %q", expectedJA, renderTree.Content.JA)
 	}

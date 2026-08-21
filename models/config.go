@@ -54,6 +54,7 @@ type BroadcastStatus struct {
 	BindAddress     string   `json:"bind_address"`
 	Port            int      `json:"port"`
 	LocalIPs        []string `json:"local_ips"`
+	DetectedSubnets []string `json:"detected_subnets"`
 	AllowedNetworks []string `json:"allowed_networks"`
 	CastURL         string   `json:"cast_url"`
 }

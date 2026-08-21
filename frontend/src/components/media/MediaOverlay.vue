@@ -44,6 +44,7 @@ onUnmounted(() => window.removeEventListener('keydown', handleKeyDown));
         :has-prev="hasPrev"
         @next="$emit('next')"
         @prev="$emit('prev')"
+        @close="$emit('close')"
       />
 
       <MediaOverlaySidebar

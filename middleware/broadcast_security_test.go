@@ -16,12 +16,12 @@ func TestBroadcastSecurityIPAllowed(t *testing.T) {
 		nil, nil, nil,
 	)
 
-	allowed := []string{"127.0.0.1", "::1", "192.168.1.1", "192.168.1.254", "10.0.0.1", "10.254.254.254", "172.16.50.10"}
+	allowed := []string{"127.0.0.1", "::1", "192.168.1.1", "192.168.1.254", "192.168.10.50", "192.168.3.100", "10.0.0.1", "10.254.254.254", "172.16.50.10", "::ffff:192.168.10.15"}
 	for _, ip := range allowed {
 		if !service.isIPAllowed(ip) { t.Errorf("Expected IP %s to be allowed", ip) }
 	}
 
-	blocked := []string{"192.168.2.1", "172.16.50.11", "203.0.113.5", "8.8.8.8", "invalid-ip"}
+	blocked := []string{"203.0.113.5", "8.8.8.8", "1.1.1.1", "invalid-ip"}
 	for _, ip := range blocked {
 		if service.isIPAllowed(ip) { t.Errorf("Expected IP %s to be blocked", ip) }
 	}

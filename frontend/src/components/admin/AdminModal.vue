@@ -1,6 +1,6 @@
 <!-- frontend/src/components/admin/AdminModal.vue (100行以下 - SPEC-ADMINBOARD-001) -->
 <script setup lang="ts">
-import { ref, reactive } from 'vue';
+import { ref, reactive, watch } from 'vue';
 import { useAdmin } from '../../composables/useAdmin';
 import JobController from './JobController.vue';
 import ConfigPortal from './ConfigPortal.vue';
@@ -10,7 +10,7 @@ import DatabaseView from './DatabaseView.vue';
 import AuditReportView from './AuditReportView.vue';
 import SkinFontEditor from './SkinFontEditor.vue';
 
-defineProps<{ isOpen: boolean }>();
+const props = defineProps<{ isOpen: boolean }>();
 const emit = defineEmits<{
   (e: 'close'): void;
   (e: 'whitelistUpdated'): void;
@@ -28,6 +28,7 @@ const fontPresets = {
 };
 
 const admin = useAdmin();
+watch(() => props.isOpen, (open) => { if (open) { admin.fetchConfig(); admin.fetchBroadcastStatus(); } });
 const onWhitelistChanged = () => { emit('whitelistUpdated'); };
 </script>
 

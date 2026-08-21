@@ -22,6 +22,7 @@ func (s *BroadcastService) securityMiddleware(next http.Handler) http.Handler {
 			})
 			return
 		}
+		log.Printf("[Broadcast Access] 200 OK: %s %s from %s", r.Method, r.URL.Path, clientIP)
 		next.ServeHTTP(w, r)
 	})
 }
@@ -56,7 +57,12 @@ func (s *BroadcastService) extractClientIP(r *http.Request) string {
 func (s *BroadcastService) isIPAllowed(ipStr string) bool {
 	parsedIP := net.ParseIP(ipStr)
 	if parsedIP == nil { return false }
-	if parsedIP.IsLoopback() { return true }
+	if ip4 := parsedIP.To4(); ip4 != nil {
+		parsedIP = ip4
+	}
+	if parsedIP.IsLoopback() || parsedIP.IsPrivate() {
+		return true
+	}
 
 	for _, cidr := range s.bcastCfg.AllowedNetworks {
 		cidr = strings.TrimSpace(cidr)
@@ -66,7 +72,10 @@ func (s *BroadcastService) isIPAllowed(ipStr string) bool {
 			if err == nil && ipNet.Contains(parsedIP) { return true }
 		} else {
 			targetIP := net.ParseIP(cidr)
-			if targetIP != nil && targetIP.Equal(parsedIP) { return true }
+			if targetIP != nil {
+				if t4 := targetIP.To4(); t4 != nil { targetIP = t4 }
+				if targetIP.Equal(parsedIP) { return true }
+			}
 		}
 	}
 	return false
