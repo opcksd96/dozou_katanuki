@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { ref } from 'vue';
 import type { RenderMedia } from '../../models/RenderTree';
 import MediaFiller from './MediaFiller.vue';
+import InlineVideoPlayer from './InlineVideoPlayer.vue';
 
 defineProps<{
   media: RenderMedia[];
@@ -11,8 +11,6 @@ const emit = defineEmits<{
   (e: 'retry', mediaId: string): void;
   (e: 'clickMedia', media: RenderMedia, list: RenderMedia[]): void;
 }>();
-
-const hoveredId = ref<string | null>(null);
 
 const handleImageError = (e: Event) => {
   const img = e.target as HTMLImageElement;
@@ -42,7 +40,7 @@ const handleImageError = (e: Event) => {
         :class="media.length > 1 ? 'h-52 md:h-64' : 'max-h-[580px]'"
       >
         <!-- ローカル確保完了時: 描画 (有効なローカルURLが存在する場合のみ) -->
-        <template v-if="item.download_status === 'COMPLETED' && ((item.type === 'video' && (item.urls.stream || item.urls.preview || item.urls.thumbnail)) || (item.type !== 'video' && (item.urls.image || item.urls.thumbnail)))">
+        <template v-if="item.download_status === 'COMPLETED' && ((item.type === 'video' && item.urls.stream) || (item.type !== 'video' && (item.urls.image || item.urls.thumbnail)))">
           <img
             v-if="(item.type === 'image' || item.type === 'gif') && (item.urls.image || item.urls.thumbnail)"
             :src="item.urls.image || item.urls.thumbnail"
@@ -57,58 +55,21 @@ const handleImageError = (e: Event) => {
             @error="handleImageError"
             @click.stop="emit('clickMedia', item, media)"
           />
+          <!-- 動画: 軽量HLS/HTML5プレイヤーで直接再生可能 ＆ 全画面詳細ボタンでモーダル展開 -->
           <div
             v-else-if="item.type === 'video'"
-            @mouseenter="hoveredId = item.id"
-            @mouseleave="hoveredId = null"
-            @click.stop="emit('clickMedia', item, media)"
+            @click.stop
             :class="[
-              'w-full relative flex items-center justify-center cursor-pointer group/video bg-black/60',
-              media.length === 1 ? 'max-h-[580px] min-h-[220px]' : 'h-full'
+              'w-full flex items-center justify-center bg-black',
+              media.length === 1 ? 'max-h-[580px]' : 'h-full'
             ]"
           >
-            <!-- ホバープレビュー動画 (マウスオーバー時に自動再生) -->
-            <video
-              v-if="hoveredId === item.id && (item.urls.preview || item.urls.stream)"
-              :src="item.urls.preview || item.urls.stream"
-              autoplay
-              loop
-              muted
-              playsinline
-              preload="auto"
-              class="w-full h-full object-cover"
-            ></video>
-
-            <!-- 通常時: 静止画サムネイル (サムネイルURLが存在する場合のみ) -->
-            <img
-              v-else-if="item.urls.thumbnail || item.urls.image"
-              :src="item.urls.thumbnail || item.urls.image"
-              :alt="item.id"
-              class="w-full h-full object-cover transition-transform duration-300 group-hover/video:scale-[1.02]"
-              loading="lazy"
-              @error="handleImageError"
+            <InlineVideoPlayer
+              :src="item.urls.stream"
+              :poster="item.urls.thumbnail"
+              :stashSceneId="item.stash_scene_id"
+              @expand="emit('clickMedia', item, media)"
             />
-
-            <!-- サムネイル不在時: スタイリッシュなダーク背景プレースホルダー -->
-            <div
-              v-else
-              class="w-full h-full min-h-[200px] flex items-center justify-center bg-gradient-to-br from-slate-900 via-slate-950 to-purple-950/40"
-            ></div>
-
-            <!-- 再生バッジオーバーレイ (Twitter風) -->
-            <div
-              v-show="hoveredId !== item.id"
-              class="absolute inset-0 flex items-center justify-center bg-black/20 group-hover/video:bg-black/40 transition-colors"
-            >
-              <div class="w-12 h-12 rounded-full bg-blue-600/90 group-hover/video:bg-blue-500 text-white flex items-center justify-center shadow-lg shadow-blue-600/40 transition-transform group-hover/video:scale-110">
-                <span class="text-lg pl-0.5">▶</span>
-              </div>
-            </div>
-
-            <!-- 動画バッジ -->
-            <div class="absolute bottom-2 right-2 px-2 py-0.5 rounded bg-black/70 text-white text-[10px] font-mono border border-white/10">
-              {{ hoveredId === item.id ? 'PREVIEW' : 'VIDEO' }}
-            </div>
           </div>
         </template>
         <!-- 未完了/実体未紐付け/失敗時: SVGプレースホルダー・フィラー -->

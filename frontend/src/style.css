@@ -81,6 +81,21 @@ body {
     font-family: var(--font-family-en), var(--font-family-ja);
     border-radius: 0.5rem;
     overflow: hidden;
+    max-height: 88vh;
+    max-width: 95vw;
+}
+
+.plyr video,
+.plyr__video-wrapper video,
+.plyr__video-wrapper {
+    object-fit: contain !important;
+    max-height: 88vh !important;
+    max-width: 95vw !important;
+    height: auto !important;
+}
+
+.plyr--video {
+    background-color: transparent !important;
 }
 
 .plyr--full-ui input[type=range] {
