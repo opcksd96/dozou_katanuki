@@ -37,6 +37,7 @@ func (r *TwitterRenderer) RenderTweet(art *models.Article) *models.RenderTree {
 		var mediaURLs models.RenderMediaURLs
 		mediaURLs.Original = m.DownloadURL
 
+		effectiveStatus := m.DownloadStatus
 		if m.DownloadStatus == "COMPLETED" && (m.StashSceneID.Valid || m.StashImageID.Valid) {
 			if m.Type == "video" || m.Type == "gif" {
 				mediaURLs.Stream = fmt.Sprintf("/stash-proxy/scene/%s/stream", m.StashSceneID.String)
@@ -45,18 +46,15 @@ func (r *TwitterRenderer) RenderTweet(art *models.Article) *models.RenderTree {
 				mediaURLs.Thumbnail = fmt.Sprintf("/stash-proxy/image/%s/thumbnail", m.StashImageID.String)
 			}
 		} else {
-			if m.Type == "video" || m.Type == "gif" {
-				mediaURLs.Stream = m.DownloadURL
-			} else {
-				mediaURLs.Image = m.DownloadURL
-				mediaURLs.Thumbnail = m.DownloadURL
+			if effectiveStatus == "COMPLETED" {
+				effectiveStatus = "DEAD_404"
 			}
 		}
 
 		mediaItems = append(mediaItems, models.RenderMedia{
 			ID:             m.MediaID,
 			Type:           m.Type,
-			DownloadStatus: m.DownloadStatus,
+			DownloadStatus: effectiveStatus,
 			FailedReason:   m.FailedReason.String,
 			URLs:           mediaURLs,
 			Width:          m.Width,

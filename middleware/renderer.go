@@ -66,6 +66,7 @@ func mapMediaToRenderMedia(mediaList []models.Media) []models.RenderMedia {
 		var mediaURLs models.RenderMediaURLs
 		mediaURLs.Original = m.DownloadURL
 
+		effectiveStatus := m.DownloadStatus
 		if m.DownloadStatus == "COMPLETED" && (m.StashSceneID.Valid || m.StashImageID.Valid) {
 			if m.Type == "video" || m.Type == "gif" {
 				mediaURLs.Stream = fmt.Sprintf("/stash-proxy/scene/%s/stream", m.StashSceneID.String)
@@ -74,19 +75,15 @@ func mapMediaToRenderMedia(mediaList []models.Media) []models.RenderMedia {
 				mediaURLs.Thumbnail = fmt.Sprintf("/stash-proxy/image/%s/thumbnail", m.StashImageID.String)
 			}
 		} else {
-			// 未ダウンロード（Stash未登録）時は原本/Wayback外部URLを直引き
-			if m.Type == "video" || m.Type == "gif" {
-				mediaURLs.Stream = m.DownloadURL
-			} else {
-				mediaURLs.Image = m.DownloadURL
-				mediaURLs.Thumbnail = m.DownloadURL
+			if effectiveStatus == "COMPLETED" {
+				effectiveStatus = "DEAD_404"
 			}
 		}
 
 		result = append(result, models.RenderMedia{
 			ID:             m.MediaID,
 			Type:           m.Type,
-			DownloadStatus: m.DownloadStatus,
+			DownloadStatus: effectiveStatus,
 			FailedReason:   m.FailedReason.String,
 			URLs:           mediaURLs,
 			Width:          m.Width,

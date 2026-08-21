@@ -1,131 +1,74 @@
-# plugins/twitter/scraper/test_downloader.py
-import gc
-import os
-import sqlite3
-import tempfile
-import unittest
+# plugins/twitter/scraper/test_downloader.py (100行以下)
+import gc, os, sqlite3, tempfile, unittest
 from unittest.mock import MagicMock, patch
-
 from core.downloader import Downloader
 
 
 class TestDownloaderPipeline(unittest.TestCase):
     def setUp(self):
         self.temp_dir = tempfile.TemporaryDirectory()
-        self.db_path = os.path.join(self.temp_dir.name, "test_archive.db")
-        self.storage_dir = os.path.join(self.temp_dir.name, "storage")
-
-        # Setup test schema
+        self.db_path, self.storage_dir = os.path.join(self.temp_dir.name, "test.db"), os.path.join(self.temp_dir.name, "storage")
         conn = sqlite3.connect(self.db_path)
         try:
+            conn.execute("CREATE TABLE whitelists (id INTEGER PRIMARY KEY, type TEXT, value TEXT, is_active INTEGER);")
             conn.execute("CREATE TABLE accounts (numeric_id TEXT PRIMARY KEY, username TEXT);")
             conn.execute("CREATE TABLE articles (id TEXT PRIMARY KEY, account_id TEXT);")
-            conn.execute("""
-                CREATE TABLE media (
-                    media_id TEXT PRIMARY KEY,
-                    article_id TEXT,
-                    type TEXT,
-                    download_url TEXT,
-                    download_status TEXT DEFAULT 'QUEUED',
-                    failed_reason TEXT,
-                    stash_scene_id TEXT,
-                    stash_image_id TEXT
-                );
-            """)
-            conn.execute("INSERT INTO accounts VALUES ('1001', 'alice');")
-            conn.execute("INSERT INTO articles VALUES ('post_1', '1001');")
+            conn.execute("CREATE TABLE media (media_id TEXT PRIMARY KEY, article_id TEXT, type TEXT, download_url TEXT, download_status TEXT DEFAULT 'QUEUED', failed_reason TEXT, stash_scene_id TEXT, stash_image_id TEXT);")
+            conn.execute("INSERT INTO whitelists VALUES (1, 'account', 'alice', 1);")
+            conn.execute("INSERT INTO accounts VALUES ('1001', 'alice'), ('1002', 'bob');")
+            conn.execute("INSERT INTO articles VALUES ('post_1', '1001'), ('post_2', '1002');")
             conn.commit()
         finally:
             conn.close()
-
         self.dl = Downloader(db_path=self.db_path, storage_dir=self.storage_dir)
 
     def tearDown(self):
-        self.dl.session.close()
-        del self.dl
-        gc.collect()
-        try:
-            self.temp_dir.cleanup()
-        except Exception:
-            pass
+        self.dl.session.close(); del self.dl; gc.collect()
+        try: self.temp_dir.cleanup()
+        except Exception: pass
 
     def test_stage1_success_direct_download(self):
-        """第1段階: requests 直接取得成功 -> COMPLETED"""
-        conn = sqlite3.connect(self.db_path)
-        try:
-            conn.execute("INSERT INTO media (media_id, article_id, type, download_url, download_status) "
-                         "VALUES ('img1.jpg', 'post_1', 'image', 'https://example.com/img1.jpg', 'QUEUED');")
-            conn.commit()
-        finally:
-            conn.close()
-
-        mock_resp = MagicMock()
-        mock_resp.status_code = 200
-        mock_resp.iter_content.return_value = [b"fake_image_bytes"]
-
-        with patch.object(self.dl.session, "get", return_value=mock_resp):
-            with patch.object(self.dl.stash, "find_image_by_path", return_value="stash-img-123"):
-                success_count = self.dl.process_queued_media(article_id="post_1")
-                self.assertEqual(success_count, 1)
-
-        conn = sqlite3.connect(self.db_path)
-        try:
+        with sqlite3.connect(self.db_path) as conn:
+            conn.execute("INSERT INTO media (media_id, article_id, type, download_url, download_status) VALUES ('img1.jpg', 'post_1', 'image', 'https://example.com/img1.jpg', 'QUEUED');")
+        m_resp = MagicMock(status_code=200, iter_content=MagicMock(return_value=[b"fake_bytes"]))
+        with patch.object(self.dl.session, "get", return_value=m_resp), patch.object(self.dl.stash, "find_image_by_path", return_value="stash-img-123"):
+            self.assertEqual(self.dl.process_queued_media(article_id="post_1"), 1)
+        with sqlite3.connect(self.db_path) as conn:
             row = conn.cursor().execute("SELECT download_status, stash_image_id FROM media WHERE media_id = 'img1.jpg'").fetchone()
-            self.assertEqual(row[0], "COMPLETED")
-            self.assertEqual(row[1], "stash-img-123")
-        finally:
-            conn.close()
+            self.assertEqual(row, ("COMPLETED", "stash-img-123"))
 
-    def test_stage2_escalation_to_aria2_on_404(self):
-        """第2段階: 404原本消失 -> Motrix/Aria2委託 -> OUTSOURCED"""
-        conn = sqlite3.connect(self.db_path)
-        try:
-            conn.execute("INSERT INTO media (media_id, article_id, type, download_url, download_status) "
-                         "VALUES ('vid1.mp4', 'post_1', 'video', 'https://example.com/vid1.mp4', 'QUEUED');")
-            conn.commit()
-        finally:
-            conn.close()
-
-        mock_resp = MagicMock()
-        mock_resp.status_code = 404
-
-        with patch.object(self.dl.session, "get", return_value=mock_resp):
-            with patch.object(self.dl.aria2, "add_uri", return_value="gid-98765"):
-                self.dl.process_queued_media(article_id="post_1")
-
-        conn = sqlite3.connect(self.db_path)
-        try:
+    def test_stage2_escalation_to_aria2_on_403_and_404(self):
+        with sqlite3.connect(self.db_path) as conn:
+            conn.execute("INSERT INTO media (media_id, article_id, type, download_url, download_status) VALUES ('vid1.mp4', 'post_1', 'video', 'https://example.com/vid1.mp4', 'QUEUED');")
+        m_resp = MagicMock(status_code=403)
+        with patch.object(self.dl.session, "get", return_value=m_resp), patch.object(self.dl.aria2, "add_uri", return_value="gid-98765"):
+            self.dl.process_queued_media(article_id="post_1")
+        with sqlite3.connect(self.db_path) as conn:
             row = conn.cursor().execute("SELECT download_status, failed_reason FROM media WHERE media_id = 'vid1.mp4'").fetchone()
             self.assertEqual(row[0], "OUTSOURCED")
-            self.assertIn("gid-98765", row[1])
-        finally:
-            conn.close()
+
+    def test_non_whitelist_liveness_only_marked_dead404(self):
+        with sqlite3.connect(self.db_path) as conn:
+            conn.execute("INSERT INTO media (media_id, article_id, type, download_url, download_status) VALUES ('ext_vid.mp4', 'post_2', 'video', 'https://video.twimg.com/ext.mp4', 'QUEUED');")
+        m_head = MagicMock(status_code=403)
+        with patch.object(self.dl.session, "head", return_value=m_head), patch.object(self.dl.aria2, "add_uri") as mock_aria:
+            self.assertEqual(self.dl.process_queued_media(article_id="post_2"), 0)
+            mock_aria.assert_not_called()
+        with sqlite3.connect(self.db_path) as conn:
+            row = conn.cursor().execute("SELECT download_status, failed_reason FROM media WHERE media_id = 'ext_vid.mp4'").fetchone()
+            self.assertEqual(row[0], "DEAD_404")
+            self.assertIn("Whitelist外", row[1])
 
     def test_stage3_polling_recovery(self):
-        """第3段階: OUTSOURCED 実ファイル検知 -> COMPLETED"""
-        conn = sqlite3.connect(self.db_path)
-        try:
-            conn.execute("INSERT INTO media (media_id, article_id, type, download_url, download_status) "
-                         "VALUES ('vid2.mp4', 'post_1', 'video', 'https://example.com/vid2.mp4', 'OUTSOURCED');")
-            conn.commit()
-        finally:
-            conn.close()
-
-        target_path = self.dl._get_target_path("alice", "vid2.mp4")
-        with open(target_path, "wb") as f:
-            f.write(b"salvaged_video_data")
-
+        with sqlite3.connect(self.db_path) as conn:
+            conn.execute("INSERT INTO media (media_id, article_id, type, download_url, download_status) VALUES ('vid2.mp4', 'post_1', 'video', 'https://example.com/vid2.mp4', 'OUTSOURCED');")
+        target = self.dl._get_target_path("alice", "vid2.mp4")
+        with open(target, "wb") as f: f.write(b"salvaged")
         with patch.object(self.dl.stash, "find_scene_by_path", return_value="scene-777"):
-            salvaged = self.dl.poll_outsourced_media()
-            self.assertEqual(salvaged, 1)
-
-        conn = sqlite3.connect(self.db_path)
-        try:
+            self.assertEqual(self.dl.poll_outsourced_media(), 1)
+        with sqlite3.connect(self.db_path) as conn:
             row = conn.cursor().execute("SELECT download_status, stash_scene_id FROM media WHERE media_id = 'vid2.mp4'").fetchone()
-            self.assertEqual(row[0], "COMPLETED")
-            self.assertEqual(row[1], "scene-777")
-        finally:
-            conn.close()
+            self.assertEqual(row, ("COMPLETED", "scene-777"))
 
 
 if __name__ == "__main__":

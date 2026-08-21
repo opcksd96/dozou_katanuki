@@ -15,22 +15,15 @@ func (j *JobOrchestrator) finishJob(jobID string, status models.JobStatus, msg s
 	var snapshot *models.JobProgress
 	if p, ok := j.jobs[jobID]; ok {
 		p.Status, p.Message, p.FinishedAt = status, msg, &now
-		if err != nil {
-			p.Error = err.Error()
-		}
+		if err != nil { p.Error = err.Error() }
 		if status == models.JobStatusCompleted {
 			p.Percentage = 100.0
-			if p.Total > 0 && p.Current < p.Total {
-				p.Current = p.Total
-			}
+			if p.Total > 0 && p.Current < p.Total { p.Current = p.Total }
 		}
 		s := *p
 		snapshot = &s
 	}
-	if j.activeJobID == jobID {
-		j.activeJobID = ""
-		j.activeCancel, j.activeCmd = nil, nil
-	}
+	if j.activeJobID == jobID { j.activeJobID, j.activeCancel, j.activeCmd = "", nil, nil }
 	j.mu.Unlock()
 
 	log.Printf("[JobOrchestrator] Finished job %s: status=%s, msg=%s", jobID, status, msg)
@@ -41,61 +34,36 @@ func (j *JobOrchestrator) finishJob(jobID string, status models.JobStatus, msg s
 }
 
 func (j *JobOrchestrator) GetStatus(jobID string) *models.JobProgress {
-	j.mu.RLock()
-	defer j.mu.RUnlock()
-	if p, ok := j.jobs[jobID]; ok {
-		s := *p
-		return &s
-	}
+	j.mu.RLock(); defer j.mu.RUnlock()
+	if p, ok := j.jobs[jobID]; ok { s := *p; return &s }
 	return nil
 }
 
 func (j *JobOrchestrator) GetActiveJob() *models.JobProgress {
-	j.mu.RLock()
-	defer j.mu.RUnlock()
+	j.mu.RLock(); defer j.mu.RUnlock()
 	if j.activeJobID != "" {
-		if p, ok := j.jobs[j.activeJobID]; ok {
-			s := *p
-			return &s
-		}
+		if p, ok := j.jobs[j.activeJobID]; ok { s := *p; return &s }
 	}
 	return nil
 }
 
 func (j *JobOrchestrator) ListJobs() []*models.JobProgress {
-	j.mu.RLock()
-	defer j.mu.RUnlock()
+	j.mu.RLock(); defer j.mu.RUnlock()
 	list := make([]*models.JobProgress, 0, len(j.jobs))
-	for _, p := range j.jobs {
-		s := *p
-		list = append(list, &s)
-	}
+	for _, p := range j.jobs { s := *p; list = append(list, &s) }
 	return list
 }
 
 func (j *JobOrchestrator) CancelJob(jobID string) error {
-	j.mu.Lock()
-	defer j.mu.Unlock()
-
+	j.mu.Lock(); defer j.mu.Unlock()
 	p, ok := j.jobs[jobID]
-	if !ok {
-		return fmt.Errorf("job not found: %s", jobID)
-	}
-
+	if !ok { return fmt.Errorf("job not found: %s", jobID) }
 	if p.Status == models.JobStatusRunning && j.activeJobID == jobID {
-		if j.activeCancel != nil {
-			j.activeCancel()
-		}
-		if j.activeCmd != nil && j.activeCmd.Process != nil {
-			_ = j.activeCmd.Process.Kill()
-		}
+		if j.activeCancel != nil { j.activeCancel() }
+		if j.activeCmd != nil && j.activeCmd.Process != nil { _ = j.activeCmd.Process.Kill() }
 		return j.setCancelled(p, "Cancelled by user")
 	}
-
-	if p.Status == models.JobStatusPending {
-		return j.setCancelled(p, "Cancelled before execution")
-	}
-
+	if p.Status == models.JobStatusPending { return j.setCancelled(p, "Cancelled before execution") }
 	return fmt.Errorf("job is not running or pending (current status: %s)", p.Status)
 }
 

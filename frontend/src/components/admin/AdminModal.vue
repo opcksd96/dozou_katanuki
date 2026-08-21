@@ -1,5 +1,6 @@
+<!-- frontend/src/components/admin/AdminModal.vue (100行以下 - SPEC-ADMINBOARD-001) -->
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, watch } from 'vue';
+import { ref, reactive } from 'vue';
 import { useAdmin } from '../../composables/useAdmin';
 import JobController from './JobController.vue';
 import ConfigPortal from './ConfigPortal.vue';
@@ -9,395 +10,64 @@ import DatabaseView from './DatabaseView.vue';
 import AuditReportView from './AuditReportView.vue';
 import SkinFontEditor from './SkinFontEditor.vue';
 
-const props = defineProps<{
-  isOpen: boolean;
-}>();
-
+defineProps<{ isOpen: boolean }>();
 const emit = defineEmits<{
   (e: 'close'): void;
+  (e: 'whitelistUpdated'): void;
+  (e: 'whitelist-updated'): void;
 }>();
 
 const activeTab = ref<'jobs' | 'config' | 'skin' | 'stash' | 'whitelist' | 'db' | 'audit'>('jobs');
-
-const {
-  activeJob,
-  jobList,
-  logs,
-  config,
-  loadingJobs,
-  loadingConfig,
-  savingConfig,
-  actionLoading,
-  saveStatus,
-  salvageForm,
-  importForm,
-  fetchJobs,
-  loadConfig,
-  saveConfig,
-  startSalvage,
-  startImport,
-  cancelJob,
-  clearLogs,
-  setupEventListeners,
-  cleanupEventListeners,
-  // Whitelist
-  whitelistList,
-  loadingWhitelist,
-  whitelistStatus,
-  fetchWhitelists,
-  addWhitelist,
-  updateWhitelist,
-  deleteWhitelist,
-  toggleWhitelist,
-  // Database
-  dbArticles,
-  totalArticles,
-  selectedArticle,
-  loadingArticles,
-  savingTranslation,
-  translationStatus,
-  dbSearchParams,
-  searchArticles,
-  selectArticle,
-  saveArticleTranslations,
-  // Audit (SPEC-AUDIT-001)
-  auditReport,
-  loadingAudit,
-  purgingFiles,
-  purgingDB,
-  auditStatus,
-  runAudit,
-  purgeOrphanFiles,
-  purgeOrphanDBMedia,
-  // Disaster Recovery (SPEC-RECOVERY-001)
-  restoringDB,
-  restoreStatus,
-  triggerRestore,
-  // Skin CSS ＆ Font 微調整 (SPEC-ADMINBOARD-001 第5・第6ピース)
-  skinCSS,
-  loadingSkin,
-  savingSkin,
-  skinStatus,
-  selectedSkinPlatform,
-  fontPresets,
-  fetchSkinCSS,
-  saveSkinCSS,
-  applyDynamicSkinCSS,
-  applyFontVariables,
-} = useAdmin();
-
-const handleTriggerRestore = async (resetDB: boolean = false) => {
-  await triggerRestore(config.value?.storage?.dumps_dir, resetDB);
-  activeTab.value = 'jobs';
+const salvageForm = reactive({ platform: 'twitter', account: '', limit: 50 });
+const importForm = reactive({ warcPath: '', offline: true });
+const selectedPlatform = ref('twitter');
+const fontPresets = {
+  ja: [{ label: '標準ゴシック', value: 'Hiragino Sans, Meiryo, sans-serif' }],
+  en: [{ label: '標準サンセリフ', value: 'Nunito, sans-serif' }],
+  zh: [{ label: '標準簡体字', value: 'Microsoft YaHei, SimHei, sans-serif' }],
 };
 
-// モーダルオープン時にデータ取得とイベントリスナー設定
-watch(
-  () => props.isOpen,
-  (val) => {
-    if (val) {
-      setupEventListeners();
-      fetchJobs();
-      loadConfig();
-      fetchWhitelists();
-      searchArticles();
-      fetchSkinCSS(selectedSkinPlatform.value);
-    } else {
-      cleanupEventListeners();
-    }
-  },
-  { immediate: true }
-);
-
-// タブ切り替え時のデータ最新化
-watch(
-  () => activeTab.value,
-  (tab) => {
-    if (!props.isOpen) return;
-    if (tab === 'whitelist') {
-      fetchWhitelists();
-    } else if (tab === 'db') {
-      searchArticles();
-    } else if (tab === 'skin') {
-      fetchSkinCSS(selectedSkinPlatform.value);
-    } else if (tab === 'audit' && !auditReport.value) {
-      runAudit(false, false);
-    }
-  }
-);
-
-const handleKeyDown = (e: KeyboardEvent) => {
-  if (e.key === 'Escape' && props.isOpen) {
-    emit('close');
-  }
-};
-
-onMounted(() => {
-  window.addEventListener('keydown', handleKeyDown);
-});
-
-onUnmounted(() => {
-  window.removeEventListener('keydown', handleKeyDown);
-  cleanupEventListeners();
-});
+const admin = useAdmin();
+const onWhitelistChanged = () => { emit('whitelistUpdated'); };
 </script>
 
 <template>
-  <Teleport to="body">
-    <div
-      v-if="isOpen"
-      class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 transition-opacity"
-      @click.self="emit('close')"
-    >
-      <div
-        class="bg-slate-950 border border-slate-800 rounded-2xl w-full max-w-5xl max-h-[92vh] flex flex-col shadow-2xl overflow-hidden"
-      >
-        <!-- モーダルヘッダー -->
-        <div class="px-6 py-4 border-b border-slate-800 flex items-center justify-between bg-slate-900/50">
-          <div class="flex items-center gap-3">
-            <div class="w-8 h-8 rounded-lg bg-blue-600/20 border border-blue-500/30 flex items-center justify-center text-sm">
-              🛠️
-            </div>
-            <div>
-              <h2 class="text-base font-bold text-white flex items-center gap-2">
-                Admin Board ＆ 管理コンソール
-                <span class="text-[10px] font-mono font-normal bg-slate-800 text-slate-400 px-2 py-0.5 rounded border border-slate-700">
-                  SPEC-ADMINBOARD-001
-                </span>
-              </h2>
-              <p class="text-xs text-slate-400">システム設定・ジョブ監視・Whitelist統治・DB翻訳エディタ・整合性監査</p>
-            </div>
-          </div>
-          <button
-            @click="emit('close')"
-            class="w-8 h-8 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-400 hover:text-slate-200 flex items-center justify-center transition-colors text-sm"
-          >
-            ✕
-          </button>
-        </div>
-
-        <!-- タブバー -->
-        <div class="px-6 border-b border-slate-800 bg-slate-900/30 flex items-center gap-2 overflow-x-auto text-xs">
-          <button
-            @click="activeTab = 'jobs'"
-            class="py-3 px-3.5 border-b-2 font-semibold transition-all flex items-center gap-1.5 whitespace-nowrap"
-            :class="
-              activeTab === 'jobs'
-                ? 'border-blue-500 text-blue-400 bg-blue-500/5'
-                : 'border-transparent text-slate-400 hover:text-slate-200'
-            "
-          >
-            <span>🚀</span> ジョブ ＆ ログ
-            <span
-              v-if="activeJob && activeJob.status === 'running'"
-              class="w-2 h-2 rounded-full bg-blue-400 animate-pulse ml-1"
-            ></span>
-          </button>
-
-          <button
-            @click="activeTab = 'config'"
-            class="py-3 px-3.5 border-b-2 font-semibold transition-all flex items-center gap-1.5 whitespace-nowrap"
-            :class="
-              activeTab === 'config'
-                ? 'border-blue-500 text-blue-400 bg-blue-500/5'
-                : 'border-transparent text-slate-400 hover:text-slate-200'
-            "
-          >
-            <span>⚙️</span> システム設定 (Config)
-          </button>
-
-          <!-- 実稼働 CSSスキンエディタ ＆ フォント微調整パネル (SPEC-ADMINBOARD-001 第5・第6ピース) -->
-          <button
-            @click="activeTab = 'skin'"
-            class="py-3 px-3.5 border-b-2 font-semibold transition-all flex items-center gap-1.5 whitespace-nowrap"
-            :class="
-              activeTab === 'skin'
-                ? 'border-cyan-500 text-cyan-400 bg-cyan-500/5'
-                : 'border-transparent text-slate-400 hover:text-slate-200'
-            "
-          >
-            <span>🎨</span> スキン ＆ フォント
-          </button>
-
-          <button
-            @click="activeTab = 'stash'"
-            class="py-3 px-3.5 border-b-2 font-semibold transition-all flex items-center gap-1.5 whitespace-nowrap"
-            :class="
-              activeTab === 'stash'
-                ? 'border-purple-500 text-purple-400 bg-purple-500/5'
-                : 'border-transparent text-slate-400 hover:text-slate-200'
-            "
-          >
-            <span>📦</span> Stash 連携
-          </button>
-
-          <!-- 実稼働 Whitelist 管理 -->
-          <button
-            @click="activeTab = 'whitelist'"
-            class="py-3 px-3.5 border-b-2 font-semibold transition-all flex items-center gap-1.5 whitespace-nowrap"
-            :class="
-              activeTab === 'whitelist'
-                ? 'border-blue-500 text-blue-400 bg-blue-500/5'
-                : 'border-transparent text-slate-400 hover:text-slate-200'
-            "
-          >
-            <span>📋</span> Whitelist 管理
-            <span
-              v-if="whitelistList.length > 0"
-              class="text-[10px] bg-slate-800 text-slate-300 px-1.5 py-0.2 rounded-full border border-slate-700 font-mono"
-            >
-              {{ whitelistList.length }}
-            </span>
-          </button>
-
-          <!-- 実稼働 データベース閲覧 ＆ 翻訳エディタ -->
-          <button
-            @click="activeTab = 'db'"
-            class="py-3 px-3.5 border-b-2 font-semibold transition-all flex items-center gap-1.5 whitespace-nowrap"
-            :class="
-              activeTab === 'db'
-                ? 'border-blue-500 text-blue-400 bg-blue-500/5'
-                : 'border-transparent text-slate-400 hover:text-slate-200'
-            "
-          >
-            <span>🗄️</span> データベース閲覧 ＆ 翻訳
-          </button>
-
-          <!-- 整合性監査 ＆ 孤立ファイルパージ (実稼働 SPEC-AUDIT-001) -->
-          <button
-            @click="activeTab = 'audit'"
-            class="py-3 px-3.5 border-b-2 font-semibold transition-all flex items-center gap-1.5 whitespace-nowrap"
-            :class="
-              activeTab === 'audit'
-                ? 'border-emerald-500 text-emerald-400 bg-emerald-500/5'
-                : 'border-transparent text-slate-400 hover:text-slate-200'
-            "
-          >
-            <span>🩺</span> 整合性監査 (Audit)
-            <span
-              v-if="auditReport && (!auditReport.integrity_ok || !auditReport.foreign_key_ok || (auditReport.orphan_files && auditReport.orphan_files.length > 0))"
-              class="w-2 h-2 rounded-full bg-amber-400 animate-pulse ml-0.5"
-            ></span>
-          </button>
-        </div>
-
-        <!-- モーダルボディ（スクロールエリア） -->
-        <div class="p-6 overflow-y-auto flex-1 space-y-6">
-          <!-- 1. ジョブ＆ログ -->
-          <div v-show="activeTab === 'jobs'">
-            <JobController
-              :activeJob="activeJob"
-              :jobList="jobList"
-              :logs="logs"
-              :salvageForm="salvageForm"
-              :importForm="importForm"
-              :actionLoading="actionLoading"
-              :loadingJobs="loadingJobs"
-              @startSalvage="startSalvage"
-              @startImport="startImport"
-              @cancelJob="cancelJob"
-              @fetchJobs="fetchJobs"
-              @clearLogs="clearLogs"
-            />
-          </div>
-
-          <!-- 2. システム設定 -->
-          <div v-show="activeTab === 'config'">
-            <ConfigPortal
-              :config="config"
-              :loadingConfig="loadingConfig"
-              :savingConfig="savingConfig"
-              :saveStatus="saveStatus"
-              @saveConfig="saveConfig"
-              @loadConfig="loadConfig"
-            />
-          </div>
-
-          <!-- 3. スキン ＆ フォント (実稼働 SPEC-ADMINBOARD-001 第5・第6ピース) -->
-          <div v-show="activeTab === 'skin'">
-            <SkinFontEditor
-              :skinCSS="skinCSS"
-              :loadingSkin="loadingSkin"
-              :savingSkin="savingSkin"
-              :skinStatus="skinStatus"
-              :selectedPlatform="selectedSkinPlatform"
-              :fontPresets="fontPresets"
-              :config="config"
-              :savingConfig="savingConfig"
-              :saveStatus="saveStatus"
-              @fetchSkin="fetchSkinCSS"
-              @saveSkin="saveSkinCSS"
-              @applyDynamicSkin="applyDynamicSkinCSS"
-              @applyFontVariables="applyFontVariables"
-              @saveConfig="saveConfig"
-            />
-          </div>
-
-          <!-- 4. Stash連携 -->
-          <div v-show="activeTab === 'stash'">
-            <StashStatusView :config="config" />
-          </div>
-
-          <!-- 5. Whitelist 管理（実稼働） -->
-          <div v-show="activeTab === 'whitelist'">
-            <WhitelistView
-              :whitelistList="whitelistList"
-              :loading="loadingWhitelist"
-              :statusMessage="whitelistStatus"
-              @fetch="fetchWhitelists"
-              @add="addWhitelist"
-              @update="updateWhitelist"
-              @delete="deleteWhitelist"
-              @toggle="toggleWhitelist"
-            />
-          </div>
-
-          <!-- 5. データベース閲覧 ＆ 3言語翻訳エディタ（実稼働） -->
-          <div v-show="activeTab === 'db'">
-            <DatabaseView
-              :articles="dbArticles"
-              :total="totalArticles"
-              :selectedArticle="selectedArticle"
-              :loading="loadingArticles"
-              :saving="savingTranslation"
-              :statusMessage="translationStatus"
-              :searchParams="dbSearchParams"
-              @search="searchArticles"
-              @select="selectArticle"
-              @saveTranslations="saveArticleTranslations"
-            />
-          </div>
-
-          <!-- 6. 整合性監査 ＆ 孤立ファイルパージ（実稼働 SPEC-AUDIT-001） -->
-          <div v-show="activeTab === 'audit'">
-            <AuditReportView
-              :report="auditReport"
-              :loading="loadingAudit"
-              :purgingFiles="purgingFiles"
-              :purgingDB="purgingDB"
-              :restoring="restoringDB"
-              :statusMessage="auditStatus"
-              :restoreStatus="restoreStatus"
-              @runAudit="runAudit"
-              @purgeOrphanFiles="purgeOrphanFiles"
-              @purgeOrphanDBMedia="purgeOrphanDBMedia"
-              @triggerRestore="handleTriggerRestore"
-            />
+  <div v-show="isOpen" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+    <div class="bg-slate-950 border border-slate-800 rounded-2xl w-full max-w-5xl h-[88vh] flex flex-col shadow-2xl overflow-hidden">
+      <!-- モーダルヘッダー -->
+      <div class="px-6 py-4 border-b border-slate-800 flex items-center justify-between bg-slate-900/80">
+        <div class="flex items-center gap-3">
+          <span class="text-xl">⚙️</span>
+          <div>
+            <h2 class="text-sm font-bold text-slate-100">土蔵・型抜き Admin Governance Portal</h2>
+            <p class="text-[11px] text-slate-400">システム設定・ジョブ監視・データベース・監査管理</p>
           </div>
         </div>
+        <button @click="$emit('close')" class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center">✕</button>
+      </div>
 
-        <!-- モーダルフッター -->
-        <div class="px-6 py-3 border-t border-slate-800 bg-slate-900/40 flex items-center justify-between text-xs text-slate-500 font-mono">
-          <span>dozou_katanuki Admin v1.0 • SPEC-ADMINBOARD-001</span>
-          <button
-            @click="emit('close')"
-            class="px-4 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg transition-colors font-semibold"
-          >
-            閉じる (ESC)
-          </button>
-        </div>
+      <!-- タブバー -->
+      <div class="px-6 bg-slate-900/40 border-b border-slate-800 flex gap-2 overflow-x-auto text-xs font-semibold">
+        <button v-for="t in [
+          { id: 'jobs', label: '🚀 ジョブ制御' }, { id: 'config', label: '🌐 システム設定' },
+          { id: 'skin', label: '🎨 スキン・フォント' }, { id: 'whitelist', label: '📋 Whitelist' },
+          { id: 'db', label: '🗄️ DB閲覧・翻訳' }, { id: 'audit', label: '🩺 整合性監査' },
+          { id: 'stash', label: '🎛️ Stash状態' }
+        ]" :key="t.id" @click="activeTab = t.id as any" class="py-3 px-3 border-b-2 transition-colors whitespace-nowrap" :class="activeTab === t.id ? 'border-blue-500 text-blue-400 bg-blue-500/10' : 'border-transparent text-slate-400 hover:text-slate-200'">
+          {{ t.label }}
+        </button>
+      </div>
+
+      <!-- コンテンツ領域 -->
+      <div class="flex-1 overflow-y-auto p-6 bg-slate-950/60">
+        <JobController v-if="activeTab === 'jobs'" :active-job="admin.activeJob.value" :job-list="admin.jobList.value" :logs="admin.jobLogs.value" :salvage-form="salvageForm" :import-form="importForm" :action-loading="admin.isJobRunning.value" :loading-jobs="false" @start-salvage="admin.startSalvage(salvageForm.platform, salvageForm.account, salvageForm.limit)" @start-import="admin.startManualImport(importForm.warcPath, importForm.offline)" @cancel-job="(id) => admin.cancelJob(id)" @fetch-jobs="admin.fetchJobList" @clear-logs="admin.clearLogs" />
+        <ConfigPortal v-else-if="activeTab === 'config'" :config="admin.configForm" :loading-config="admin.isConfigLoading.value" :saving-config="admin.isConfigLoading.value" :save-status="admin.configSaved.value ? { success: true, message: '設定を保存しました' } : null" @save-config="admin.saveConfig" @load-config="admin.fetchConfig" />
+        <SkinFontEditor v-else-if="activeTab === 'skin'" :skin-c-s-s="admin.skinCSS.value" :loading-skin="admin.isSkinLoading.value" :saving-skin="admin.isSkinLoading.value" :skin-status="admin.isSkinSaved.value ? { success: true, message: 'スキンを保存しました' } : null" :selected-platform="selectedPlatform" :font-presets="fontPresets" :config="admin.configForm" :saving-config="admin.isConfigLoading.value" :save-status="null" @fetch-skin="(p) => admin.fetchSkinCSS(p)" @save-skin="(p, css) => admin.saveSkinCSS(p, css)" @apply-dynamic-skin="() => {}" @save-config="admin.saveConfig" />
+        <WhitelistView v-else-if="activeTab === 'whitelist'" :whitelist-list="admin.whitelists.value" :loading="admin.isWhitelistLoading.value" :status-message="null" @fetch="admin.fetchWhitelists" @add="async (t, v) => { await admin.addWhitelist(t, v); onWhitelistChanged(); }" @update="async (id, t, v, act) => { await admin.updateWhitelist(id, t, v, act); onWhitelistChanged(); }" @delete="async (id) => { await admin.deleteWhitelist(id); onWhitelistChanged(); }" @toggle="async (id) => { await admin.toggleWhitelist(id); onWhitelistChanged(); }" />
+        <DatabaseView v-else-if="activeTab === 'db'" :articles="admin.searchResults.value" :total="admin.totalCount.value" :selected-article="null" :loading="admin.isSearchLoading.value" :saving="false" :status-message="null" :search-params="{ query: admin.searchQuery.value, accountID: admin.searchAccount.value, filter: admin.searchFilter.value, page: admin.page.value, limit: admin.limit }" @search="admin.searchArticles" @select="() => {}" @save-translations="(id, ja, en, zh) => admin.saveTranslation(id, ja, en, zh)" />
+        <AuditReportView v-else-if="activeTab === 'audit'" :report="admin.auditReport.value" :loading="admin.isAuditing.value" :purging-files="false" :purging-d-b="false" :status-message="null" @run-audit="(pf, pdb) => admin.runAudit(pf, pdb)" @purge-orphan-files="admin.purgeOrphanFiles" @purge-orphan-d-b-media="admin.purgeOrphanDBMedia" @trigger-restore="(resetDB) => { admin.triggerRestore('', resetDB); activeTab = 'jobs'; }" />
+        <StashStatusView v-else-if="activeTab === 'stash'" />
       </div>
     </div>
-  </Teleport>
+  </div>
 </template>
-

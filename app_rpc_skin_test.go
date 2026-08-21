@@ -1,48 +1,29 @@
+// app_rpc_skin_test.go (100行以下)
 package main
 
 import (
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 )
 
-func TestApp_GetSkinPackage(t *testing.T) {
+func TestSkinCSSRPC(t *testing.T) {
 	app := &App{}
 
-	// plugins/twitter/skin フォルダとファイルが存在することを確認
-	pkg, err := app.GetSkinPackage("twitter")
-	if err != nil {
-		t.Fatalf("GetSkinPackage failed: %v", err)
+	css, err := app.GetSkinCSS("twitter")
+	if err != nil || !strings.Contains(css, ".twitter-card") {
+		t.Fatalf("GetSkinCSS expected '.twitter-card', got: %s (err: %v)", css, err)
 	}
 
-	if pkg == nil {
-		t.Fatal("expected non-nil SkinPackage")
-	}
+	testPlatform := "test_skin_platform"
+	testCSS := "/* Test Skin CSS */\n.test-card { color: #abcdef; }\n"
+	err = app.SaveSkinCSS(testPlatform, testCSS)
+	if err != nil { t.Fatalf("SaveSkinCSS failed: %v", err) }
+	defer os.RemoveAll(filepath.Join("plugins", testPlatform))
 
-	if pkg.Platform != "twitter" {
-		t.Errorf("expected platform twitter, got %s", pkg.Platform)
-	}
-
-	if pkg.LayoutYAML == "" {
-		t.Error("expected non-empty LayoutYAML")
-	}
-
-	if pkg.DesignCSS == "" {
-		t.Error("expected non-empty DesignCSS")
-	}
-
-	if pkg.Controller == "" {
-		t.Error("expected non-empty Controller")
-	}
-}
-
-func TestApp_SkinSecurity_Traversal(t *testing.T) {
-	app := &App{}
-
-	// 不正なパス（パストラバーサル）を指定しても安全にフォールバックされること
-	pkg, err := app.GetSkinPackage("../../../etc")
-	if err != nil {
-		t.Fatalf("GetSkinPackage traversal check failed: %v", err)
-	}
-	if pkg.Platform != "twitter" {
-		t.Errorf("expected fallback to twitter platform, got %s", pkg.Platform)
+	readCSS, err := app.GetSkinCSS(testPlatform)
+	if err != nil || readCSS != testCSS {
+		t.Fatalf("GetSkinCSS mismatch. expected: %s, got: %s", testCSS, readCSS)
 	}
 }

@@ -1,0 +1,62 @@
+<!-- frontend/src/components/admin/jobs/JobFormPanel.vue (100行以下) -->
+<script setup lang="ts">
+import { ref } from 'vue';
+const props = withDefaults(
+  defineProps<{
+    salvageForm: { platform: string; account: string; limit: number };
+    importForm: { warcPath: string; offline: boolean };
+    actionLoading?: boolean;
+    isJobRunning?: boolean;
+  }>(),
+  { actionLoading: false, isJobRunning: false }
+);
+const emit = defineEmits<{ (e: 'startSalvage'): void; (e: 'startImport'): void }>();
+const showManualImport = ref(false);
+</script>
+
+<template>
+  <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-4 space-y-4">
+    <div class="flex items-center justify-between">
+      <h3 class="text-sm font-bold text-slate-200 flex items-center gap-2"><span>🚀</span> ジョブ実行</h3>
+      <button @click="showManualImport = !showManualImport" class="text-xs text-slate-400 hover:text-slate-200 underline">
+        {{ showManualImport ? '通常サルベージへ' : 'WARC手動インポート' }}
+      </button>
+    </div>
+    <form v-if="!showManualImport" @submit.prevent="emit('startSalvage')" class="grid grid-cols-1 sm:grid-cols-4 gap-3">
+      <div>
+        <label class="block text-xs text-slate-400 mb-1">プラットフォーム</label>
+        <select v-model="salvageForm.platform" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-200">
+          <option value="twitter">Twitter / X</option><option value="bsky">Bluesky</option>
+        </select>
+      </div>
+      <div class="sm:col-span-2">
+        <label class="block text-xs text-slate-400 mb-1">アカウント名 / ID</label>
+        <input v-model="salvageForm.account" type="text" placeholder="target_user" required class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-200 font-mono" />
+      </div>
+      <div>
+        <label class="block text-xs text-slate-400 mb-1">上限件数</label>
+        <div class="flex gap-2">
+          <input v-model.number="salvageForm.limit" type="number" min="1" max="5000" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-200 font-mono" />
+          <button type="submit" :disabled="actionLoading || isJobRunning" class="bg-blue-600 hover:bg-blue-500 disabled:bg-slate-700 text-white text-xs font-semibold px-4 py-1.5 rounded-lg whitespace-nowrap">
+            {{ actionLoading ? '⏳' : '実行' }}
+          </button>
+        </div>
+      </div>
+    </form>
+    <form v-else @submit.prevent="emit('startImport')" class="grid grid-cols-1 sm:grid-cols-4 gap-3">
+      <div class="sm:col-span-3">
+        <label class="block text-xs text-slate-400 mb-1">WARC パス</label>
+        <input v-model="importForm.warcPath" type="text" placeholder="D:/archives/sample.warc.gz" required class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-200 font-mono" />
+      </div>
+      <div class="flex items-end gap-2">
+        <label class="flex items-center gap-1.5 text-xs text-slate-300 mb-2 cursor-pointer">
+          <input type="checkbox" v-model="importForm.offline" class="rounded bg-slate-950 border-slate-700" />
+          <span>オフライン</span>
+        </label>
+        <button type="submit" :disabled="actionLoading || isJobRunning" class="bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-700 text-white text-xs font-semibold px-4 py-1.5 rounded-lg whitespace-nowrap mb-0.5">
+          インポート
+        </button>
+      </div>
+    </form>
+  </div>
+</template>

@@ -22,11 +22,11 @@ const emit = defineEmits<{
         class="relative group flex items-center justify-center bg-black/40 overflow-hidden"
         :class="media.length > 1 ? 'h-52 md:h-64' : 'max-h-[580px]'"
       >
-        <!-- ローカル確保完了時: 描画 -->
-        <template v-if="item.download_status === 'COMPLETED'">
+        <!-- ローカル確保完了時: 描画 (有効なローカルURLが存在する場合のみ) -->
+        <template v-if="item.download_status === 'COMPLETED' && ((item.type === 'video' && item.urls.stream) || (item.type !== 'video' && (item.urls.image || item.urls.thumbnail)))">
           <img
             v-if="item.type === 'image' || item.type === 'gif'"
-            :src="item.urls.image || item.urls.thumbnail || item.urls.original"
+            :src="item.urls.image || item.urls.thumbnail"
             :alt="item.id"
             :class="[
               'cursor-pointer transition-opacity hover:opacity-95',
@@ -45,14 +45,14 @@ const emit = defineEmits<{
             ]"
           >
             <StashPlayer
-              :src="item.urls.stream || item.urls.original"
+              :src="item.urls.stream"
               :poster="item.urls.thumbnail"
               :stashSceneId="item.stash_scene_id"
               :controls="true"
             />
           </div>
         </template>
-        <!-- 未完了/失敗時: SVGプレースホルダー・フィラー -->
+        <!-- 未完了/実体未紐付け/失敗時: SVGプレースホルダー・フィラー -->
         <MediaFiller v-else :media="item" class="w-full h-full" @retry="(id) => emit('retry', id)" />
       </div>
     </div>

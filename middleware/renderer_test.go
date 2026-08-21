@@ -48,3 +48,43 @@ func TestToRenderTree_ExpandRedirects(t *testing.T) {
 		t.Errorf("expected Content.JA = %q, got %q", expectedJA, renderTree.Content.JA)
 	}
 }
+
+func TestToRenderTree_MediaSanitization(t *testing.T) {
+	art := models.Article{
+		ID: "1002",
+		Media: []models.Media{
+			{
+				MediaID:        "vid_ok",
+				Type:           "video",
+				DownloadURL:    "https://video.twimg.com/amplify_video/123.mp4",
+				DownloadStatus: "COMPLETED",
+				StashSceneID:   sql.NullString{String: "scene_123", Valid: true},
+			},
+			{
+				MediaID:        "vid_missing_stash",
+				Type:           "video",
+				DownloadURL:    "https://video.twimg.com/amplify_video/456.mp4",
+				DownloadStatus: "COMPLETED",
+			},
+			{
+				MediaID:        "vid_dead",
+				Type:           "video",
+				DownloadURL:    "https://video.twimg.com/amplify_video/789.mp4",
+				DownloadStatus: "DEAD_404",
+			},
+		},
+	}
+	tree := ToRenderTree(art, "twitter")
+	if len(tree.Media) != 3 {
+		t.Fatalf("expected 3 media items, got %d", len(tree.Media))
+	}
+	if tree.Media[0].URLs.Stream != "/stash-proxy/scene/scene_123/stream" || tree.Media[0].DownloadStatus != "COMPLETED" {
+		t.Errorf("expected media[0] stream proxy, got %v", tree.Media[0])
+	}
+	if tree.Media[1].URLs.Stream != "" || tree.Media[1].DownloadStatus != "DEAD_404" {
+		t.Errorf("expected media[1] stream to be empty & status DEAD_404, got %v", tree.Media[1])
+	}
+	if tree.Media[2].URLs.Stream != "" || tree.Media[2].DownloadStatus != "DEAD_404" {
+		t.Errorf("expected media[2] stream to be empty & status DEAD_404, got %v", tree.Media[2])
+	}
+}

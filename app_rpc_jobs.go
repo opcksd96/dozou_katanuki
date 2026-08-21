@@ -1,0 +1,55 @@
+// app_rpc_jobs.go (100行以下)
+package main
+
+import (
+	"dozou_katanuki/models"
+)
+
+// StartSalvageJob は自動サルベージジョブをキューに追加する Wails バインドメソッドです
+func (a *App) StartSalvageJob(platform, account string, limit int) (*models.JobProgress, error) {
+	if err := a.waitForReady(); err != nil {
+		return nil, err
+	}
+	return a.jobOrchestrator.EnqueueSalvage(platform, account, limit)
+}
+
+// StartManualImportJob は手動 WARC インポートジョブをキューに追加する Wails バインドメソッドです
+func (a *App) StartManualImportJob(warcPath string, offline bool) (*models.JobProgress, error) {
+	if err := a.waitForReady(); err != nil {
+		return nil, err
+	}
+	return a.jobOrchestrator.EnqueueManualImport(warcPath, offline)
+}
+
+// GetJobStatus は指定されたジョブのステータスを取得する Wails バインドメソッドです
+func (a *App) GetJobStatus(jobID string) (*models.JobProgress, error) {
+	if err := a.waitForReady(); err != nil {
+		return nil, err
+	}
+	st := a.jobOrchestrator.GetStatus(jobID)
+	return st, nil
+}
+
+// GetActiveJob は現在実行中のジョブを取得する Wails バインドメソッドです
+func (a *App) GetActiveJob() (*models.JobProgress, error) {
+	if err := a.waitForReady(); err != nil {
+		return nil, err
+	}
+	return a.jobOrchestrator.GetActiveJob(), nil
+}
+
+// ListJobs は全ジョブの履歴ステータス一覧を取得する Wails バインドメソッドです
+func (a *App) ListJobs() ([]*models.JobProgress, error) {
+	if err := a.waitForReady(); err != nil {
+		return nil, err
+	}
+	return a.jobOrchestrator.ListJobs(), nil
+}
+
+// CancelJob はジョブの実行を中断する Wails バインドメソッドです
+func (a *App) CancelJob(jobID string) error {
+	if err := a.waitForReady(); err != nil {
+		return err
+	}
+	return a.jobOrchestrator.CancelJob(jobID)
+}
