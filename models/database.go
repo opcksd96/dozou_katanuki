@@ -18,25 +18,28 @@ type AccountDetailResult struct {
 	PostCount int64                   `json:"post_count"`
 }
 
-// MediaItemDetail はメディア管理ビュー用のレコードモデルです
+// MediaItemDetail はメディア管理ビュー用のレコードモデルです（RenderMediaを埋め込み統一）
 type MediaItemDetail struct {
-	MediaID        string     `json:"media_id"`
-	ArticleID      string     `json:"article_id"`
-	AccountID      string     `json:"account_id"`
-	Username       string     `json:"username"`
-	Type           string     `json:"type"`
-	DownloadURL    string     `json:"download_url"`
-	Width          int        `json:"width"`
-	Height         int        `json:"height"`
-	DownloadStatus string     `json:"download_status"`
-	FailedReason   *string    `json:"failed_reason"`
-	StashSceneID   *string    `json:"stash_scene_id"`
-	StashImageID   *string    `json:"stash_image_id"`
-	CreatedAt      time.Time  `json:"created_at"`
+	RenderMedia
+	MediaID      string    `json:"media_id"`
+	ArticleID    string    `json:"article_id"`
+	AccountID    string    `json:"account_id"`
+	Username     string    `json:"username"`
+	RawStatus    string    `json:"raw_status"`
+	HasStash     bool      `json:"has_stash"`
+	CreatedAt    time.Time `json:"created_at"`
+}
+
+// MediaSearchStats はメディア種別の統計カウントです
+type MediaSearchStats struct {
+	TotalCount int64 `json:"total_count"`
+	ImageCount int64 `json:"image_count"`
+	VideoCount int64 `json:"video_count"`
 }
 
 // MediaSearchResult はメディア一覧のページネーション結果です
 type MediaSearchResult struct {
 	Items []MediaItemDetail `json:"items"`
 	Total int64             `json:"total"`
+	Stats MediaSearchStats  `json:"stats"`
 }

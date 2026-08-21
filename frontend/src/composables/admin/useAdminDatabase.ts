@@ -9,7 +9,9 @@ export function useAdminDatabase() {
   const errorMessage = ref<string | null>(null);
 
   const accountsList = ref<any[]>([]), selectedAccountDetail = ref<any>(null), isAccountLoading = ref(false);
-  const mediaResults = ref<any[]>([]), mediaTotal = ref(0), isMediaLoading = ref(false), mediaStatusFilter = ref('all');
+  const mediaResults = ref<any[]>([]), mediaTotal = ref(0), isMediaLoading = ref(false);
+  const mediaStatusFilter = ref('all'), mediaTypeFilter = ref<'all' | 'image' | 'video'>('all');
+  const mediaStats = ref<{ total_count: number; image_count: number; video_count: number }>({ total_count: 0, image_count: 0, video_count: 0 });
   const tableData = ref<{ columns: string[]; rows: any[]; total: number }>({ columns: [], rows: [], total: 0 });
 
   const clearError = () => { errorMessage.value = null; };
@@ -73,9 +75,12 @@ export function useAdminDatabase() {
       const app = getApp();
       if (app?.GetMediaList) {
         const offset = Math.max(0, (page.value - 1) * limit.value);
-        const res = await app.GetMediaList(searchAccount.value, mediaStatusFilter.value, limit.value, offset);
+        const res = await app.GetMediaList(searchAccount.value, mediaStatusFilter.value, mediaTypeFilter.value, limit.value, offset);
         mediaResults.value = res?.items || res?.Items || [];
         mediaTotal.value = res?.total || res?.Total || 0;
+        if (res?.stats) {
+          mediaStats.value = res.stats;
+        }
       }
     } catch (e: any) {
       console.error('[AdminDB] GetMediaList error:', e);
@@ -138,6 +143,34 @@ export function useAdminDatabase() {
     catch (e: any) { errorMessage.value = `メディア再取得に失敗しました: ${e?.message || e}`; }
   };
 
+  const purgeMedia = async (mId: string) => {
+    try {
+      const app = getApp();
+      if (app?.PurgeMedia) {
+        await app.PurgeMedia(mId);
+        await fetchMedia();
+        return true;
+      }
+    } catch (e: any) {
+      errorMessage.value = `メディアのパージに失敗しました: ${e?.message || e}`;
+    }
+    return false;
+  };
+
+  const purgeMediaByStatus = async (status: string) => {
+    try {
+      const app = getApp();
+      if (app?.PurgeMediaByStatus) {
+        const count = await app.PurgeMediaByStatus(status, searchAccount.value);
+        await fetchMedia();
+        return count;
+      }
+    } catch (e: any) {
+      errorMessage.value = `一括パージに失敗しました: ${e?.message || e}`;
+    }
+    return 0;
+  };
+
   const updateAccount = async (numericId: string, displayName: string, username: string, avatarUrl: string, description: string) => {
     isAccountLoading.value = true;
     errorMessage.value = null;
@@ -191,8 +224,9 @@ export function useAdminDatabase() {
   return {
     activeSubTab, searchResults, totalCount, isSearchLoading, isTranslating, searchQuery, searchAccount,
     searchFilter, page, limit, errorMessage, clearError, accountsList, selectedAccountDetail, isAccountLoading,
-    mediaResults, mediaTotal, isMediaLoading, mediaStatusFilter, tableData, searchArticles, fetchAccounts,
+    mediaResults, mediaTotal, isMediaLoading, mediaStatusFilter, mediaTypeFilter, mediaStats, tableData, searchArticles, fetchAccounts,
     selectAccount, updateAccount, saveAvatarImage, fetchAvailableAvatars, fetchMedia, saveTranslation, autoTranslate, startBatchTranslate, retryMedia,
+    purgeMedia, purgeMediaByStatus,
     showAccountPosts, showAccountMedia,
   };
 }

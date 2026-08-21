@@ -3,6 +3,7 @@ package driver
 
 import (
 	"fmt"
+	"time"
 
 	"dozou_katanuki/models"
 )
@@ -25,20 +26,72 @@ func (r *Repository) GetAccountDetail(numericID string) (*models.AccountDetailRe
 	return &models.AccountDetailResult{Account: acc, Histories: hist, PostCount: postCount}, nil
 }
 
-func (r *Repository) SearchMediaDetails(accountID, status string, limit, offset int) (*models.MediaSearchResult, error) {
-	q := r.db.Table("media").Select("media.*, articles.created_at as created_at, accounts.username as username, accounts.numeric_id as account_id").
+type mediaScanRow struct {
+	models.Media
+	ArticleID string    `gorm:"column:article_id"`
+	AccountID string    `gorm:"column:account_id"`
+	Username  string    `gorm:"column:username"`
+	CreatedAt time.Time `gorm:"column:created_at"`
+}
+
+func (r *Repository) SearchMediaDetails(accountID, status, mediaType string, limit, offset int) (*models.MediaSearchResult, error) {
+	baseQ := r.db.Table("media").
 		Joins("JOIN articles ON articles.id = media.article_id").
 		Joins("JOIN accounts ON accounts.numeric_id = articles.account_id")
 
-	if accountID != "" && accountID != "all" { q = q.Where("accounts.numeric_id = ? OR accounts.username = ?", accountID, accountID) }
-	if status != "" && status != "all" { q = q.Where("media.download_status = ?", status) }
+	if accountID != "" && accountID != "all" {
+		baseQ = baseQ.Where("accounts.numeric_id = ? OR accounts.username = ?", accountID, accountID)
+	}
+
+	// 統計カウント (同一アカウントフィルタ下での全体・画像・動画件数)
+	var stats models.MediaSearchStats
+	_ = baseQ.Count(&stats.TotalCount).Error
+	_ = r.db.Table("media").
+		Joins("JOIN articles ON articles.id = media.article_id").
+		Joins("JOIN accounts ON accounts.numeric_id = articles.account_id").
+		Where(func() string {
+			if accountID != "" && accountID != "all" { return "(accounts.numeric_id = '" + accountID + "' OR accounts.username = '" + accountID + "') AND " }
+			return ""
+		}() + "media.type = 'image'").Count(&stats.ImageCount).Error
+	stats.VideoCount = stats.TotalCount - stats.ImageCount
+
+	// フィルタ条件適用
+	q := baseQ
+	if status != "" && status != "all" {
+		q = q.Where("media.download_status = ?", status)
+	}
+	if mediaType == "image" {
+		q = q.Where("media.type = 'image'")
+	} else if mediaType == "video" {
+		q = q.Where("media.type != 'image'")
+	}
 
 	var total int64
 	if err := q.Count(&total).Error; err != nil { return nil, err }
 	if limit <= 0 { limit = 20 }
-	var items []models.MediaItemDetail
-	err := q.Order("articles.created_at DESC").Limit(limit).Offset(offset).Scan(&items).Error
-	return &models.MediaSearchResult{Items: items, Total: total}, err
+
+	var rows []mediaScanRow
+	err := q.Select("media.*, articles.created_at as created_at, accounts.username as username, accounts.numeric_id as account_id").
+		Order("articles.created_at DESC").Limit(limit).Offset(offset).Scan(&rows).Error
+	if err != nil { return nil, err }
+
+	items := make([]models.MediaItemDetail, 0, len(rows))
+	for _, row := range rows {
+		rm := models.BuildRenderMedia(row.Media)
+		hasStash := row.StashSceneID.Valid && row.StashSceneID.String != "" || row.StashImageID.Valid && row.StashImageID.String != ""
+		items = append(items, models.MediaItemDetail{
+			RenderMedia: rm,
+			MediaID:     row.Media.MediaID,
+			ArticleID:   row.ArticleID,
+			AccountID:   row.AccountID,
+			Username:    row.Username,
+			RawStatus:   row.Media.DownloadStatus,
+			HasStash:    hasStash,
+			CreatedAt:   row.CreatedAt,
+		})
+	}
+
+	return &models.MediaSearchResult{Items: items, Total: total, Stats: stats}, nil
 }
 
 func (r *Repository) GetTableRecords(tableName string, limit, offset int, search string) (*models.TableRecordResult, error) {

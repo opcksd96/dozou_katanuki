@@ -50,12 +50,7 @@ class Downloader:
 
     def _try_download_and_escalate(self, media_id: str, url: str, m_type: str, dest: str, is_wl: bool = True) -> Tuple[str, Optional[str], Optional[str], Optional[str]]:
         if not is_wl:
-            try:
-                r = self.session.head(url, timeout=10, allow_redirects=True)
-                code = r.status_code
-                return "DEAD_404", f"HTTP {code} (Whitelist外・ダウンロード対象外)", None, None
-            except Exception as e:
-                return "DEAD_404", f"Unreachable ({str(e)[:30]})", None, None
+            return "EXCLUDED", "Whitelist外 (ダウンロード対象外)", None, None
 
         for attempt in range(3):
             try:

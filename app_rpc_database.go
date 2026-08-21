@@ -23,15 +23,28 @@ func (a *App) GetAccountDetail(numericID string) (*models.AccountDetailResult, e
 	return res, nil
 }
 
-// GetMediaList はメディア一覧（Stashステータス・アカウント情報付き）を取得する Wails バインドメソッドです
-func (a *App) GetMediaList(accountID, status string, limit, offset int) (*models.MediaSearchResult, error) {
+// GetMediaList はメディア一覧（Stashステータス・アカウント情報・種別フィルタ付き）を取得する Wails バインドメソッドです
+func (a *App) GetMediaList(accountID, status, mediaType string, limit, offset int) (*models.MediaSearchResult, error) {
 	if err := a.waitForReady(); err != nil { return nil, err }
-	res, err := a.repo.SearchMediaDetails(accountID, status, limit, offset)
+	_, _ = a.repo.MigrateExcludedMedia() // レガシーWhitelist外DEAD_404をEXCLUDEDへ安全移行
+	res, err := a.repo.SearchMediaDetails(accountID, status, mediaType, limit, offset)
 	if err != nil {
 		log.Printf("[Wails RPC] GetMediaList error: %v", err)
 		return nil, err
 	}
 	return res, nil
+}
+
+// PurgeMedia は指定された単一メディアレコードをデータベースから物理削除する Wails バインドメソッドです
+func (a *App) PurgeMedia(mediaID string) error {
+	if err := a.waitForReady(); err != nil { return err }
+	return a.repo.PurgeMedia(mediaID)
+}
+
+// PurgeMediaByStatus は指定ステータス（EXCLUDED, UNLINKED, DEAD_404等）のメディアを一括削除する Wails バインドメソッドです
+func (a *App) PurgeMediaByStatus(status, accountID string) (int64, error) {
+	if err := a.waitForReady(); err != nil { return 0, err }
+	return a.repo.PurgeMediaByStatus(status, accountID)
 }
 
 // GetTableRecords は汎用テーブルの生カラム・ロウ形式スプレッドシートデータを取得する Wails バインドメソッドです

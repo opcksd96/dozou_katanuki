@@ -134,7 +134,28 @@ onMounted(() => {
         @refresh="() => { admin.fetchAccounts(); loadAvailableAvatars(); }"
       />
       <PostManagementView v-else-if="admin.activeSubTab.value === 'posts'" :articles="admin.searchResults.value" :total="admin.totalCount.value" :selected-article="localSelected" :accounts="admin.accountsList.value" :search-account="admin.searchAccount.value" :search-query="admin.searchQuery.value" :page="admin.page.value" :limit="admin.limit.value" :loading="admin.isSearchLoading.value" :saving="false" :translating="admin.isTranslating.value" :active-job="admin.activeJob.value" @update:search-account="(v) => admin.searchAccount.value = v" @update:search-query="(v) => admin.searchQuery.value = v" @update:page="(p) => admin.page.value = p" @search="admin.searchArticles" @select="(art) => localSelected = art" @save="handleSaveTranslation" @auto-translate="handleAutoTranslate" @batch-translate="handleBatchTranslate" @cancel-job="(id) => admin.cancelJob(id)" />
-      <MediaManagementView v-else-if="admin.activeSubTab.value === 'media'" :media-items="admin.mediaResults.value" :total="admin.mediaTotal.value" :accounts="admin.accountsList.value" :account-filter="admin.searchAccount.value" :status-filter="admin.mediaStatusFilter.value" :page="admin.page.value" :limit="admin.limit.value" :loading="admin.isMediaLoading.value" @fetch="admin.fetchMedia" @update:account-filter="(v) => admin.searchAccount.value = v" @update:status-filter="(v) => admin.mediaStatusFilter.value = v" @update:page="(p) => admin.page.value = p" @retry-media="(id) => admin.retryMedia(id)" />
+      <MediaManagementView
+        v-else-if="admin.activeSubTab.value === 'media'"
+        :media-items="admin.mediaResults?.value || []"
+        :total="admin.mediaTotal?.value || 0"
+        :stats="admin.mediaStats?.value || { total_count: 0, image_count: 0, video_count: 0 }"
+        :accounts="admin.accountsList?.value || []"
+        :account-filter="admin.searchAccount?.value || 'all'"
+        :status-filter="admin.mediaStatusFilter?.value || 'all'"
+        :type-filter="admin.mediaTypeFilter?.value || 'all'"
+        :page="admin.page?.value || 1"
+        :limit="admin.limit?.value || 20"
+        :loading="admin.isMediaLoading?.value || false"
+        @fetch="admin.fetchMedia"
+        @update:account-filter="(v) => { if (admin.searchAccount) admin.searchAccount.value = v; }"
+        @update:status-filter="(v) => { if (admin.mediaStatusFilter) admin.mediaStatusFilter.value = v; }"
+        @update:type-filter="(v) => { if (admin.mediaTypeFilter) admin.mediaTypeFilter.value = v; }"
+        @update:page="(p) => { if (admin.page) admin.page.value = p; }"
+        @retry-media="(id) => admin.retryMedia?.(id)"
+        @purge-media="async (id) => { const ok = await admin.purgeMedia?.(id); if (ok) addToast(`🗑️ メディア [${id}] をDBからパージしました`, 'info', 3000); }"
+        @purge-by-status="async (st) => { const cnt = await admin.purgeMediaByStatus?.(st); addToast(`🗑️ [${st}] のメディア ${cnt} 件をパージしました`, 'info', 4000); }"
+        @view-post="(artId) => { if (admin.searchQuery) admin.searchQuery.value = artId; if (admin.page) admin.page.value = 1; admin.activeSubTab.value = 'posts'; admin.searchArticles?.(); }"
+      />
       <WhitelistManagementView v-else-if="admin.activeSubTab.value === 'whitelist'" :whitelist-list="admin.whitelists.value" :loading="admin.isWhitelistLoading.value" @fetch="admin.fetchWhitelists" @add="(t, v) => admin.addWhitelist(t, v)" @toggle="(id) => admin.toggleWhitelist(id)" @delete="(id) => admin.deleteWhitelist(id)" />
     </div>
   </div>

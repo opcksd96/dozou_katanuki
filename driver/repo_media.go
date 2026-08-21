@@ -52,3 +52,39 @@ func (r *Repository) PurgeOrphanFiles(paths []string) (int, error) {
 func (r *Repository) PurgeOrphanDBMedia(mediaIDs []string) (int, error) {
 	return DeleteDBMediaByIDs(r.db, mediaIDs)
 }
+
+// PurgeMedia deletes a single media record from DB
+func (r *Repository) PurgeMedia(mediaID string) error {
+	return r.db.Where("media_id = ?", mediaID).Delete(&models.Media{}).Error
+}
+
+// PurgeMediaByStatus batch purges media records by status (EXCLUDED, UNLINKED, DEAD_404)
+func (r *Repository) PurgeMediaByStatus(status, accountID string) (int64, error) {
+	q := r.db.Table("media")
+	if accountID != "" && accountID != "all" {
+		q = q.Where("article_id IN (SELECT id FROM articles WHERE account_id = ? OR account_id IN (SELECT numeric_id FROM accounts WHERE username = ?))", accountID, accountID)
+	}
+
+	if status == "EXCLUDED" {
+		q = q.Where("download_status = 'EXCLUDED' OR failed_reason LIKE '%Whitelist外%' OR failed_reason LIKE '%ダウンロード対象外%'")
+	} else if status == "UNLINKED" {
+		q = q.Where("download_status = 'COMPLETED' AND (stash_scene_id IS NULL OR stash_scene_id = '') AND (stash_image_id IS NULL OR stash_image_id = '')")
+	} else if status == "DEAD_404" {
+		q = q.Where("download_status = 'DEAD_404'")
+	} else if status != "" && status != "all" {
+		q = q.Where("download_status = ?", status)
+	} else {
+		return 0, fmt.Errorf("status is required for batch purge")
+	}
+
+	res := q.Delete(&models.Media{})
+	return res.RowsAffected, res.Error
+}
+
+// MigrateExcludedMedia migrates legacy DEAD_404 records that failed due to Whitelist to EXCLUDED
+func (r *Repository) MigrateExcludedMedia() (int64, error) {
+	res := r.db.Model(&models.Media{}).
+		Where("download_status = 'DEAD_404' AND (failed_reason LIKE '%Whitelist外%' OR failed_reason LIKE '%ダウンロード対象外%')").
+		Update("download_status", "EXCLUDED")
+	return res.RowsAffected, res.Error
+}

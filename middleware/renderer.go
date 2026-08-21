@@ -63,36 +63,16 @@ func ToRenderTree(item models.Article, platform string) models.RenderTree {
 			DisplayName: item.Account.DisplayName, AvatarURL: avatarURL,
 			Bio: item.Account.Description,
 		},
-		Media: mapMediaToRenderMedia(item.Media), Metrics: models.RenderMetrics{},
+		Media: MapMediaToRenderMedia(item.Media), Metrics: models.RenderMetrics{},
 		IsLiked: item.IsLiked, SourceURL: item.WaybackURL,
 		ParentID: item.ReplyToID.String, ReplyToHandle: item.ReplyToHandle.String,
 	}
 }
 
-func mapMediaToRenderMedia(mediaList []models.Media) []models.RenderMedia {
-	result := make([]models.RenderMedia, 0, len(mediaList))
-	for _, m := range mediaList {
-		var mediaURLs models.RenderMediaURLs
-		mediaURLs.Original = m.DownloadURL
-		effectiveStatus := m.DownloadStatus
-		if m.DownloadStatus == "COMPLETED" && (m.StashSceneID.Valid || m.StashImageID.Valid) {
-			if m.Type == "video" || m.Type == "gif" {
-				mediaURLs.Stream = fmt.Sprintf("/stash-proxy/scene/%s/stream", m.StashSceneID.String)
-				mediaURLs.Thumbnail = fmt.Sprintf("/stash-proxy/scene/%s/screenshot", m.StashSceneID.String)
-				mediaURLs.Preview = fmt.Sprintf("/stash-proxy/scene/%s/preview", m.StashSceneID.String)
-				mediaURLs.VTT = fmt.Sprintf("/stash-proxy/scene/%s/vtt", m.StashSceneID.String)
-			} else {
-				mediaURLs.Image = fmt.Sprintf("/stash-proxy/image/%s/image", m.StashImageID.String)
-				mediaURLs.Thumbnail = fmt.Sprintf("/stash-proxy/image/%s/thumbnail", m.StashImageID.String)
-			}
-		} else if effectiveStatus == "COMPLETED" {
-			effectiveStatus = "DEAD_404"
-		}
-		result = append(result, models.RenderMedia{
-			ID: m.MediaID, Type: m.Type, DownloadStatus: effectiveStatus,
-			FailedReason: m.FailedReason.String, URLs: mediaURLs, Width: m.Width, Height: m.Height,
-			StashSceneID: m.StashSceneID.String, StashImageID: m.StashImageID.String,
-		})
-	}
-	return result
+func BuildRenderMedia(m models.Media) models.RenderMedia {
+	return models.BuildRenderMedia(m)
+}
+
+func MapMediaToRenderMedia(mediaList []models.Media) []models.RenderMedia {
+	return models.MapMediaToRenderMedia(mediaList)
 }

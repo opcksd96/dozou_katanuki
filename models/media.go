@@ -16,3 +16,37 @@ type Media struct {
 	StashSceneID   sql.NullString `gorm:"uniqueIndex;column:stash_scene_id;type:text" json:"stash_scene_id"`
 	StashImageID   sql.NullString `gorm:"uniqueIndex;column:stash_image_id;type:text" json:"stash_image_id"`
 }
+
+// BuildRenderMedia converts a DB Media record to frontend RenderMedia with normalized URLs and status
+func BuildRenderMedia(m Media) RenderMedia {
+	var mediaURLs RenderMediaURLs
+	mediaURLs.Original = m.DownloadURL
+	effectiveStatus := m.DownloadStatus
+	if m.DownloadStatus == "COMPLETED" && (m.StashSceneID.Valid || m.StashImageID.Valid) {
+		if m.Type == "video" || m.Type == "gif" {
+			mediaURLs.Stream = "/stash-proxy/scene/" + m.StashSceneID.String + "/stream"
+			mediaURLs.Thumbnail = "/stash-proxy/scene/" + m.StashSceneID.String + "/screenshot"
+			mediaURLs.Preview = "/stash-proxy/scene/" + m.StashSceneID.String + "/preview"
+			mediaURLs.VTT = "/stash-proxy/scene/" + m.StashSceneID.String + "/vtt"
+		} else {
+			mediaURLs.Image = "/stash-proxy/image/" + m.StashImageID.String + "/image"
+			mediaURLs.Thumbnail = "/stash-proxy/image/" + m.StashImageID.String + "/thumbnail"
+		}
+	} else if effectiveStatus == "COMPLETED" {
+		effectiveStatus = "DEAD_404"
+	}
+	return RenderMedia{
+		ID: m.MediaID, Type: m.Type, DownloadStatus: effectiveStatus,
+		FailedReason: m.FailedReason.String, URLs: mediaURLs, Width: m.Width, Height: m.Height,
+		StashSceneID: m.StashSceneID.String, StashImageID: m.StashImageID.String,
+	}
+}
+
+// MapMediaToRenderMedia converts slice of Media to slice of RenderMedia
+func MapMediaToRenderMedia(mediaList []Media) []RenderMedia {
+	result := make([]RenderMedia, 0, len(mediaList))
+	for _, m := range mediaList {
+		result = append(result, BuildRenderMedia(m))
+	}
+	return result
+}
