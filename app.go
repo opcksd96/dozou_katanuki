@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/fs"
 	"log"
+	"os"
 	"sync"
 	"time"
 
@@ -19,7 +20,7 @@ type App struct {
 	ctx              context.Context
 	repo             *driver.Repository
 	timelineService  *middleware.TimelineService
-	stashManager     *StashManager
+	stashProber      *middleware.StashProber
 	jobOrchestrator  *middleware.JobOrchestrator
 	scheduler        *middleware.SchedulerService
 	auditService     *middleware.AuditService
@@ -31,7 +32,7 @@ type App struct {
 }
 
 func NewApp(handler *middleware.UnifiedHandler, distFS fs.FS) *App {
-	return &App{stashManager: NewStashManager(), unifiedHandler: handler, distFS: distFS, ready: make(chan struct{})}
+	return &App{unifiedHandler: handler, distFS: distFS, ready: make(chan struct{})}
 }
 
 func (a *App) startup(ctx context.Context) {
@@ -48,7 +49,11 @@ func (a *App) startup(ctx context.Context) {
 
 	cfg, _ := a.GetConfig()
 	schedCfg, netCfg, bcastCfg := models.SchedulerConfig{}, models.NetworkConfig{}, models.BroadcastConfig{}
-	if cfg != nil { schedCfg, netCfg, bcastCfg = cfg.Scheduler, cfg.Network, cfg.Broadcast }
+	stashEnabled := true
+	if cfg != nil {
+		schedCfg, netCfg, bcastCfg = cfg.Scheduler, cfg.Network, cfg.Broadcast
+		stashEnabled = cfg.Storage.StashEnabled
+	}
 
 	a.scheduler = middleware.NewSchedulerService(schedCfg, a.repo, a.jobOrchestrator, emitter)
 	a.scheduler.Start(ctx)
@@ -59,25 +64,41 @@ func (a *App) startup(ctx context.Context) {
 	}
 	_ = a.broadcastService.Start(ctx)
 
+	if stashEnabled {
+		a.stashProber = middleware.NewStashProber("./bin/stash-win.exe", "http://127.0.0.1:9999/", emitter)
+		a.stashProber.Start(ctx)
+	}
+
 	a.readyOnce.Do(func() { close(a.ready) })
 	runtime.EventsEmit(ctx, "app:ready", true)
-	go func() {
-		if a.stashManager != nil { _ = a.stashManager.Start(ctx, "./bin/stash-win.exe") }
-	}()
 }
 
 func (a *App) domReady(ctx context.Context) {
-	if a.stashManager != nil {
-		_ = a.stashManager.WaitForReady(ctx, 8*time.Second)
-	}
 	runtime.WindowShow(ctx)
 }
 
+func (a *App) IsStashReady() bool {
+	if a.stashProber != nil {
+		return a.stashProber.IsConnected()
+	}
+	return false
+}
+
 func (a *App) shutdown(ctx context.Context) {
-	if a.broadcastService != nil { _ = a.broadcastService.Stop() }
-	if a.scheduler != nil { a.scheduler.Stop() }
-	if a.jobOrchestrator != nil { a.jobOrchestrator.Close() }
-	if a.stashManager != nil { a.stashManager.Stop() }
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		if a.stashProber != nil { a.stashProber.Stop() }
+		if a.broadcastService != nil { _ = a.broadcastService.Stop() }
+		if a.scheduler != nil { a.scheduler.Stop() }
+		if a.jobOrchestrator != nil { a.jobOrchestrator.Close() }
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(300 * time.Millisecond):
+	}
+	os.Exit(0)
 }
 
 func (a *App) waitForReady() error {

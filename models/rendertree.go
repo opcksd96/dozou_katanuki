@@ -20,6 +20,8 @@ type RenderMediaURLs struct {
 	Stream    string `json:"stream,omitempty"`
 	Image     string `json:"image,omitempty"`
 	Thumbnail string `json:"thumbnail,omitempty"`
+	Preview   string `json:"preview,omitempty"`
+	VTT       string `json:"vtt,omitempty"`
 	Original  string `json:"original,omitempty"`
 }
 

@@ -24,6 +24,8 @@ export interface RenderMedia {
     stream: string;
     image: string;
     thumbnail: string;
+    preview?: string;
+    vtt?: string;
     original: string;
   };
   width?: number;

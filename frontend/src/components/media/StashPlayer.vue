@@ -14,10 +14,16 @@ const playerRef = shallowRef<Plyr | null>(null);
 const hlsRef = shallowRef<Hls | null>(null);
 const isError = ref(false), retryCount = ref(0);
 let unoffStashReady: (() => void) | null = null;
+const currentHostname = computed(() => {
+  if (typeof window !== 'undefined' && window.location?.hostname) {
+    return window.location.hostname;
+  }
+  return '127.0.0.1';
+});
 const stashUrl = computed(() => {
-  if (props.stashSceneId) return `http://127.0.0.1:9999/scenes/${props.stashSceneId}`;
+  if (props.stashSceneId) return `http://${currentHostname.value}:9999/scenes/${props.stashSceneId}`;
   const match = props.src?.match(/\/stash-proxy\/scene\/([^/]+)/);
-  return match?.[1] ? `http://127.0.0.1:9999/scenes/${match[1]}` : null;
+  return match?.[1] ? `http://${currentHostname.value}:9999/scenes/${match[1]}` : null;
 });
 
 const destroyPlayer = () => {

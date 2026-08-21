@@ -62,5 +62,8 @@ func (a *App) SaveConfig(cfg *models.AppConfig) error {
 			log.Printf("[Wails RPC] SaveConfig broadcast service update warning: %v", err)
 		}
 	}
+	if err := SyncStashConfig(cfg); err != nil {
+		log.Printf("[Wails RPC] SaveConfig Stash config sync warning: %v", err)
+	}
 	return nil
 }

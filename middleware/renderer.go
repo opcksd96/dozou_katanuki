@@ -90,6 +90,9 @@ func mapMediaToRenderMedia(mediaList []models.Media) []models.RenderMedia {
 		if m.DownloadStatus == "COMPLETED" && (m.StashSceneID.Valid || m.StashImageID.Valid) {
 			if m.Type == "video" || m.Type == "gif" {
 				mediaURLs.Stream = fmt.Sprintf("/stash-proxy/scene/%s/stream", m.StashSceneID.String)
+				mediaURLs.Thumbnail = fmt.Sprintf("/stash-proxy/scene/%s/screenshot", m.StashSceneID.String)
+				mediaURLs.Preview = fmt.Sprintf("/stash-proxy/scene/%s/preview", m.StashSceneID.String)
+				mediaURLs.VTT = fmt.Sprintf("/stash-proxy/scene/%s/vtt", m.StashSceneID.String)
 			} else {
 				mediaURLs.Image = fmt.Sprintf("/stash-proxy/image/%s/image", m.StashImageID.String)
 				mediaURLs.Thumbnail = fmt.Sprintf("/stash-proxy/image/%s/thumbnail", m.StashImageID.String)

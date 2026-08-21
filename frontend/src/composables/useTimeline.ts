@@ -11,6 +11,7 @@ export function useTimeline(platform: string = 'twitter') {
   const articles = ref<RenderTree[]>([]), accounts = ref<RenderAuthor[]>([]);
   const selectedAccount = ref('all'), currentFilter = ref<FilterType>('all'), searchQuery = ref('');
   const systemLang = ref<LanguageCode>('ja'), loading = ref(false), hasMore = ref(true);
+  const renderKey = ref(0), isStashReady = ref(false);
 
   const fetchSystemLang = async () => {
     try {
@@ -67,16 +68,40 @@ export function useTimeline(platform: string = 'twitter') {
 
   const reloadAll = async () => {
     loading.value = false; hasMore.value = true;
+    renderKey.value++;
     await Promise.all([fetchAccounts(), fetchTimeline(true)]);
   };
 
+  const checkInitialStashState = async () => {
+    try {
+      if (typeof window !== 'undefined' && (window as any).go?.main?.App?.IsStashReady) {
+        const ready = await (window as any).go.main.App.IsStashReady();
+        if (ready) {
+          isStashReady.value = true;
+          return;
+        }
+      }
+      const res = await fetch('/stash-proxy/', { method: 'HEAD' });
+      if (res.ok || res.status === 401 || res.status === 404) {
+        isStashReady.value = true;
+      }
+    } catch (_) {}
+  };
+
   const unoffs: (() => void)[] = [];
-  onMounted(() => {
+  onMounted(async () => {
     fetchSystemLang();
+    await checkInitialStashState();
     try {
       if ((window as any)?.runtime?.EventsOnMultiple) {
         unoffs.push(EventsOn('app:ready', () => { fetchSystemLang(); reloadAll(); }));
-        unoffs.push(EventsOn('stash:ready', () => { reloadAll(); }));
+        unoffs.push(EventsOn('stash:ready', (ready: boolean) => {
+          isStashReady.value = !!ready;
+          if (ready) {
+            renderKey.value++;
+            reloadAll();
+          }
+        }));
       }
     } catch (_) {}
     reloadAll();
@@ -86,7 +111,7 @@ export function useTimeline(platform: string = 'twitter') {
   const clearSearchQuery = () => setSearchQuery('');
 
   return {
-    articles, accounts, selectedAccount, currentFilter, searchQuery, systemLang, loading, hasMore,
+    articles, accounts, selectedAccount, currentFilter, searchQuery, systemLang, loading, hasMore, renderKey, isStashReady,
     selectAccount: (id: string) => { selectedAccount.value = id; hasMore.value = true; fetchTimeline(true); },
     setFilter: (f: FilterType) => { currentFilter.value = f; hasMore.value = true; fetchTimeline(true); },
     setSearchQuery, clearSearchQuery, reloadAll, loadMore: () => fetchTimeline(false),

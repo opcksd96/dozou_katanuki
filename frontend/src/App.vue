@@ -15,11 +15,12 @@ import ArticleDetailView from './components/article/ArticleDetailView.vue';
 import MediaOverlay from './components/media/MediaOverlay.vue';
 import AdminModal from './components/admin/AdminModal.vue';
 import KeyboardShortcutModal from './components/layout/KeyboardShortcutModal.vue';
+import ToastContainer from './components/layout/ToastContainer.vue';
 
 const isAdminOpen = ref(false), activeArticleId = ref<string | null>(null);
 const {
   articles, accounts, selectedAccount, currentFilter, searchQuery, systemLang,
-  loading, hasMore, selectAccount, setFilter, setSearchQuery, clearSearchQuery,
+  loading, hasMore, renderKey, isStashReady, selectAccount, setFilter, setSearchQuery, clearSearchQuery,
   toggleLike, retryMedia, loadMore, reloadAll,
 } = useTimeline();
 
@@ -57,7 +58,7 @@ onMounted(() => {
 
 <template>
   <div class="min-h-screen bg-slate-950 text-slate-100 flex flex-col items-center">
-    <GlobalAppBar :active-article-id="activeArticleId" :active-article-handle="detail?.article?.author.handle || ''" @open-admin="isAdminOpen = true" @back-to-timeline="closeDetail" />
+    <GlobalAppBar :active-article-id="activeArticleId" :active-article-handle="detail?.article?.author.handle || ''" :is-stash-online="isStashReady" @open-admin="isAdminOpen = true" @back-to-timeline="closeDetail" />
 
     <div class="w-full max-w-2xl px-4 py-4">
       <template v-if="!activeArticleId">
@@ -65,8 +66,35 @@ onMounted(() => {
         <AccountScopeSelector v-else :accounts="accounts" :selected-id="selectedAccount" @select="selectAccount" />
       </template>
 
-      <main class="w-full border border-slate-800 rounded-2xl bg-slate-950 overflow-hidden shadow-xl min-h-[600px]">
-        <div v-if="activeArticleId">
+      <main :key="renderKey" class="w-full border border-slate-800 rounded-2xl bg-slate-950 overflow-hidden shadow-xl min-h-[600px]">
+        <!-- Stash 起動待機ローディング画面 -->
+        <div v-if="!isStashReady" class="p-16 flex flex-col items-center justify-center min-h-[500px] text-center space-y-6 animate-pulse">
+          <div class="relative">
+            <div class="w-20 h-20 rounded-2xl bg-blue-600/20 border border-blue-500/40 flex items-center justify-center text-4xl shadow-xl shadow-blue-500/10">
+              📦
+            </div>
+            <div class="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-amber-500/20 border border-amber-400/50 flex items-center justify-center">
+              <span class="w-2.5 h-2.5 rounded-full bg-amber-400 animate-ping"></span>
+            </div>
+          </div>
+
+          <div class="space-y-2 max-w-sm">
+            <h2 class="text-base font-bold text-slate-100 tracking-tight">
+              Stash メディアサーバー接続確認中...
+            </h2>
+            <p class="text-xs text-slate-400 leading-relaxed font-mono">
+              ローカルメディア・エンジンのポート (9999) 疎通をプロービングしています。起動完了次第、タイムラインを展開します。
+            </p>
+          </div>
+
+          <!-- スピナーバー -->
+          <div class="w-48 h-1.5 bg-slate-900 rounded-full overflow-hidden border border-slate-800">
+            <div class="w-full h-full bg-gradient-to-r from-blue-600 via-indigo-400 to-blue-600 animate-shimmer"></div>
+          </div>
+        </div>
+
+        <!-- 接続完了後のタイムラインDOM -->
+        <div v-else-if="activeArticleId">
           <div v-if="detailLoading && !detail" class="p-8 text-center text-slate-500 font-mono">Loading detail...</div>
           <ArticleDetailView v-else-if="detail" :article="detail.article" :thread="detail.thread" :target-lang="systemLang" :loading="detailLoading" :focused-article-id="focusedId || undefined" @back="closeDetail" @select-article="openDetail" @toggle-like="toggleLike" @retry-media="retryMedia" @click-tag="(t) => { closeDetail(); setSearchQuery('#' + t); }" @click-mention="(m) => { closeDetail(); setSearchQuery('@' + m); }" @click-media="(m, l, a) => openMedia(m, l, a)" />
         </div>
@@ -77,5 +105,6 @@ onMounted(() => {
     <KeyboardShortcutModal :is-open="isHelpOpen" @close="isHelpOpen = false" />
     <AdminModal :is-open="isAdminOpen" @close="isAdminOpen = false" @whitelist-updated="reloadAll" />
     <MediaOverlay :media="activeMedia" :article="activeArticle" :target-lang="systemLang" :has-next="hasNext" :has-prev="hasPrev" @close="closeMedia" @next="nextMedia" @prev="prevMedia" @toggle-like="toggleLike" />
+    <ToastContainer />
   </div>
 </template>

@@ -83,11 +83,16 @@ onMounted(() => { fetchBroadcastStatus(); });
         <div v-else v-for="(ip, idx) in (broadcastStatus?.local_ips?.length ? broadcastStatus.local_ips : ['127.0.0.1'])" :key="ip" class="p-2.5 bg-slate-950/80 border border-slate-800/80 rounded-lg flex items-center justify-between">
           <div class="text-xs font-mono text-slate-300 truncate">
             <span class="text-slate-500 mr-2">{{ ip.startsWith('192.168.10.') ? '🌐 [10系]' : ip.startsWith('192.168.3.') ? '🌐 [3系]' : '🏠 [Local]' }}</span>
-            <span class="text-emerald-400 font-bold">https://{{ ip }}:{{ config?.network?.middleware_port || 5175 }}</span>
+            <span class="text-emerald-400 font-bold">http://{{ ip }}:{{ config?.network?.middleware_port || 5175 }}</span>
           </div>
-          <button type="button" @click="copyUrl(`https://${ip}:${config?.network?.middleware_port || 5175}`, idx)" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs rounded transition-colors whitespace-nowrap ml-2">
-            {{ copiedIndex === idx ? 'コピー完了!' : 'URLコピー' }}
-          </button>
+          <div class="flex items-center gap-1.5 ml-2">
+            <button type="button" @click="copyUrl(`http://${ip}:${config?.network?.middleware_port || 5175}`, idx)" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs rounded transition-colors whitespace-nowrap">
+              {{ copiedIndex === idx ? 'コピー完了!' : '土蔵URL' }}
+            </button>
+            <button type="button" @click="copyUrl(`http://${ip}:${config?.network?.stash_port || 9999}`, idx + 100)" class="px-2.5 py-1 bg-purple-950/80 hover:bg-purple-900 border border-purple-700/50 text-purple-300 text-xs rounded transition-colors whitespace-nowrap" title="Stash WebUI のアクセスURLをコピー">
+              {{ copiedIndex === (idx + 100) ? 'コピー完了!' : 'Stash URL' }}
+            </button>
+          </div>
         </div>
       </div>
     </div>

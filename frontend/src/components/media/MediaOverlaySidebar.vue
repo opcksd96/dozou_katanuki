@@ -22,10 +22,17 @@ const displayText = computed(() => {
   return c.original;
 });
 
+const currentHostname = computed(() => {
+  if (typeof window !== 'undefined' && window.location?.hostname) {
+    return window.location.hostname;
+  }
+  return '127.0.0.1';
+});
+
 const stashDirectUrl = computed(() => {
-  if (props.media.stash_scene_id) return `http://127.0.0.1:9999/scenes/${props.media.stash_scene_id}`;
-  if (props.media.stash_image_id) return `http://127.0.0.1:9999/images/${props.media.stash_image_id}`;
-  return 'http://127.0.0.1:9999';
+  if (props.media.stash_scene_id) return `http://${currentHostname.value}:9999/scenes/${props.media.stash_scene_id}`;
+  if (props.media.stash_image_id) return `http://${currentHostname.value}:9999/images/${props.media.stash_image_id}`;
+  return `http://${currentHostname.value}:9999`;
 });
 </script>
 

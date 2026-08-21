@@ -2,7 +2,6 @@
 package middleware
 
 import (
-	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -14,24 +13,17 @@ import (
 
 func (s *BroadcastService) startServerLocked() error {
 	addr := fmt.Sprintf("%s:%d", s.netCfg.PublicBindAddress, s.netCfg.MiddlewarePort)
-	rawListener, err := net.Listen("tcp", addr)
+	listener, err := net.Listen("tcp", addr)
 	if err != nil {
 		log.Printf("[Broadcast] Listen failed on %s: %v", addr, err)
 		return err
 	}
 
-	var listener net.Listener = rawListener
+	s.useTLS = false
 	localIPs := GetLocalIPv4s()
-	if cert, err := GenerateSelfSignedCert(localIPs); err == nil {
-		listener = tls.NewListener(rawListener, &tls.Config{Certificates: []tls.Certificate{cert}})
-		s.useTLS = true
-		fmt.Printf("\n[Broadcast] 📡 LAN HTTPS 配信サーバー開通 (0.0.0.0:%d)\n", s.netCfg.MiddlewarePort)
-		for _, ip := range localIPs {
-			fmt.Printf("[Broadcast] 👉 https://%s:%d/\n", ip, s.netCfg.MiddlewarePort)
-		}
-	} else {
-		s.useTLS = false
-		log.Printf("[Broadcast TLS] Cert gen error (%v), falling back to HTTP", err)
+	fmt.Printf("\n[Broadcast] 📡 LAN HTTP 配信サーバー開通 (0.0.0.0:%d)\n", s.netCfg.MiddlewarePort)
+	for _, ip := range localIPs {
+		fmt.Printf("[Broadcast] 👉 http://%s:%d/\n", ip, s.netCfg.MiddlewarePort)
 	}
 
 	mux := http.NewServeMux()

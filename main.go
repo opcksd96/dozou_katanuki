@@ -4,6 +4,10 @@ package main
 import (
 	"embed"
 	"net/url"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
 	"dozou_katanuki/middleware"
 
@@ -20,6 +24,16 @@ import (
 var assets embed.FS
 
 func main() {
+	// Ctrl+C / SIGINT / SIGTERM を検知して即座に終了するセーフガード
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
+	go func() {
+		<-sigChan
+		println("\n[Shutdown] 強制終了シグナルを受信しました。プロセスを終了します...")
+		time.Sleep(100 * time.Millisecond)
+		os.Exit(0)
+	}()
+
 	stashURL, err := url.Parse("http://127.0.0.1:9999")
 	if err != nil {
 		println("Stash URL Parse Error:", err.Error())

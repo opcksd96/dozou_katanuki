@@ -1,10 +1,12 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { computed, ref, onMounted, onUnmounted } from 'vue';
 import { reloadWindow } from '../../composables/useKeyboardReload';
+import { EventsOn } from '../../../wailsjs/runtime/runtime';
 
-defineProps<{
+const props = defineProps<{
   activeArticleHandle?: string;
   activeArticleId?: string | null;
+  isStashOnline?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -12,20 +14,34 @@ const emit = defineEmits<{
   (e: 'backToTimeline'): void;
 }>();
 
-const isStashOnline = ref(true);
+const localOnline = ref(false);
+const isOnline = computed(() => props.isStashOnline ?? localOnline.value);
+let unoff: (() => void) | null = null;
 
 const checkStash = async () => {
   try {
     const res = await fetch('/stash-proxy/', { method: 'HEAD' });
-    isStashOnline.value = res.ok || res.status === 401 || res.status === 404;
+    localOnline.value = res.ok || res.status === 401 || res.status === 404;
   } catch {
-    isStashOnline.value = false;
+    localOnline.value = false;
   }
 };
 
 onMounted(() => {
+  try {
+    if ((window as any)?.runtime?.EventsOnMultiple) {
+      unoff = EventsOn('stash:ready', (ready: boolean) => {
+        localOnline.value = !!ready;
+      });
+    }
+  } catch (_) {}
   checkStash();
-  setInterval(checkStash, 15000);
+});
+
+onUnmounted(() => {
+  if (unoff) {
+    try { unoff(); } catch (_) {}
+  }
 });
 </script>
 
@@ -64,11 +80,11 @@ onMounted(() => {
       <div class="flex items-center gap-2">
         <!-- Stash 稼働インジケーター -->
         <div
-          :title="isStashOnline ? 'Stash サーバー接続完了 (ポート:9999)' : 'Stash 未接続 / 待機中'"
+          :title="isOnline ? 'Stash サーバー接続完了 (ポート:9999)' : 'Stash 未接続 / 待機中'"
           class="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-900 border border-slate-800 text-[11px] font-mono"
         >
-          <span :class="['w-2 h-2 rounded-full', isStashOnline ? 'bg-emerald-400 animate-pulse' : 'bg-amber-500']"></span>
-          <span :class="isStashOnline ? 'text-slate-300' : 'text-slate-400'">Stash</span>
+          <span :class="['w-2 h-2 rounded-full', isOnline ? 'bg-emerald-400 animate-pulse' : 'bg-amber-500']"></span>
+          <span :class="isOnline ? 'text-slate-300' : 'text-slate-400'">Stash</span>
         </div>
 
         <!-- 再読み込みボタン -->
