@@ -31,6 +31,7 @@ func (s *TimelineService) GetAccounts(platform string) ([]models.RenderAuthor, e
 			Handle:      acc.Username,
 			DisplayName: acc.DisplayName,
 			AvatarURL:   avatarURL,
+			Bio:         acc.Description,
 		})
 	}
 	return authors, nil

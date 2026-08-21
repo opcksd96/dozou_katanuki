@@ -48,6 +48,9 @@ func InitDB(dbPath string) (*gorm.DB, error) {
 		return nil, err
 	}
 
+	// 既存 assets/ 内のアバター画像を DB の avatar_base64 に移行
+	_ = MigrateAvatarsToBase64(db)
+
 	log.Printf("[Driver] Database initialized successfully (WAL mode enabled): %s", dbPath)
 	return db, nil
 }

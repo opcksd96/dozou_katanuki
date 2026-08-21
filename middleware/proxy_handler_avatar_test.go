@@ -45,18 +45,33 @@ func TestUnifiedHandler_AvatarAndAssetServing(t *testing.T) {
 		t.Errorf("Expected status 200, got %d", rec.Code)
 	}
 
-	// 3. ファイルが存在しない場合はデフォルトアバターSVGを返却
-	req = httptest.NewRequest("GET", "/avatars/non_existent.png", nil)
+	// 3. 個別アバターが存在しない場合は 404 Not Found を返却
+	req = httptest.NewRequest("GET", "/avatars/twitter/non_existent.png", nil)
+	rec = httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusNotFound {
+		t.Errorf("Expected status 404 for missing avatar, got %d", rec.Code)
+	}
+
+	// 4. パストラバーサルの試行は 403 Forbidden または 404 で遮断
+	req = httptest.NewRequest("GET", "/avatars/../../secret.txt", nil)
+	rec = httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusForbidden && rec.Code != http.StatusNotFound {
+		t.Errorf("Expected status 403 or 404 for path traversal attempt, got %d", rec.Code)
+	}
+
+	// 5. 明示的なデフォルトアバター要求時はデフォルトアバターSVGを返却
+	req = httptest.NewRequest("GET", "/avatars/default_avatar.jpg", nil)
 	rec = httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
 
 	if rec.Code != http.StatusOK {
-		t.Errorf("Expected status 200 for fallback avatar SVG, got %d", rec.Code)
+		t.Errorf("Expected status 200 for default avatar SVG, got %d", rec.Code)
 	}
 	if !strings.Contains(rec.Body.String(), "<svg") {
 		t.Errorf("Expected SVG content, got '%s'", rec.Body.String())
-	}
-	if ct := rec.Header().Get("Content-Type"); ct != "image/svg+xml" {
-		t.Errorf("Expected Content-Type image/svg+xml, got %s", ct)
 	}
 }

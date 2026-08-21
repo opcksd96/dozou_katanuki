@@ -11,11 +11,18 @@ import WhitelistManagementView from './database/WhitelistManagementView.vue';
 const props = defineProps<{ admin: any }>();
 const { addToast } = useToast();
 const localSelected = ref<models.RenderTree | null>(null);
+const availableAvatars = ref<string[]>([]);
+
+const loadAvailableAvatars = async () => {
+  if (props.admin?.fetchAvailableAvatars) {
+    availableAvatars.value = await props.admin.fetchAvailableAvatars('twitter');
+  }
+};
 
 const onTabChange = (tab: 'accounts' | 'posts' | 'media' | 'whitelist') => {
   props.admin.activeSubTab.value = tab; props.admin.clearError?.();
   if (tab === 'posts') props.admin.searchArticles?.();
-  else if (tab === 'accounts') props.admin.fetchAccounts?.();
+  else if (tab === 'accounts') { props.admin.fetchAccounts?.(); loadAvailableAvatars(); }
   else if (tab === 'media') props.admin.fetchMedia?.();
   else if (tab === 'whitelist') props.admin.fetchWhitelists?.();
 };
@@ -38,6 +45,26 @@ const handleSaveTranslation = async (ja: string, en: string, zh: string) => {
     localSelected.value.content.ja = ja; localSelected.value.content.en = en; localSelected.value.content.zh = zh;
   }
   addToast(`💾 記事 [${aid}] の翻訳データを保存しました`, 'success', 3000);
+};
+
+const handleSaveAccount = async (payload: { numericId: string; displayName: string; username: string; avatarUrl: string; description: string }) => {
+  const success = await props.admin.updateAccount(payload.numericId, payload.displayName, payload.username, payload.avatarUrl, payload.description);
+  if (success) {
+    addToast(`💾 アカウント [@${payload.username || payload.numericId}] の情報を更新しました`, 'success', 3000);
+    await loadAvailableAvatars();
+  }
+};
+
+const handleUploadAvatar = async (payload: { virtualKey: string; base64Data: string }) => {
+  const savedPath = await props.admin.saveAvatarImage('twitter', payload.virtualKey, payload.base64Data);
+  if (savedPath) {
+    addToast(`📥 アバター画像 [${payload.virtualKey}.jpg] を assets に登録しました！`, 'success', 4000);
+    await loadAvailableAvatars();
+    await props.admin.fetchAccounts?.();
+    if (props.admin.selectedAccountDetail?.value?.account?.numeric_id) {
+      await props.admin.selectAccount(props.admin.selectedAccountDetail.value.account.numeric_id);
+    }
+  }
 };
 
 const handleBatchTranslate = async () => {
@@ -66,6 +93,7 @@ watch(() => props.admin.searchResults.value, (newResults) => {
 
 onMounted(() => {
   props.admin?.fetchAccounts?.();
+  loadAvailableAvatars();
   if (props.admin?.activeSubTab?.value === 'posts') props.admin?.searchArticles?.();
 });
 </script>
@@ -92,7 +120,19 @@ onMounted(() => {
 
     <!-- 各ドメイン別ビュー -->
     <div class="flex-1 min-h-[460px]">
-      <AccountManagementView v-if="admin.activeSubTab.value === 'accounts'" :accounts="admin.accountsList.value" :selected-detail="admin.selectedAccountDetail.value" :loading="admin.isAccountLoading.value" @select-account="(id) => admin.selectAccount(id)" @view-posts="(id) => admin.showAccountPosts(id)" @view-media="(id) => admin.showAccountMedia(id)" @refresh="admin.fetchAccounts" />
+      <AccountManagementView
+        v-if="admin.activeSubTab.value === 'accounts'"
+        :accounts="admin.accountsList.value"
+        :selected-detail="admin.selectedAccountDetail.value"
+        :loading="admin.isAccountLoading.value"
+        :available-avatars="availableAvatars"
+        @select-account="(id) => admin.selectAccount(id)"
+        @save-account="handleSaveAccount"
+        @upload-avatar="handleUploadAvatar"
+        @view-posts="(id) => admin.showAccountPosts(id)"
+        @view-media="(id) => admin.showAccountMedia(id)"
+        @refresh="() => { admin.fetchAccounts(); loadAvailableAvatars(); }"
+      />
       <PostManagementView v-else-if="admin.activeSubTab.value === 'posts'" :articles="admin.searchResults.value" :total="admin.totalCount.value" :selected-article="localSelected" :accounts="admin.accountsList.value" :search-account="admin.searchAccount.value" :search-query="admin.searchQuery.value" :page="admin.page.value" :limit="admin.limit.value" :loading="admin.isSearchLoading.value" :saving="false" :translating="admin.isTranslating.value" :active-job="admin.activeJob.value" @update:search-account="(v) => admin.searchAccount.value = v" @update:search-query="(v) => admin.searchQuery.value = v" @update:page="(p) => admin.page.value = p" @search="admin.searchArticles" @select="(art) => localSelected = art" @save="handleSaveTranslation" @auto-translate="handleAutoTranslate" @batch-translate="handleBatchTranslate" @cancel-job="(id) => admin.cancelJob(id)" />
       <MediaManagementView v-else-if="admin.activeSubTab.value === 'media'" :media-items="admin.mediaResults.value" :total="admin.mediaTotal.value" :accounts="admin.accountsList.value" :account-filter="admin.searchAccount.value" :status-filter="admin.mediaStatusFilter.value" :page="admin.page.value" :limit="admin.limit.value" :loading="admin.isMediaLoading.value" @fetch="admin.fetchMedia" @update:account-filter="(v) => admin.searchAccount.value = v" @update:status-filter="(v) => admin.mediaStatusFilter.value = v" @update:page="(p) => admin.page.value = p" @retry-media="(id) => admin.retryMedia(id)" />
       <WhitelistManagementView v-else-if="admin.activeSubTab.value === 'whitelist'" :whitelist-list="admin.whitelists.value" :loading="admin.isWhitelistLoading.value" @fetch="admin.fetchWhitelists" @add="(t, v) => admin.addWhitelist(t, v)" @toggle="(id) => admin.toggleWhitelist(id)" @delete="(id) => admin.deleteWhitelist(id)" />

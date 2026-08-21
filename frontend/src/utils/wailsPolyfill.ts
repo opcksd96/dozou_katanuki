@@ -57,6 +57,20 @@ export function initWailsPolyfill() {
           RetryMediaDownload: async () => {},
           ToggleBroadcast: async () => {},
           SaveConfig: async () => {},
+          UpdateAccount: async (numericId: string, displayName: string, username: string, avatarUrl: string, description: string) => {
+            console.log('[Polyfill] UpdateAccount:', { numericId, displayName, username, avatarUrl, description });
+          },
+          SaveAvatarImage: async (platform: string, virtualKey: string, base64Data: string) => {
+            console.log('[Polyfill] SaveAvatarImage:', { platform, virtualKey, dataLen: base64Data?.length });
+            return `/avatars/${platform || 'twitter'}/${virtualKey}.jpg`;
+          },
+          ListAvailableAvatars: async (platform: string) => {
+            return [
+              `/avatars/${platform || 'twitter'}/msluo14_avatar_001.jpg`,
+              `/avatars/${platform || 'twitter'}/mash_kyrielight_avatar_001.jpg`,
+              `/avatars/${platform || 'twitter'}/default_avatar.jpg`,
+            ];
+          },
         }
       }
     };

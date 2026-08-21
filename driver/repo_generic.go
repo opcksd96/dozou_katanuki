@@ -3,6 +3,7 @@ package driver
 
 import (
 	"fmt"
+
 	"dozou_katanuki/models"
 )
 
@@ -18,6 +19,7 @@ func (r *Repository) GetAccountDetail(numericID string) (*models.AccountDetailRe
 	}
 	var hist []models.AccountProfileHistory
 	_ = r.db.Where("account_id = ?", acc.NumericID).Order("avatar_seq ASC").Find(&hist).Error
+
 	var postCount int64
 	_ = r.db.Model(&models.Article{}).Where("account_id = ?", acc.NumericID).Count(&postCount).Error
 	return &models.AccountDetailResult{Account: acc, Histories: hist, PostCount: postCount}, nil

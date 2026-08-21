@@ -138,11 +138,61 @@ export function useAdminDatabase() {
     catch (e: any) { errorMessage.value = `メディア再取得に失敗しました: ${e?.message || e}`; }
   };
 
+  const updateAccount = async (numericId: string, displayName: string, username: string, avatarUrl: string, description: string) => {
+    isAccountLoading.value = true;
+    errorMessage.value = null;
+    try {
+      const app = getApp();
+      if (app?.UpdateAccount) {
+        await app.UpdateAccount(numericId, displayName, username, avatarUrl, description);
+        await fetchAccounts();
+        await selectAccount(numericId);
+        return true;
+      }
+      return false;
+    } catch (e: any) {
+      console.error('[AdminDB] UpdateAccount error:', e);
+      errorMessage.value = `アカウント情報の更新に失敗しました: ${e?.message || e}`;
+      return false;
+    } finally {
+      isAccountLoading.value = false;
+    }
+  };
+
+  const saveAvatarImage = async (platform: string, virtualKey: string, base64Data: string) => {
+    errorMessage.value = null;
+    try {
+      const app = getApp();
+      if (app?.SaveAvatarImage) {
+        const savedPath = await app.SaveAvatarImage(platform, virtualKey, base64Data);
+        return savedPath;
+      }
+      return null;
+    } catch (e: any) {
+      console.error('[AdminDB] SaveAvatarImage error:', e);
+      errorMessage.value = `アバター画像の保存に失敗しました: ${e?.message || e}`;
+      return null;
+    }
+  };
+
+  const fetchAvailableAvatars = async (platform = 'twitter'): Promise<string[]> => {
+    try {
+      const app = getApp();
+      if (app?.ListAvailableAvatars) {
+        return (await app.ListAvailableAvatars(platform)) || [];
+      }
+      return [];
+    } catch (e: any) {
+      console.error('[AdminDB] ListAvailableAvatars error:', e);
+      return [];
+    }
+  };
+
   return {
     activeSubTab, searchResults, totalCount, isSearchLoading, isTranslating, searchQuery, searchAccount,
     searchFilter, page, limit, errorMessage, clearError, accountsList, selectedAccountDetail, isAccountLoading,
     mediaResults, mediaTotal, isMediaLoading, mediaStatusFilter, tableData, searchArticles, fetchAccounts,
-    selectAccount, fetchMedia, saveTranslation, autoTranslate, startBatchTranslate, retryMedia,
+    selectAccount, updateAccount, saveAvatarImage, fetchAvailableAvatars, fetchMedia, saveTranslation, autoTranslate, startBatchTranslate, retryMedia,
     showAccountPosts, showAccountMedia,
   };
 }

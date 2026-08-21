@@ -8,7 +8,7 @@ import (
 	"dozou_katanuki/models"
 )
 
-// AuditAndResolveAvatar は投稿日時に基づくアバター専用パス (/avatars/...) を解決します
+// AuditAndResolveAvatar は投稿日時に基づくアバター (Base64またはURL) を解決します
 func AuditAndResolveAvatar(platform string, tweetAt time.Time, histories []models.AccountProfileHistory) string {
 	if len(histories) == 0 {
 		return fmt.Sprintf("/avatars/%s/default_avatar.jpg", platform)
@@ -16,9 +16,16 @@ func AuditAndResolveAvatar(platform string, tweetAt time.Time, histories []model
 
 	for _, h := range histories {
 		if h.ObservedAt.Before(tweetAt) || h.ObservedAt.Equal(tweetAt) {
+			if h.AvatarBase64 != "" {
+				return h.AvatarBase64
+			}
 			return fmt.Sprintf("/avatars/%s/%s.jpg", platform, h.AvatarVirtualKey)
 		}
 	}
 
-	return fmt.Sprintf("/avatars/%s/%s.jpg", platform, histories[len(histories)-1].AvatarVirtualKey)
+	latest := histories[len(histories)-1]
+	if latest.AvatarBase64 != "" {
+		return latest.AvatarBase64
+	}
+	return fmt.Sprintf("/avatars/%s/%s.jpg", platform, latest.AvatarVirtualKey)
 }

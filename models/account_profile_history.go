@@ -11,5 +11,6 @@ type AccountProfileHistory struct {
 	AvatarOriginalURL string    `gorm:"column:avatar_original_url;type:text;not null" json:"avatar_original_url"`
 	AvatarSeq         int       `gorm:"column:avatar_seq;type:integer;not null" json:"avatar_seq"`
 	AvatarVirtualKey  string    `gorm:"column:avatar_virtual_key;type:text;not null" json:"avatar_virtual_key"`
+	AvatarBase64      string    `gorm:"column:avatar_base64;type:text" json:"avatar_base64"`
 	ObservedAt        time.Time `gorm:"column:observed_at;type:datetime;not null" json:"observed_at"`
 }
