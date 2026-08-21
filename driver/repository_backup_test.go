@@ -15,13 +15,18 @@ import (
 )
 
 func setupTestDB(t *testing.T) (*gorm.DB, string) {
-	tempFile := filepath.Join(os.TempDir(), "test_repo_backup_"+time.Now().Format("20060102150405.000000")+".db")
+	tempFile := filepath.Join(t.TempDir(), "test_repo_backup.db")
 	db, err := gorm.Open(sqlite.Open(tempFile), &gorm.Config{
 		Logger: logger.Default.LogMode(logger.Silent),
 	})
 	if err != nil {
 		t.Fatalf("Failed to open test db: %v", err)
 	}
+	t.Cleanup(func() {
+		if sqlDB, err := db.DB(); err == nil && sqlDB != nil {
+			_ = sqlDB.Close()
+		}
+	})
 
 	err = db.AutoMigrate(
 		&models.Account{},
@@ -36,11 +41,9 @@ func setupTestDB(t *testing.T) (*gorm.DB, string) {
 }
 
 func TestBackupDatabaseAndPurge(t *testing.T) {
-	db, tempDB := setupTestDB(t)
-	defer os.Remove(tempDB)
+	db, _ := setupTestDB(t)
 
-	backupDir := filepath.Join(os.TempDir(), "test_backups_"+time.Now().Format("20060102150405"))
-	defer os.RemoveAll(backupDir)
+	backupDir := filepath.Join(t.TempDir(), "test_backups")
 
 	repo := driver.NewRepository(db)
 

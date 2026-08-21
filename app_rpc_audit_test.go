@@ -11,8 +11,7 @@ import (
 )
 
 func TestSchedulerRPC(t *testing.T) {
-	db, tempFile := setupTestDB(t)
-	defer os.Remove(tempFile)
+	db, _ := setupTestDB(t)
 
 	repo := driver.NewRepository(db)
 	timeline := middleware.NewTimelineService(repo)
@@ -36,8 +35,7 @@ func TestSchedulerRPC(t *testing.T) {
 }
 
 func TestAuditRPC(t *testing.T) {
-	db, tempFile := setupTestDB(t)
-	defer os.Remove(tempFile)
+	db, _ := setupTestDB(t)
 
 	repo := driver.NewRepository(db)
 	timeline := middleware.NewTimelineService(repo)

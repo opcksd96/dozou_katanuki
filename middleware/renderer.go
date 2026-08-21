@@ -26,9 +26,7 @@ func decorateText(text, platform string, redirects []models.UrlRedirect, hasMedi
 		}
 	}
 	if hasMedia { res = reFiller.ReplaceAllString(res, "") }
-	res = strings.TrimSpace(res)
-
-	safe := html.EscapeString(res)
+	safe := html.EscapeString(strings.TrimSpace(res))
 	safe = reURL.ReplaceAllString(safe, `<a href="$1" target="_blank" rel="noopener noreferrer" class="external-link">$1</a>`)
 	safe = reTag.ReplaceAllString(safe, fmt.Sprintf(`$1<a href="/%s/search?q=$2" class="hashtag-link" data-tag="$2">#$2</a>`, platform))
 	safe = reMention.ReplaceAllString(safe, fmt.Sprintf(`$1<a href="/%s/$2" class="mention-link" data-mention="$2">@$2</a>`, platform))
@@ -41,43 +39,32 @@ func ToRenderTree(item models.Article, platform string) models.RenderTree {
 	avatarURL := AuditAndResolveAvatar(platform, item.CreatedAt, item.Account.ProfileHistory)
 
 	orig := decorateText(item.FullText, platform, item.UrlRedirects, hasMedia)
-	ja := item.FullTextJA.String
-	if ja == "" { ja = item.FullText }
-	jaDecorated := decorateText(ja, platform, item.UrlRedirects, hasMedia)
+	ja := ""
+	if item.FullTextJA.Valid && item.FullTextJA.String != "" {
+		ja = decorateText(item.FullTextJA.String, platform, item.UrlRedirects, hasMedia)
+	} else if item.Lang == "ja" { ja = orig }
 
-	en := item.FullTextEN.String
-	if en == "" { en = item.FullText }
-	enDecorated := decorateText(en, platform, item.UrlRedirects, hasMedia)
+	en := ""
+	if item.FullTextEN.Valid && item.FullTextEN.String != "" {
+		en = decorateText(item.FullTextEN.String, platform, item.UrlRedirects, hasMedia)
+	} else if item.Lang == "en" { en = orig }
 
-	zh := item.FullTextZH.String
-	if zh == "" { zh = item.FullText }
-	zhDecorated := decorateText(zh, platform, item.UrlRedirects, hasMedia)
+	zh := ""
+	if item.FullTextZH.Valid && item.FullTextZH.String != "" {
+		zh = decorateText(item.FullTextZH.String, platform, item.UrlRedirects, hasMedia)
+	} else if item.Lang == "zh" { zh = orig }
 
 	return models.RenderTree{
-		ID:             item.ID,
-		ConversationID: item.ConversationID,
-		CreatedAt:      item.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
-		Content: models.RenderContent{
-			Original: orig,
-			JA:       jaDecorated,
-			EN:       enDecorated,
-			ZH:       zhDecorated,
-		},
+		ID: item.ID, ConversationID: item.ConversationID,
+		CreatedAt: item.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
+		Content:   models.RenderContent{Original: orig, JA: ja, EN: en, ZH: zh},
 		Author: models.RenderAuthor{
-			NumericID:   item.Account.NumericID,
-			Handle:      item.Account.Username,
-			DisplayName: item.Account.DisplayName,
-			AvatarURL:   avatarURL,
+			NumericID: item.Account.NumericID, Handle: item.Account.Username,
+			DisplayName: item.Account.DisplayName, AvatarURL: avatarURL,
 		},
-		Media: mapMediaToRenderMedia(item.Media),
-		Metrics: models.RenderMetrics{
-			Replies: 0, Retweets: 0, Likes: 0,
-		},
-		IsLiked:       item.IsLiked,
-		IsPinned:      false,
-		SourceURL:     item.WaybackURL,
-		ParentID:      item.ReplyToID.String,
-		ReplyToHandle: item.ReplyToHandle.String,
+		Media: mapMediaToRenderMedia(item.Media), Metrics: models.RenderMetrics{},
+		IsLiked: item.IsLiked, SourceURL: item.WaybackURL,
+		ParentID: item.ReplyToID.String, ReplyToHandle: item.ReplyToHandle.String,
 	}
 }
 

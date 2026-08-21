@@ -3,7 +3,6 @@ package main
 
 import (
 	"database/sql"
-	"os"
 	"testing"
 	"time"
 
@@ -12,8 +11,7 @@ import (
 )
 
 func TestArticleSearchAndTranslation(t *testing.T) {
-	db, tempFile := setupTestDB(t)
-	defer os.Remove(tempFile)
+	db, _ := setupTestDB(t)
 	repo := driver.NewRepository(db)
 
 	acc := models.Account{NumericID: "1001", Username: "senpai_apu", DisplayName: "先輩マスター", UpdatedAt: time.Now()}

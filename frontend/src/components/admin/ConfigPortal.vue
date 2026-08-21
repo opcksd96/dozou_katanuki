@@ -4,6 +4,7 @@ import { models } from '../../../wailsjs/go/models';
 import ConfigSystemStorage from './config/ConfigSystemStorage.vue';
 import ConfigNetworkScheduler from './config/ConfigNetworkScheduler.vue';
 import ConfigBroadcast from './config/ConfigBroadcast.vue';
+import ConfigTranslation from './config/ConfigTranslation.vue';
 
 const props = defineProps<{
   config: models.AppConfig | null;
@@ -30,8 +31,10 @@ const emit = defineEmits<{
       </div>
 
       <ConfigSystemStorage :config="config" />
+      <ConfigTranslation :config="config" />
       <ConfigNetworkScheduler :config="config" />
       <ConfigBroadcast :config="config" />
+
 
       <!-- 保存ボタンバー -->
       <div class="sticky bottom-0 bg-slate-950/90 backdrop-blur-md p-4 -mx-4 -mb-4 border-t border-slate-800 flex items-center justify-between z-10">

@@ -47,6 +47,13 @@ type AppearanceConfig struct {
 	FontFamilyZh string `json:"font_family_zh"`
 }
 
+// TranslationConfig は翻訳APIの動作設定を表します
+type TranslationConfig struct {
+	Provider              string `json:"provider"`                 // "deepl", "google", "none"
+	DeeplApiKey           string `json:"deepl_api_key"`            // DeepL API Key
+	GoogleTranslateApiKey string `json:"google_translate_api_key"` // Google Translate API Key
+}
+
 // BroadcastStatus は現在のLANキャスト配信の稼働状態を表します
 type BroadcastStatus struct {
 	Enabled         bool     `json:"enabled"`
@@ -61,11 +68,13 @@ type BroadcastStatus struct {
 
 // AppConfig は config.json 全体のルート設定モデル (SPEC-CONFIG-001) です
 type AppConfig struct {
-	System     SystemConfig     `json:"system"`
-	Network    NetworkConfig    `json:"network"`
-	Storage    StorageConfig    `json:"storage"`
-	Scheduler  SchedulerConfig  `json:"scheduler"`
-	Broadcast  BroadcastConfig  `json:"broadcast"`
-	Appearance AppearanceConfig `json:"appearance"`
+	System      SystemConfig      `json:"system"`
+	Network     NetworkConfig     `json:"network"`
+	Storage     StorageConfig     `json:"storage"`
+	Scheduler   SchedulerConfig   `json:"scheduler"`
+	Broadcast   BroadcastConfig   `json:"broadcast"`
+	Appearance  AppearanceConfig  `json:"appearance"`
+	Translation TranslationConfig `json:"translation"`
 }
+
 

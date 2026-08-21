@@ -2,9 +2,8 @@
 package main
 
 import (
-	"os"
+	"path/filepath"
 	"testing"
-	"time"
 
 	"dozou_katanuki/driver"
 	"dozou_katanuki/models"
@@ -14,16 +13,18 @@ import (
 )
 
 func setupTestDB(t *testing.T) (*gorm.DB, string) {
-	tempFile := "test_archive_" + time.Now().Format("20060102150405.000") + ".db"
+	tempFile := filepath.Join(t.TempDir(), "test_archive.db")
 	db, err := gorm.Open(sqlite.Open(tempFile), &gorm.Config{Logger: logger.Default.LogMode(logger.Silent)})
 	if err != nil { t.Fatalf("Failed to open test db: %v", err) }
+	t.Cleanup(func() {
+		if sqlDB, err := db.DB(); err == nil && sqlDB != nil { _ = sqlDB.Close() }
+	})
 	_ = db.AutoMigrate(&models.Account{}, &models.AccountProfileHistory{}, &models.Article{}, &models.Media{}, &models.UrlRedirect{}, &models.Whitelist{})
 	return db, tempFile
 }
 
 func TestWhitelistCRUD(t *testing.T) {
-	db, tempFile := setupTestDB(t)
-	defer os.Remove(tempFile)
+	db, _ := setupTestDB(t)
 	repo := driver.NewRepository(db)
 
 	item, err := repo.AddWhitelist("account", "mashu_dev")

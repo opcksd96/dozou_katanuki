@@ -1,57 +1,101 @@
 <!-- frontend/src/components/admin/DatabaseView.vue (100行以下) -->
 <script setup lang="ts">
+import { ref, onMounted, watch } from 'vue';
 import { models } from '../../../wailsjs/go/models';
-import DatabaseArticleList from './database/DatabaseArticleList.vue';
-import DatabaseTranslationEditor from './database/DatabaseTranslationEditor.vue';
+import { useToast } from '../../composables/useToast';
+import AccountManagementView from './database/AccountManagementView.vue';
+import PostManagementView from './database/PostManagementView.vue';
+import MediaManagementView from './database/MediaManagementView.vue';
+import WhitelistManagementView from './database/WhitelistManagementView.vue';
 
-const props = defineProps<{
-  articles: models.RenderTree[];
-  total: number;
-  selectedArticle: models.RenderTree | null;
-  loading: boolean;
-  saving: boolean;
-  statusMessage: { success: boolean; message: string } | null;
-  searchParams: { query: string; accountID: string; filter: string; page: number; limit: number };
-}>();
+const props = defineProps<{ admin: any }>();
+const { addToast } = useToast();
+const localSelected = ref<models.RenderTree | null>(null);
 
-const emit = defineEmits<{
-  (e: 'search'): void;
-  (e: 'select', article: models.RenderTree): void;
-  (e: 'saveTranslations', id: string, ja: string, en: string, zh: string): void;
-}>();
+const onTabChange = (tab: 'accounts' | 'posts' | 'media' | 'whitelist') => {
+  props.admin.activeSubTab.value = tab; props.admin.clearError?.();
+  if (tab === 'posts') props.admin.searchArticles?.();
+  else if (tab === 'accounts') props.admin.fetchAccounts?.();
+  else if (tab === 'media') props.admin.fetchMedia?.();
+  else if (tab === 'whitelist') props.admin.fetchWhitelists?.();
+};
+
+const handleAutoTranslate = async (autoSave = false) => {
+  if (!localSelected.value) return;
+  const aid = localSelected.value.id, res = await props.admin.autoTranslate(aid);
+  if (res) {
+    localSelected.value = res;
+    if (autoSave) await handleSaveTranslation(res.content?.ja || '', res.content?.en || '', res.content?.zh || '');
+    else addToast(`ℹ️ 記事 [${aid}] の翻訳下書きを展開しました（未保存）`, 'info', 3000);
+  }
+};
+
+const handleSaveTranslation = async (ja: string, en: string, zh: string) => {
+  if (!localSelected.value) return;
+  const aid = localSelected.value.id;
+  await props.admin.saveTranslation(aid, ja, en, zh);
+  if (localSelected.value.content) {
+    localSelected.value.content.ja = ja; localSelected.value.content.en = en; localSelected.value.content.zh = zh;
+  }
+  addToast(`💾 記事 [${aid}] の翻訳データを保存しました`, 'success', 3000);
+};
+
+const handleBatchTranslate = async () => {
+  const acc = props.admin.searchAccount.value || 'all';
+  addToast(`🚀 一括自動翻訳を開始しました (対象: ${acc === 'all' ? '全件' : '@' + acc})`, 'info', 3000);
+  await props.admin.startBatchTranslate(acc, false);
+};
+
+watch(() => props.admin.activeJob.value?.status, (newStatus, oldStatus) => {
+  if (props.admin.activeJob.value?.type === 'translate') {
+    if (oldStatus === 'RUNNING' && newStatus === 'COMPLETED') {
+      addToast('✅ 未翻訳の一括自動翻訳が完了しました！', 'success', 4000);
+      props.admin.searchArticles?.();
+    } else if (oldStatus === 'RUNNING' && newStatus === 'FAILED') {
+      addToast('❌ 一括自動翻訳ジョブが失敗しました', 'error', 4000);
+    }
+  }
+});
+
+watch(() => props.admin.searchResults.value, (newResults) => {
+  if (localSelected.value && newResults) {
+    const found = newResults.find((a: any) => a.id === localSelected.value?.id);
+    if (found) localSelected.value = found;
+  }
+});
+
+onMounted(() => {
+  props.admin?.fetchAccounts?.();
+  if (props.admin?.activeSubTab?.value === 'posts') props.admin?.searchArticles?.();
+});
 </script>
 
 <template>
-  <div class="space-y-4">
-    <div class="flex items-center justify-between">
-      <div>
-        <h3 class="text-base font-bold text-slate-100 flex items-center gap-2">
-          <span>🗄️</span> データベース閲覧 ＆ 翻訳編集
-        </h3>
-        <p class="text-xs text-slate-400 mt-0.5">保存された記事の検索・抽出および 3言語（日・英・中）の翻訳文の直接編集が可能です。</p>
+  <div class="space-y-3 flex flex-col h-full">
+    <!-- エラー通知バナー -->
+    <div v-if="admin.errorMessage.value" class="px-3 py-2 bg-rose-950/80 border border-rose-600/80 rounded-lg text-rose-200 text-xs flex items-center justify-between shadow">
+      <div class="flex items-center gap-2"><span class="font-bold">⚠️ エラー:</span><span>{{ admin.errorMessage.value }}</span></div>
+      <button @click="admin.clearError" class="text-rose-400 hover:text-rose-100 font-bold px-1.5 py-0.5 rounded">✕</button>
+    </div>
+
+    <!-- サブタブナビゲーション -->
+    <div class="flex items-center justify-between border-b border-slate-800 pb-2 text-xs font-bold">
+      <div class="flex gap-2">
+        <button v-for="tab in [
+          { id: 'accounts', label: '👤 アカウント管理 (accounts)' }, { id: 'posts', label: '📝 投稿・翻訳管理 (articles)' },
+          { id: 'media', label: '🖼️ メディア管理 (media / Stash)' }, { id: 'whitelist', label: '🛡️ ホワイトリスト (whitelists)' }
+        ]" :key="tab.id" @click="onTabChange(tab.id as any)" class="px-3 py-1.5 rounded-lg border transition-colors flex items-center gap-1.5" :class="admin.activeSubTab.value === tab.id ? 'bg-blue-600 border-blue-500 text-white shadow' : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200'">
+          {{ tab.label }}
+        </button>
       </div>
     </div>
 
-    <div v-if="statusMessage" class="p-2.5 rounded-lg text-xs font-semibold" :class="statusMessage.success ? 'bg-emerald-950/60 border border-emerald-500/30 text-emerald-300' : 'bg-rose-950/60 border border-rose-500/30 text-rose-300'">
-      {{ statusMessage.success ? '✅' : '⚠️' }} {{ statusMessage.message }}
-    </div>
-
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 min-h-[500px]">
-      <DatabaseArticleList
-        :articles="articles"
-        :total="total"
-        :selected-article="selectedArticle"
-        :loading="loading"
-        :search-params="searchParams"
-        @search="$emit('search')"
-        @select="(art) => $emit('select', art)"
-      />
-
-      <DatabaseTranslationEditor
-        :article="selectedArticle"
-        :saving="saving"
-        @save="(ja, en, zh) => { if (selectedArticle) $emit('saveTranslations', selectedArticle.id, ja, en, zh); }"
-      />
+    <!-- 各ドメイン別ビュー -->
+    <div class="flex-1 min-h-[460px]">
+      <AccountManagementView v-if="admin.activeSubTab.value === 'accounts'" :accounts="admin.accountsList.value" :selected-detail="admin.selectedAccountDetail.value" :loading="admin.isAccountLoading.value" @select-account="(id) => admin.selectAccount(id)" @view-posts="(id) => admin.showAccountPosts(id)" @view-media="(id) => admin.showAccountMedia(id)" @refresh="admin.fetchAccounts" />
+      <PostManagementView v-else-if="admin.activeSubTab.value === 'posts'" :articles="admin.searchResults.value" :total="admin.totalCount.value" :selected-article="localSelected" :accounts="admin.accountsList.value" :search-account="admin.searchAccount.value" :search-query="admin.searchQuery.value" :page="admin.page.value" :limit="admin.limit.value" :loading="admin.isSearchLoading.value" :saving="false" :translating="admin.isTranslating.value" :active-job="admin.activeJob.value" @update:search-account="(v) => admin.searchAccount.value = v" @update:search-query="(v) => admin.searchQuery.value = v" @update:page="(p) => admin.page.value = p" @search="admin.searchArticles" @select="(art) => localSelected = art" @save="handleSaveTranslation" @auto-translate="handleAutoTranslate" @batch-translate="handleBatchTranslate" @cancel-job="(id) => admin.cancelJob(id)" />
+      <MediaManagementView v-else-if="admin.activeSubTab.value === 'media'" :media-items="admin.mediaResults.value" :total="admin.mediaTotal.value" :accounts="admin.accountsList.value" :account-filter="admin.searchAccount.value" :status-filter="admin.mediaStatusFilter.value" :page="admin.page.value" :limit="admin.limit.value" :loading="admin.isMediaLoading.value" @fetch="admin.fetchMedia" @update:account-filter="(v) => admin.searchAccount.value = v" @update:status-filter="(v) => admin.mediaStatusFilter.value = v" @update:page="(p) => admin.page.value = p" @retry-media="(id) => admin.retryMedia(id)" />
+      <WhitelistManagementView v-else-if="admin.activeSubTab.value === 'whitelist'" :whitelist-list="admin.whitelists.value" :loading="admin.isWhitelistLoading.value" @fetch="admin.fetchWhitelists" @add="(t, v) => admin.addWhitelist(t, v)" @toggle="(id) => admin.toggleWhitelist(id)" @delete="(id) => admin.deleteWhitelist(id)" />
     </div>
   </div>
 </template>

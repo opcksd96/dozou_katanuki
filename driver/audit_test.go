@@ -6,20 +6,21 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
-	"time"
 
 	"dozou_katanuki/models"
 )
 
 func TestAuditDatabase(t *testing.T) {
-	testDBPath := filepath.Join(os.TempDir(), "test_audit_"+time.Now().Format("20060102150405.000")+".db")
-	defer os.Remove(testDBPath)
+	tempDir := t.TempDir()
+	testDBPath := filepath.Join(tempDir, "test_audit.db")
 
 	db, err := InitDB(testDBPath)
 	if err != nil { t.Fatalf("InitDB failed: %v", err) }
+	t.Cleanup(func() {
+		if sqlDB, err := db.DB(); err == nil && sqlDB != nil { _ = sqlDB.Close() }
+	})
 	repo := NewRepository(db)
 
-	tempDir := t.TempDir()
 	stashDir, blobsDir := filepath.Join(tempDir, "stash"), filepath.Join(tempDir, "blobs")
 	_ = os.MkdirAll(filepath.Join(stashDir, "scenes"), 0755)
 	_ = os.MkdirAll(filepath.Join(stashDir, "images"), 0755)

@@ -9,14 +9,16 @@ import (
 	"dozou_katanuki/models"
 )
 
-func (j *JobOrchestrator) EnqueueSalvage(platform, account string, limit int) (*models.JobProgress, error) {
+func (j *JobOrchestrator) EnqueueSalvage(platform, account string, limit int, env ...map[string]string) (*models.JobProgress, error) {
 	if limit <= 0 { limit = 50 }
+	var envMap map[string]string
+	if len(env) > 0 { envMap = env[0] }
 	return j.EnqueueJob(&models.JobRequest{
 		ID: fmt.Sprintf("job_salvage_%d", time.Now().UnixNano()), Type: models.JobTypeSalvage,
 		Platform: platform, Account: account, Limit: limit,
 		ScriptPath: fmt.Sprintf("plugins/%s/scraper/main.py", platform),
 		Args: []string{"--mode", "auto", "--platform", platform, "--account", account, "--limit", strconv.Itoa(limit)},
-		CreatedAt: time.Now(),
+		Env: envMap, CreatedAt: time.Now(),
 	})
 }
 
@@ -41,9 +43,7 @@ func (j *JobOrchestrator) EnqueueMediaDownload(platform, mediaID string) (*model
 }
 
 func (j *JobOrchestrator) EnqueueMediaPoll(platform string) (*models.JobProgress, error) {
-	if platform == "" {
-		platform = "twitter"
-	}
+	if platform == "" { platform = "twitter" }
 	return j.EnqueueJob(&models.JobRequest{
 		ID: fmt.Sprintf("job_poll_%d", time.Now().UnixNano()), Type: models.JobTypeMediaPoll,
 		Platform: platform, ScriptPath: fmt.Sprintf("plugins/%s/scraper/main.py", platform),
@@ -52,14 +52,24 @@ func (j *JobOrchestrator) EnqueueMediaPoll(platform string) (*models.JobProgress
 }
 
 func (j *JobOrchestrator) EnqueueRestore(dumpsDir string) (*models.JobProgress, error) {
-	if dumpsDir == "" {
-		dumpsDir = "backups/dumps"
-	}
+	if dumpsDir == "" { dumpsDir = "backups/dumps" }
 	return j.EnqueueJob(&models.JobRequest{
 		ID: fmt.Sprintf("job_restore_%d", time.Now().UnixNano()), Type: models.JobTypeRestore,
 		ScriptPath: "plugins/twitter/scraper/main.py",
-		Args:       []string{"--mode", "restore", "--dumps-dir", dumpsDir},
-		CreatedAt:  time.Now(),
+		Args: []string{"--mode", "restore", "--dumps-dir", dumpsDir}, CreatedAt: time.Now(),
+	})
+}
+
+func (j *JobOrchestrator) EnqueueTranslate(account string, overwrite bool, env ...map[string]string) (*models.JobProgress, error) {
+	args := []string{"--mode", "translate"}
+	if account != "" && account != "all" { args = append(args, "--account", account) }
+	if overwrite { args = append(args, "--overwrite") }
+	var envMap map[string]string
+	if len(env) > 0 { envMap = env[0] }
+	return j.EnqueueJob(&models.JobRequest{
+		ID: fmt.Sprintf("job_trans_%d", time.Now().UnixNano()), Type: models.JobTypeTranslate,
+		Account: account, ScriptPath: "plugins/twitter/scraper/main.py",
+		Args: args, Env: envMap, CreatedAt: time.Now(),
 	})
 }
 
@@ -83,9 +93,7 @@ func (j *JobOrchestrator) EnqueueJob(req *models.JobRequest) (*models.JobProgres
 		return progress, nil
 	default:
 		j.mu.Lock()
-		progress.Status = models.JobStatusFailed
-		progress.Message = "Queue is full"
-		progress.Error = "job queue overflow"
+		progress.Status, progress.Message, progress.Error = models.JobStatusFailed, "Queue is full", "job queue overflow"
 		j.mu.Unlock()
 		return progress, fmt.Errorf("job queue is full")
 	}

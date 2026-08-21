@@ -23,7 +23,8 @@ Write-Host "==========================================" -ForegroundColor Cyan
 Write-Host " 100-Line Rule Compliance Audit Report" -ForegroundColor Cyan
 Write-Host " Total Source Files Audited: $($files.Count)" -ForegroundColor White
 Write-Host " Compliant Files (<= 100):  $compliantCount" -ForegroundColor Green
-Write-Host " Non-Compliant Files (> 100): $($over100.Count)" -ForegroundColor ($over100.Count -eq 0 ? 'Green' : 'Red')
+$statusColor = if ($over100.Count -eq 0) { 'Green' } else { 'Red' }
+Write-Host " Non-Compliant Files (> 100): $($over100.Count)" -ForegroundColor $statusColor
 Write-Host "==========================================" -ForegroundColor Cyan
 
 if ($over100.Count -eq 0) {

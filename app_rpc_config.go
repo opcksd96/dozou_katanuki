@@ -67,3 +67,20 @@ func (a *App) SaveConfig(cfg *models.AppConfig) error {
 	}
 	return nil
 }
+
+// getTranslationEnv は config.json の翻訳設定から Python サブプロセス用の環境変数を生成します
+func (a *App) getTranslationEnv() map[string]string {
+	cfg, err := a.GetConfig()
+	if err != nil || cfg == nil {
+		return nil
+	}
+	env := make(map[string]string)
+	if cfg.Translation.DeeplApiKey != "" {
+		env["DEEPL_API_KEY"] = cfg.Translation.DeeplApiKey
+	}
+	if cfg.Translation.GoogleTranslateApiKey != "" {
+		env["GOOGLE_TRANSLATE_API_KEY"] = cfg.Translation.GoogleTranslateApiKey
+	}
+	return env
+}
+

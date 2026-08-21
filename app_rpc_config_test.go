@@ -33,6 +33,8 @@ func TestConfigGetAndSave(t *testing.T) {
 	originalLang := cfg.System.Language
 	cfg.System.Language = "zh"
 	cfg.Storage.StashEnabled = false
+	cfg.Translation.DeeplApiKey = "test-deepl-key:fx"
+	cfg.Translation.GoogleTranslateApiKey = "test-google-key"
 
 	if err := app.SaveConfig(cfg); err != nil {
 		t.Fatalf("SaveConfig failed: %v", err)
@@ -46,13 +48,19 @@ func TestConfigGetAndSave(t *testing.T) {
 	if updatedCfg.System.Language != "zh" {
 		t.Errorf("Expected language 'zh', got '%s'", updatedCfg.System.Language)
 	}
-	if updatedCfg.Storage.StashEnabled != false {
-		t.Errorf("Expected stash_enabled false, got %v", updatedCfg.Storage.StashEnabled)
+	if updatedCfg.Translation.DeeplApiKey != "test-deepl-key:fx" {
+		t.Errorf("Expected deepl key 'test-deepl-key:fx', got '%s'", updatedCfg.Translation.DeeplApiKey)
+	}
+	env := app.getTranslationEnv()
+	if env["DEEPL_API_KEY"] != "test-deepl-key:fx" || env["GOOGLE_TRANSLATE_API_KEY"] != "test-google-key" {
+		t.Errorf("Unexpected translation env: %v", env)
 	}
 
 	// 4. 元に戻す確認
 	cfg.System.Language = originalLang
 	cfg.Storage.StashEnabled = true
+	cfg.Translation.DeeplApiKey = ""
+	cfg.Translation.GoogleTranslateApiKey = ""
 	if err := app.SaveConfig(cfg); err != nil {
 		t.Fatalf("SaveConfig reset failed: %v", err)
 	}

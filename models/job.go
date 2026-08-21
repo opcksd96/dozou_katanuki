@@ -14,6 +14,7 @@ const (
 	JobTypeMediaPoll     JobType = "poll"
 	JobTypeRestore       JobType = "restore"
 	JobTypeScrape        JobType = "scrape"
+	JobTypeTranslate     JobType = "translate"
 	JobTypeCustom        JobType = "custom"
 )
 

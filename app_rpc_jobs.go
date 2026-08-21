@@ -10,7 +10,7 @@ func (a *App) StartSalvageJob(platform, account string, limit int) (*models.JobP
 	if err := a.waitForReady(); err != nil {
 		return nil, err
 	}
-	return a.jobOrchestrator.EnqueueSalvage(platform, account, limit)
+	return a.jobOrchestrator.EnqueueSalvage(platform, account, limit, a.getTranslationEnv())
 }
 
 // StartManualImportJob は手動 WARC インポートジョブをキューに追加する Wails バインドメソッドです
@@ -19,6 +19,14 @@ func (a *App) StartManualImportJob(warcPath string, offline bool) (*models.JobPr
 		return nil, err
 	}
 	return a.jobOrchestrator.EnqueueManualImport(warcPath, offline)
+}
+
+// StartTranslateJob は未翻訳記事の一括翻訳ジョブをキューに追加する Wails バインドメソッドです
+func (a *App) StartTranslateJob(account string, overwrite bool) (*models.JobProgress, error) {
+	if err := a.waitForReady(); err != nil {
+		return nil, err
+	}
+	return a.jobOrchestrator.EnqueueTranslate(account, overwrite, a.getTranslationEnv())
 }
 
 // GetJobStatus は指定されたジョブのステータスを取得する Wails バインドメソッドです
