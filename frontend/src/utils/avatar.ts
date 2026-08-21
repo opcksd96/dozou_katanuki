@@ -55,16 +55,7 @@ export function resolveAvatarUrl(
   // ④ アカウントのアバターURL
   const rawUrl = accountOrAuthor.avatar_url || accountOrAuthor.avatarUrl || '';
   if (rawUrl) {
-    if (rawUrl.startsWith('data:') || rawUrl.startsWith('/avatars/') || rawUrl.startsWith('/assets/')) {
-      return rawUrl;
-    }
     return rawUrl;
-  }
-
-  // ⑤ アカウント名からデフォルト推定
-  const username = accountOrAuthor.username || accountOrAuthor.handle;
-  if (username) {
-    return `/avatars/${platform}/${username}_avatar_001.jpg`;
   }
 
   return '';

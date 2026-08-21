@@ -13,8 +13,8 @@ type Media struct {
 	Height         int            `gorm:"column:height;type:integer;not null" json:"height"`
 	DownloadStatus string         `gorm:"column:download_status;type:text;not null;default:'QUEUED'" json:"download_status"`
 	FailedReason   sql.NullString `gorm:"column:failed_reason;type:text" json:"failed_reason"`
-	StashSceneID   sql.NullString `gorm:"uniqueIndex;column:stash_scene_id;type:text" json:"stash_scene_id"`
-	StashImageID   sql.NullString `gorm:"uniqueIndex;column:stash_image_id;type:text" json:"stash_image_id"`
+	StashSceneID   sql.NullString `gorm:"index;column:stash_scene_id;type:text" json:"stash_scene_id"`
+	StashImageID   sql.NullString `gorm:"index;column:stash_image_id;type:text" json:"stash_image_id"`
 }
 
 // BuildRenderMedia converts a DB Media record to frontend RenderMedia with normalized URLs and status

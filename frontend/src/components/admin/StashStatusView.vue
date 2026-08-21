@@ -2,9 +2,11 @@
 import { computed, ref } from 'vue';
 import { models } from '../../../wailsjs/go/models';
 
-const props = defineProps<{
-  config: models.AppConfig | null;
-}>();
+const props = withDefaults(defineProps<{
+  config?: models.AppConfig | null;
+}>(), {
+  config: null,
+});
 
 const stashPort = computed(() => props.config?.network?.stash_port || 9999);
 const isStashEnabled = computed(() => props.config?.storage?.stash_enabled ?? true);

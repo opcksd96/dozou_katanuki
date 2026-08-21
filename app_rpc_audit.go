@@ -3,95 +3,86 @@ package main
 
 import (
 	"log"
+	"path/filepath"
 
 	"dozou_katanuki/models"
 )
 
-// TriggerBackup は即時オンラインバックアップ (VACUUM INTO) を実行する Wails バインドメソッドです
+func (a *App) getTrashDir() string {
+	dumpsDir := "./backups/dumps"
+	cfg, err := a.GetConfig()
+	if err == nil && cfg != nil && cfg.Storage.DumpsDir != "" { dumpsDir = cfg.Storage.DumpsDir }
+	return filepath.Join(dumpsDir, "_trash")
+}
+
 func (a *App) TriggerBackup() (string, error) {
-	if err := a.waitForReady(); err != nil {
-		return "", err
-	}
-	if a.scheduler == nil {
-		return "", nil
-	}
+	if err := a.waitForReady(); err != nil { return "", err }
+	if a.scheduler == nil { return "", nil }
 	return a.scheduler.TriggerBackup()
 }
 
-// TriggerPoll は即時第3段階ポーリング (Motrix ➔ Stash 自動回収) を実行する Wails バインドメソッドです
 func (a *App) TriggerPoll() (*models.JobProgress, error) {
-	if err := a.waitForReady(); err != nil {
-		return nil, err
-	}
-	if a.scheduler == nil {
-		return nil, nil
-	}
+	if err := a.waitForReady(); err != nil { return nil, err }
+	if a.scheduler == nil { return nil, nil }
 	return a.scheduler.TriggerPoll()
 }
 
-// RunAudit は SQLite3 整合性監査 (PRAGMA) および孤立ファイルの検出・パージを実行する Wails バインドメソッドです
 func (a *App) RunAudit(purgeFiles, purgeDB bool) (*models.AuditReport, error) {
-	if err := a.waitForReady(); err != nil {
-		return nil, err
-	}
-	if a.auditService == nil {
-		return nil, nil
-	}
+	if err := a.waitForReady(); err != nil { return nil, err }
+	if a.auditService == nil { return nil, nil }
 
-	stashDir := "./stash"
-	blobsDir := "./blobs"
-	cfg, err := a.GetConfig()
-	if err == nil && cfg != nil {
-		if cfg.Storage.StashDir != "" {
-			stashDir = cfg.Storage.StashDir
-		}
-		if cfg.Storage.LocalMediaDir != "" {
-			blobsDir = cfg.Storage.LocalMediaDir
-		}
+	stashDir, blobsDir := "./stash", "./blobs"
+	if cfg, err := a.GetConfig(); err == nil && cfg != nil {
+		if cfg.Storage.StashDir != "" { stashDir = cfg.Storage.StashDir }
+		if cfg.Storage.LocalMediaDir != "" { blobsDir = cfg.Storage.LocalMediaDir }
 	}
 	return a.auditService.RunAudit(a.ctx, stashDir, blobsDir, purgeFiles, purgeDB)
 }
 
-// PurgeOrphanFiles は指定された孤立ファイルをOSのごみ箱へ退避する Wails バインドメソッドです
 func (a *App) PurgeOrphanFiles(paths []string) (int, error) {
-	if err := a.waitForReady(); err != nil {
-		return 0, err
-	}
-	if a.auditService == nil {
-		return 0, nil
-	}
-	return a.auditService.PurgeOrphanFiles(paths)
+	if err := a.waitForReady(); err != nil { return 0, err }
+	if a.auditService == nil { return 0, nil }
+	log.Printf("[Wails RPC] PurgeOrphanFiles: requested %d files to purge", len(paths))
+	count, err := a.auditService.PurgeOrphanFiles(paths)
+	log.Printf("[Wails RPC] PurgeOrphanFiles: purged %d files (err: %v)", count, err)
+	return count, err
 }
 
-// PurgeOrphanDBMedia は指定された media_id の DB レコードを削除する Wails バインドメソッドです
 func (a *App) PurgeOrphanDBMedia(mediaIDs []string) (int, error) {
-	if err := a.waitForReady(); err != nil {
-		return 0, err
-	}
-	if a.auditService == nil {
-		return 0, nil
-	}
-	return a.auditService.PurgeOrphanDBMedia(mediaIDs)
+	if err := a.waitForReady(); err != nil { return 0, err }
+	if a.auditService == nil { return 0, nil }
+	log.Printf("[Wails RPC] PurgeOrphanDBMedia: requested %d media IDs to delete", len(mediaIDs))
+	count, err := a.auditService.PurgeOrphanDBMedia(a.getTrashDir(), mediaIDs)
+	log.Printf("[Wails RPC] PurgeOrphanDBMedia: deleted %d records (err: %v)", count, err)
+	return count, err
 }
 
-// TriggerRestore は Layer 2 (dumps/) からの完全オフライン自動リストア (SPEC-RECOVERY-001) をキックする Wails バインドメソッドです
+// RollbackLastPurge は直前に削除された孤立DBレコードを復元します
+func (a *App) RollbackLastPurge() (int, error) {
+	if err := a.waitForReady(); err != nil { return 0, err }
+	if a.auditService == nil { return 0, nil }
+	log.Printf("[Wails RPC] RollbackLastPurge: starting rollback from trash...")
+	count, err := a.auditService.RollbackLastDBPurge(a.getTrashDir())
+	log.Printf("[Wails RPC] RollbackLastPurge: restored %d records (err: %v)", count, err)
+	return count, err
+}
+
+// CanRollback はロールバック可能なスナップショットが存在するか判定します
+func (a *App) CanRollback() (bool, error) {
+	if err := a.waitForReady(); err != nil { return false, err }
+	if a.auditService == nil { return false, nil }
+	return a.auditService.CanRollbackDBPurge(a.getTrashDir()), nil
+}
+
 func (a *App) TriggerRestore(dumpsDir string, resetDB bool) (*models.JobProgress, error) {
-	if err := a.waitForReady(); err != nil {
-		return nil, err
-	}
+	if err := a.waitForReady(); err != nil { return nil, err }
 	if dumpsDir == "" {
 		dumpsDir = "./backups/dumps"
-		cfg, err := a.GetConfig()
-		if err == nil && cfg != nil && cfg.Storage.DumpsDir != "" {
-			dumpsDir = cfg.Storage.DumpsDir
-		}
+		if cfg, err := a.GetConfig(); err == nil && cfg != nil && cfg.Storage.DumpsDir != "" { dumpsDir = cfg.Storage.DumpsDir }
 	}
-
 	if resetDB && a.repo != nil {
 		log.Println("[Wails RPC] TriggerRestore: Resetting database before restore...")
-		if err := a.repo.ResetDatabase(); err != nil {
-			log.Printf("[Wails RPC] TriggerRestore: Database reset warning: %v", err)
-		}
+		_ = a.repo.ResetDatabase()
 	}
 	return a.jobOrchestrator.EnqueueRestore(dumpsDir)
 }

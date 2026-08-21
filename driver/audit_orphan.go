@@ -22,39 +22,8 @@ func FindOrphanDBMedia(db *gorm.DB, stashDir, blobsDir string) ([]models.OrphanD
 		orphans = append(orphans, models.OrphanDBMedia{
 			MediaID: m.MediaID, ArticleID: m.ArticleID, Type: m.Type, DownloadURL: m.DownloadURL,
 			Status: m.DownloadStatus, StashSceneID: m.StashSceneID.String, StashImageID: m.StashImageID.String,
-			Reason: fmt.Sprintf("親記事 (%s) が存在しません", m.ArticleID),
+			Reason: fmt.Sprintf("親記事 (%s) が存在しません（参照切れ孤立レコード）", m.ArticleID),
 		})
-	}
-	var completed []models.Media
-	if err := db.Where("download_status = ?", "COMPLETED").Find(&completed).Error; err == nil {
-		for _, m := range completed {
-			hasFile := false
-			if blobsDir != "" {
-				mfs, _ := filepath.Glob(filepath.Join(blobsDir, m.MediaID+".*"))
-				if len(mfs) > 0 { hasFile = true }
-			}
-			if !hasFile && stashDir != "" {
-				if m.StashSceneID.Valid && m.StashSceneID.String != "" {
-					mfs, _ := filepath.Glob(filepath.Join(stashDir, "scenes", "*"+m.StashSceneID.String+"*"))
-					if len(mfs) > 0 { hasFile = true }
-				}
-				if !hasFile && m.StashImageID.Valid && m.StashImageID.String != "" {
-					mfs, _ := filepath.Glob(filepath.Join(stashDir, "images", "*"+m.StashImageID.String+"*"))
-					if len(mfs) > 0 { hasFile = true }
-				}
-			}
-			if !hasFile && (blobsDir != "" || stashDir != "") {
-				found := false
-				for _, o := range orphans { if o.MediaID == m.MediaID { found = true; break } }
-				if !found {
-					orphans = append(orphans, models.OrphanDBMedia{
-						MediaID: m.MediaID, ArticleID: m.ArticleID, Type: m.Type, DownloadURL: m.DownloadURL,
-						Status: m.DownloadStatus, StashSceneID: m.StashSceneID.String, StashImageID: m.StashImageID.String,
-						Reason: "ステータスはCOMPLETEDですが実ファイルが見つかりません",
-					})
-				}
-			}
-		}
 	}
 	return orphans, nil
 }
@@ -100,6 +69,9 @@ func ScanOrphanFiles(stashDir, blobsDir string, knownKeys map[string]bool) ([]mo
 
 func DeleteDBMediaByIDs(db *gorm.DB, mediaIDs []string) (int, error) {
 	if len(mediaIDs) == 0 { return 0, nil }
-	res := db.Where("media_id IN ?", mediaIDs).Delete(&models.Media{})
-	return int(res.RowsAffected), res.Error
+	res := db.Table("media").Where("media_id IN ?", mediaIDs).Delete(&models.Media{})
+	if res.Error != nil {
+		return 0, fmt.Errorf("failed to delete media records: %w", res.Error)
+	}
+	return int(res.RowsAffected), nil
 }

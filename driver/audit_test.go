@@ -61,6 +61,6 @@ func TestAuditDatabase(t *testing.T) {
 	purgedFiles, err := repo.PurgeOrphanFiles([]string{orphanFile})
 	if err != nil || purgedFiles != 1 { t.Errorf("PurgeOrphanFiles failed: %v, count=%d", err, purgedFiles) }
 
-	purgedDB, err := repo.PurgeOrphanDBMedia([]string{"media_orphan_db"})
+	purgedDB, err := repo.PurgeOrphanDBMedia(filepath.Join(tempDir, "_trash"), []string{"media_orphan_db"})
 	if err != nil || purgedDB != 1 { t.Errorf("PurgeOrphanDBMedia failed: %v, count=%d", err, purgedDB) }
 }

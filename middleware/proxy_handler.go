@@ -77,14 +77,8 @@ func (h *UnifiedHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		// 明示的なデフォルトアバター要求時のみデフォルトSVGを返却
-		if strings.Contains(rel, "default_avatar") || strings.Contains(rel, "default-avatar") {
-			h.serveDefaultAvatar(w)
-			return
-		}
-
-		// 個別指定ファイルが存在しない場合は、隠蔽せず厳格に 404 を返却
-		http.NotFound(w, r)
+		// 実体ファイルが存在しない場合は、コンソール404エラーを防止しデフォルトSVGを返却
+		h.serveDefaultAvatar(w)
 		return
 	}
 	if strings.HasPrefix(path, "/stash-proxy/") {

@@ -44,7 +44,7 @@ func (s *AuditService) RunAudit(ctx context.Context, stashDir, blobsDir string, 
 	if autoPurgeDB && len(report.OrphanDBMedia) > 0 {
 		var ids []string
 		for _, m := range report.OrphanDBMedia { ids = append(ids, m.MediaID) }
-		purgedDBCount, dbErr := s.repo.PurgeOrphanDBMedia(ids)
+		purgedDBCount, dbErr := s.repo.PurgeOrphanDBMedia("./backups/dumps/_trash", ids)
 		if dbErr != nil { log.Printf("[AuditService] Purge DB records warning: %v", dbErr) }
 		report.PurgedDBMediaCount = purgedDBCount
 	}
@@ -59,7 +59,17 @@ func (s *AuditService) PurgeOrphanFiles(paths []string) (int, error) {
 	return s.repo.PurgeOrphanFiles(paths)
 }
 
-func (s *AuditService) PurgeOrphanDBMedia(mediaIDs []string) (int, error) {
+func (s *AuditService) PurgeOrphanDBMedia(trashDir string, mediaIDs []string) (int, error) {
 	s.mu.Lock(); defer s.mu.Unlock()
-	return s.repo.PurgeOrphanDBMedia(mediaIDs)
+	return s.repo.PurgeOrphanDBMedia(trashDir, mediaIDs)
+}
+
+func (s *AuditService) RollbackLastDBPurge(trashDir string) (int, error) {
+	s.mu.Lock(); defer s.mu.Unlock()
+	return s.repo.RollbackLastDBPurge(trashDir)
+}
+
+func (s *AuditService) CanRollbackDBPurge(trashDir string) bool {
+	s.mu.Lock(); defer s.mu.Unlock()
+	return s.repo.CanRollbackDBPurge(trashDir)
 }

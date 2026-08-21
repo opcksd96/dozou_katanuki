@@ -49,8 +49,16 @@ func (r *Repository) PurgeOrphanFiles(paths []string) (int, error) {
 	return cnt, nil
 }
 
-func (r *Repository) PurgeOrphanDBMedia(mediaIDs []string) (int, error) {
-	return DeleteDBMediaByIDs(r.db, mediaIDs)
+func (r *Repository) PurgeOrphanDBMedia(trashDir string, mediaIDs []string) (int, error) {
+	return BackupAndPurgeDBMedia(r.db, trashDir, mediaIDs)
+}
+
+func (r *Repository) RollbackLastDBPurge(trashDir string) (int, error) {
+	return RollbackLastDBPurge(r.db, trashDir)
+}
+
+func (r *Repository) CanRollbackDBPurge(trashDir string) bool {
+	return CanRollbackDBPurge(trashDir)
 }
 
 // PurgeMedia deletes a single media record from DB

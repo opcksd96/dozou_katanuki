@@ -45,13 +45,16 @@ func TestUnifiedHandler_AvatarAndAssetServing(t *testing.T) {
 		t.Errorf("Expected status 200, got %d", rec.Code)
 	}
 
-	// 3. 個別アバターが存在しない場合は 404 Not Found を返却
+	// 3. 個別アバターが存在しない場合は デフォルトSVG (200 OK) を返却して404を防止
 	req = httptest.NewRequest("GET", "/avatars/twitter/non_existent.png", nil)
 	rec = httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
 
-	if rec.Code != http.StatusNotFound {
-		t.Errorf("Expected status 404 for missing avatar, got %d", rec.Code)
+	if rec.Code != http.StatusOK {
+		t.Errorf("Expected status 200 (default avatar SVG) for missing avatar, got %d", rec.Code)
+	}
+	if !strings.Contains(rec.Body.String(), "<svg") {
+		t.Errorf("Expected SVG default avatar for missing avatar, got '%s'", rec.Body.String())
 	}
 
 	// 4. パストラバーサルの試行は 403 Forbidden または 404 で遮断
