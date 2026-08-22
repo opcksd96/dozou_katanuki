@@ -73,6 +73,13 @@ const handleBatchTranslate = async () => {
   await props.admin.startBatchTranslate(acc, false);
 };
 
+const handleSaveMediaMetadata = async (payload: { mediaId: string; downloadStatus: string; stashSceneId: string; stashImageId: string; failedReason: string }) => {
+  const ok = await props.admin.updateMediaMetadata?.(payload.mediaId, payload.downloadStatus, payload.stashSceneId, payload.stashImageId, payload.failedReason);
+  if (ok) {
+    addToast(`💾 メディア [${payload.mediaId}] のメタデータを更新しました`, 'success', 3000);
+  }
+};
+
 watch(() => props.admin.activeJob.value?.status, (newStatus, oldStatus) => {
   if (props.admin.activeJob.value?.type === 'translate') {
     if (oldStatus === 'RUNNING' && newStatus === 'COMPLETED') {
@@ -146,7 +153,9 @@ onMounted(() => {
         :page="admin.page?.value || 1"
         :limit="admin.limit?.value || 20"
         :loading="admin.isMediaLoading?.value || false"
+        :config="admin.configForm"
         @fetch="admin.fetchMedia"
+        @save-metadata="handleSaveMediaMetadata"
         @update:account-filter="(v) => { if (admin.searchAccount) admin.searchAccount.value = v; }"
         @update:status-filter="(v) => { if (admin.mediaStatusFilter) admin.mediaStatusFilter.value = v; }"
         @update:type-filter="(v) => { if (admin.mediaTypeFilter) admin.mediaTypeFilter.value = v; }"

@@ -28,13 +28,15 @@ func (r *Repository) GetAccountDetail(numericID string) (*models.AccountDetailRe
 
 type mediaScanRow struct {
 	models.Media
-	ArticleID string    `gorm:"column:article_id"`
-	AccountID string    `gorm:"column:account_id"`
-	Username  string    `gorm:"column:username"`
-	CreatedAt time.Time `gorm:"column:created_at"`
+	ArticleID   string    `gorm:"column:article_id"`
+	AccountID   string    `gorm:"column:account_id"`
+	Username    string    `gorm:"column:username"`
+	DisplayName string    `gorm:"column:display_name"`
+	CreatedAt   time.Time `gorm:"column:created_at"`
 }
 
-func (r *Repository) SearchMediaDetails(accountID, status, mediaType string, limit, offset int) (*models.MediaSearchResult, error) {
+// FetchRawMediaItems はリポジトリ層でメディアとアカウント・世代履歴を取得します
+func (r *Repository) FetchRawMediaItems(accountID, status, mediaType string, limit, offset int) ([]models.MediaScanItem, int64, models.MediaSearchStats, error) {
 	baseQ := r.db.Table("media").
 		Joins("JOIN articles ON articles.id = media.article_id").
 		Joins("JOIN accounts ON accounts.numeric_id = articles.account_id")
@@ -67,30 +69,69 @@ func (r *Repository) SearchMediaDetails(accountID, status, mediaType string, lim
 	}
 
 	var total int64
-	if err := q.Count(&total).Error; err != nil { return nil, err }
+	if err := q.Count(&total).Error; err != nil { return nil, 0, stats, err }
 	if limit <= 0 { limit = 20 }
 
 	var rows []mediaScanRow
-	err := q.Select("media.*, articles.created_at as created_at, accounts.username as username, accounts.numeric_id as account_id").
+	err := q.Select("media.*, articles.created_at as created_at, accounts.username as username, accounts.display_name as display_name, accounts.numeric_id as account_id").
 		Order("articles.created_at DESC").Limit(limit).Offset(offset).Scan(&rows).Error
-	if err != nil { return nil, err }
+	if err != nil { return nil, 0, stats, err }
 
-	items := make([]models.MediaItemDetail, 0, len(rows))
+	// 取得した各アカウントの世代履歴を一括取得
+	accIDs := make([]string, 0, len(rows))
+	accIDMap := make(map[string]bool)
 	for _, row := range rows {
-		rm := models.BuildRenderMedia(row.Media)
-		hasStash := row.StashSceneID.Valid && row.StashSceneID.String != "" || row.StashImageID.Valid && row.StashImageID.String != ""
-		items = append(items, models.MediaItemDetail{
-			RenderMedia: rm,
-			MediaID:     row.Media.MediaID,
-			ArticleID:   row.ArticleID,
-			AccountID:   row.AccountID,
-			Username:    row.Username,
-			RawStatus:   row.Media.DownloadStatus,
-			HasStash:    hasStash,
-			CreatedAt:   row.CreatedAt,
+		if row.AccountID != "" && !accIDMap[row.AccountID] {
+			accIDMap[row.AccountID] = true
+			accIDs = append(accIDs, row.AccountID)
+		}
+	}
+
+	var allHistories []models.AccountProfileHistory
+	if len(accIDs) > 0 {
+		_ = r.db.Where("account_id IN ?", accIDs).Order("observed_at ASC, avatar_seq ASC").Find(&allHistories).Error
+	}
+	historyByAccount := make(map[string][]models.AccountProfileHistory)
+	for _, h := range allHistories {
+		historyByAccount[h.AccountID] = append(historyByAccount[h.AccountID], h)
+	}
+
+	rawItems := make([]models.MediaScanItem, 0, len(rows))
+	for _, row := range rows {
+		rawItems = append(rawItems, models.MediaScanItem{
+			Media:          row.Media,
+			ArticleID:      row.ArticleID,
+			AccountID:      row.AccountID,
+			Username:       row.Username,
+			DisplayName:    row.DisplayName,
+			CreatedAt:      row.CreatedAt,
+			ProfileHistory: historyByAccount[row.AccountID],
 		})
 	}
 
+	return rawItems, total, stats, nil
+}
+
+func (r *Repository) SearchMediaDetails(accountID, status, mediaType string, limit, offset int) (*models.MediaSearchResult, error) {
+	rawItems, total, stats, err := r.FetchRawMediaItems(accountID, status, mediaType, limit, offset)
+	if err != nil { return nil, err }
+
+	items := make([]models.MediaItemDetail, 0, len(rawItems))
+	for _, item := range rawItems {
+		rm := models.BuildRenderMedia(item.Media)
+		hasStash := item.Media.StashSceneID.Valid && item.Media.StashSceneID.String != "" || item.Media.StashImageID.Valid && item.Media.StashImageID.String != ""
+		items = append(items, models.MediaItemDetail{
+			RenderMedia: rm,
+			MediaID:     item.Media.MediaID,
+			ArticleID:   item.ArticleID,
+			AccountID:   item.AccountID,
+			Username:    item.Username,
+			DisplayName: item.DisplayName,
+			RawStatus:   item.Media.DownloadStatus,
+			HasStash:    hasStash,
+			CreatedAt:   item.CreatedAt,
+		})
+	}
 	return &models.MediaSearchResult{Items: items, Total: total, Stats: stats}, nil
 }
 

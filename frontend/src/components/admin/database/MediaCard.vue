@@ -1,6 +1,7 @@
-<!-- frontend/src/components/admin/database/MediaCard.vue (100行以下) -->
 <script setup lang="ts">
 import { ref, computed } from 'vue';
+import { BrowserOpenURL } from '../../../../wailsjs/runtime/runtime';
+import Avatar from '../../article/Avatar.vue';
 
 const props = defineProps<{ media: any }>();
 const emit = defineEmits<{
@@ -21,6 +22,24 @@ const isVideo = computed(() => {
 const isExcluded = computed(() => {
   return props.media.download_status === 'EXCLUDED' || props.media.raw_status === 'EXCLUDED' || props.media.failed_reason?.includes('Whitelist外');
 });
+
+const currentHostname = computed(() => {
+  if (typeof window !== 'undefined' && window.location?.hostname) {
+    return window.location.hostname;
+  }
+  return '127.0.0.1';
+});
+
+const stashDirectUrl = computed(() => {
+  if (props.media.stash_scene_id) return `http://${currentHostname.value}:9999/scenes/${props.media.stash_scene_id}`;
+  if (props.media.stash_image_id) return `http://${currentHostname.value}:9999/images/${props.media.stash_image_id}`;
+  return null;
+});
+
+const openStash = () => {
+  if (!stashDirectUrl.value) return;
+  try { BrowserOpenURL(stashDirectUrl.value); } catch { window.open(stashDirectUrl.value, '_blank', 'noopener,noreferrer'); }
+};
 </script>
 
 <template>
@@ -86,8 +105,12 @@ const isExcluded = computed(() => {
     <!-- メディア情報 -->
     <div class="text-[11px] font-mono space-y-0.5 flex-1 min-w-0">
       <div class="text-slate-200 font-bold truncate" :title="media.media_id || media.id">{{ media.media_id || media.id }}</div>
-      <div class="text-slate-400 text-[10px] flex items-center justify-between">
-        <span class="truncate">@{{ media.username }}</span>
+      <div class="text-slate-400 text-[10px] flex items-center justify-between gap-1">
+        <div class="flex items-center gap-1 min-w-0 truncate">
+          <Avatar :avatar-url="media.avatar_url" :handle="media.username" size-class="w-4 h-4" />
+          <span class="truncate">@{{ media.username }}</span>
+          <span v-if="media.display_name && media.display_name !== media.username" class="text-slate-500 truncate text-[9px]">({{ media.display_name }})</span>
+        </div>
         <span v-if="media.width && media.height" class="text-slate-500 shrink-0">{{ media.width }}x{{ media.height }}</span>
       </div>
       <div v-if="media.article_id" class="text-[10px] text-blue-400 hover:text-blue-300 truncate" @click.stop="emit('viewPost', media.article_id)" :title="'親記事: ' + media.article_id">
@@ -100,10 +123,17 @@ const isExcluded = computed(() => {
 
     <!-- Stash 動線 ＆ アクション -->
     <div class="pt-1.5 border-t border-slate-850 flex items-center justify-between text-[10px] font-mono" @click.stop>
-      <span v-if="media.stash_scene_id || media.stash_image_id" class="text-emerald-400 truncate max-w-[100px]" :title="media.stash_scene_id || media.stash_image_id">
-        🎛️ Stash: {{ (media.stash_scene_id || media.stash_image_id)?.slice(0, 6) }}...
-      </span>
-      <span v-else class="text-slate-500">Stash未連携</span>
+      <button
+        v-if="stashDirectUrl"
+        @click.stop="openStash"
+        class="text-purple-400 hover:text-purple-200 hover:underline truncate max-w-[110px] flex items-center gap-0.5 bg-purple-950/40 hover:bg-purple-900/60 px-1.5 py-0.5 rounded border border-purple-800/40 transition-colors"
+        :title="`Stashで開く: ${media.stash_scene_id || media.stash_image_id}`"
+      >
+        <span>🎛️</span>
+        <span class="truncate">{{ (media.stash_scene_id || media.stash_image_id)?.slice(0, 6) }}...</span>
+        <span class="text-[9px]">↗</span>
+      </button>
+      <span v-else class="text-slate-600 px-1">Stash未連携</span>
       <div class="flex items-center gap-1">
         <button @click="emit('retry', media.media_id || media.id)" class="px-1.5 py-0.5 bg-slate-800 hover:bg-slate-700 text-blue-400 rounded text-[10px] transition-colors" title="再取得">
           再取得

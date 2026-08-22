@@ -100,3 +100,38 @@ func (s *TimelineService) SearchArticles(query, accountID, filter string, limit,
 		Total: total,
 	}, nil
 }
+
+// SearchMediaDetails は RawMediaItems を取得し AuditAndResolveAvatar で完全解決した MediaSearchResult を返却します (Same Source, Same Flow)
+func (s *TimelineService) SearchMediaDetails(accountID, status, mediaType string, limit, offset int) (*models.MediaSearchResult, error) {
+	rawItems, total, stats, err := s.repo.FetchRawMediaItems(accountID, status, mediaType, limit, offset)
+	if err != nil {
+		return nil, err
+	}
+
+	details := make([]models.MediaItemDetail, 0, len(rawItems))
+	for _, item := range rawItems {
+		rm := models.BuildRenderMedia(item.Media)
+		hasStash := item.Media.StashSceneID.Valid && item.Media.StashSceneID.String != "" || item.Media.StashImageID.Valid && item.Media.StashImageID.String != ""
+		avatarURL := AuditAndResolveAvatar("twitter", item.CreatedAt, item.ProfileHistory)
+
+		details = append(details, models.MediaItemDetail{
+			RenderMedia: rm,
+			MediaID:     item.Media.MediaID,
+			ArticleID:   item.ArticleID,
+			AccountID:   item.AccountID,
+			Username:    item.Username,
+			DisplayName: item.DisplayName,
+			AvatarURL:   avatarURL,
+			RawStatus:   item.Media.DownloadStatus,
+			HasStash:    hasStash,
+			CreatedAt:   item.CreatedAt,
+		})
+	}
+
+	return &models.MediaSearchResult{
+		Items: details,
+		Total: total,
+		Stats: stats,
+	}, nil
+}
+

@@ -27,7 +27,7 @@ func (a *App) GetAccountDetail(numericID string) (*models.AccountDetailResult, e
 func (a *App) GetMediaList(accountID, status, mediaType string, limit, offset int) (*models.MediaSearchResult, error) {
 	if err := a.waitForReady(); err != nil { return nil, err }
 	_, _ = a.repo.MigrateExcludedMedia() // レガシーWhitelist外DEAD_404をEXCLUDEDへ安全移行
-	res, err := a.repo.SearchMediaDetails(accountID, status, mediaType, limit, offset)
+	res, err := a.timelineService.SearchMediaDetails(accountID, status, mediaType, limit, offset)
 	if err != nil {
 		log.Printf("[Wails RPC] GetMediaList error: %v", err)
 		return nil, err
@@ -45,6 +45,12 @@ func (a *App) PurgeMedia(mediaID string) error {
 func (a *App) PurgeMediaByStatus(status, accountID string) (int64, error) {
 	if err := a.waitForReady(); err != nil { return 0, err }
 	return a.repo.PurgeMediaByStatus(status, accountID)
+}
+
+// UpdateMediaMetadata は指定されたメディアのメタデータ（ステータス・Stash ID・失敗理由）を更新する Wails バインドメソッドです
+func (a *App) UpdateMediaMetadata(mediaID, downloadStatus, stashSceneID, stashImageID, failedReason string) error {
+	if err := a.waitForReady(); err != nil { return err }
+	return a.repo.UpdateMediaMetadata(mediaID, downloadStatus, stashSceneID, stashImageID, failedReason)
 }
 
 // GetTableRecords は汎用テーブルの生カラム・ロウ形式スプレッドシートデータを取得する Wails バインドメソッドです

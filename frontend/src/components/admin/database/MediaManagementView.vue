@@ -1,6 +1,7 @@
 <!-- frontend/src/components/admin/database/MediaManagementView.vue (100行以下) -->
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
+import { BrowserOpenURL } from '../../../../wailsjs/runtime/runtime';
 import MediaCard from './MediaCard.vue';
 import MediaPreviewModal from './MediaPreviewModal.vue';
 
@@ -15,6 +16,7 @@ const props = defineProps<{
   loading: boolean;
   page: number;
   limit: number;
+  config?: any;
 }>();
 
 const emit = defineEmits<{
@@ -27,6 +29,7 @@ const emit = defineEmits<{
   (e: 'purgeMedia', mediaId: string): void;
   (e: 'purgeByStatus', status: string): void;
   (e: 'viewPost', articleId: string): void;
+  (e: 'saveMetadata', payload: any): void;
 }>();
 
 const selectedIndex = ref<number | null>(null);
@@ -36,6 +39,13 @@ const totalPages = computed(() => Math.max(1, Math.ceil(props.total / props.limi
 const startRange = computed(() => props.total === 0 ? 0 : (props.page - 1) * props.limit + 1);
 const endRange = computed(() => Math.min(props.page * props.limit, props.total));
 const selectedMedia = computed(() => selectedIndex.value !== null ? props.mediaItems[selectedIndex.value] : null);
+
+const currentHostname = computed(() => (typeof window !== 'undefined' && window.location?.hostname) ? window.location.hostname : '127.0.0.1');
+const stashPort = computed(() => props.config?.network?.stash_port || 9999);
+const openStashWebUI = () => {
+  const url = `http://${currentHostname.value}:${stashPort.value}`;
+  try { BrowserOpenURL(url); } catch { window.open(url, '_blank', 'noopener,noreferrer'); }
+};
 
 const onTypeChange = (val: 'all' | 'image' | 'video') => { emit('update:typeFilter', val); emit('update:page', 1); emit('fetch'); };
 const onAccountChange = (val: string) => { emit('update:accountFilter', val); emit('update:page', 1); emit('fetch'); };
@@ -85,6 +95,10 @@ onMounted(() => { emit('fetch'); });
         <button @click="handleConfirmPurgeStatus('EXCLUDED', 'EXCLUDED (対象外)')" class="px-2 py-1 bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 rounded-lg text-[10px] font-mono transition-colors" title="Whitelist外のEXCLUDEDメディアをDBからパージ">
           🗑️ 対象外一括パージ
         </button>
+        <!-- Stash WebUI クイックアクセス -->
+        <button @click="openStashWebUI" class="px-2 py-1 bg-purple-950/70 hover:bg-purple-900/90 border border-purple-700/60 text-purple-300 rounded-lg text-[10px] font-mono transition-colors flex items-center gap-1" title="Stash WebUI (ポート9999) をブラウザで開く">
+          🎛️ Stash WebUI ↗
+        </button>
       </div>
 
       <!-- ページネーション -->
@@ -116,16 +130,13 @@ onMounted(() => { emit('fetch'); });
       </div>
     </div>
 
-    <!-- プレビューモーダル -->
+    <!-- 詳細インスペクタ＆プレビューモーダル -->
     <MediaPreviewModal
       v-if="selectedMedia"
       :media="selectedMedia"
-      :has-prev="selectedIndex !== null && selectedIndex > 0"
-      :has-next="selectedIndex !== null && selectedIndex < mediaItems.length - 1"
-      @prev="selectedIndex = (selectedIndex ?? 0) - 1"
-      @next="selectedIndex = (selectedIndex ?? 0) + 1"
       @close="selectedIndex = null"
-      @retry="(id) => { emit('retryMedia', id); selectedIndex = null; }"
+      @save-metadata="(p) => emit('saveMetadata', p)"
+      @retry="(id) => { emit('retryMedia', id); }"
       @purge="(id) => { emit('purgeMedia', id); selectedIndex = null; }"
       @view-post="(artId) => { emit('viewPost', artId); selectedIndex = null; }"
     />

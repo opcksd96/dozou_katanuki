@@ -143,6 +143,46 @@ export function useAdminDatabase() {
     catch (e: any) { errorMessage.value = `メディア再取得に失敗しました: ${e?.message || e}`; }
   };
 
+  const fetchStashMetadata = async (sceneId: string, imageId: string) => {
+    try {
+      const app = getApp();
+      if (app?.GetStashMetadata) {
+        return await app.GetStashMetadata(sceneId, imageId);
+      }
+    } catch (e: any) {
+      console.error('[AdminDB] GetStashMetadata error:', e);
+    }
+    return null;
+  };
+
+  const updateStashMetadata = async (isScene: boolean, id: string, title: string, details: string, rating100: number) => {
+    try {
+      const app = getApp();
+      if (app?.UpdateStashMetadata) {
+        return await app.UpdateStashMetadata(isScene, id, title, details, rating100);
+      }
+    } catch (e: any) {
+      console.error('[AdminDB] UpdateStashMetadata error:', e);
+      errorMessage.value = `Stashメタデータの更新に失敗しました: ${e?.message || e}`;
+    }
+    return null;
+  };
+
+  const updateMediaMetadata = async (mediaId: string, downloadStatus: string, stashSceneId: string, stashImageId: string, failedReason: string) => {
+    try {
+      const app = getApp();
+      if (app?.UpdateMediaMetadata) {
+        await app.UpdateMediaMetadata(mediaId, downloadStatus, stashSceneId, stashImageId, failedReason);
+        await fetchMedia();
+        return true;
+      }
+    } catch (e: any) {
+      console.error('[AdminDB] UpdateMediaMetadata error:', e);
+      errorMessage.value = `メタデータの更新に失敗しました: ${e?.message || e}`;
+    }
+    return false;
+  };
+
   const purgeMedia = async (mId: string) => {
     try {
       const app = getApp();
@@ -226,7 +266,7 @@ export function useAdminDatabase() {
     searchFilter, page, limit, errorMessage, clearError, accountsList, selectedAccountDetail, isAccountLoading,
     mediaResults, mediaTotal, isMediaLoading, mediaStatusFilter, mediaTypeFilter, mediaStats, tableData, searchArticles, fetchAccounts,
     selectAccount, updateAccount, saveAvatarImage, fetchAvailableAvatars, fetchMedia, saveTranslation, autoTranslate, startBatchTranslate, retryMedia,
-    purgeMedia, purgeMediaByStatus,
+    fetchStashMetadata, updateStashMetadata, updateMediaMetadata, purgeMedia, purgeMediaByStatus,
     showAccountPosts, showAccountMedia,
   };
 }
