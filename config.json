@@ -14,7 +14,7 @@
   "storage": {
     "db_path": "./archive.db",
     "stash_enabled": true,
-    "local_media_dir": "./blobs",
+    "local_media_dir": "G:/Media_Storage/Influencers",
     "stash_dir": "./stash",
     "dumps_dir": "./dumps"
   },

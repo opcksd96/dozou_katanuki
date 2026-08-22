@@ -20,6 +20,10 @@ func NewRepository(db *gorm.DB) *Repository {
 	return &Repository{db: db}
 }
 
+func (r *Repository) DB() *gorm.DB {
+	return r.db
+}
+
 // BackupDatabase は SQLite の VACUUM INTO を用いてオンラインバックアップを作成します
 func (r *Repository) BackupDatabase(destDir string, maxGenerations int) (string, error) {
 	if destDir == "" { destDir = filepath.Join("backups", "database") }

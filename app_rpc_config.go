@@ -57,6 +57,12 @@ func (a *App) SaveConfig(cfg *models.AppConfig) error {
 	}
 	log.Printf("[Wails RPC] SaveConfig: config.json updated successfully")
 
+	if a.jobOrchestrator != nil {
+		a.jobOrchestrator.SetStorageConfig(cfg.Storage)
+	}
+	if a.unifiedHandler != nil {
+		a.unifiedHandler.SetMediaDir(cfg.Storage.LocalMediaDir)
+	}
 	if a.broadcastService != nil {
 		if err := a.broadcastService.UpdateConfig(cfg.Network, cfg.Broadcast); err != nil {
 			log.Printf("[Wails RPC] SaveConfig broadcast service update warning: %v", err)

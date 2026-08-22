@@ -16,7 +16,7 @@ const emit = defineEmits<{
 }>();
 
 const activeTab = ref<'jobs' | 'config' | 'skin' | 'stash' | 'whitelist' | 'db' | 'audit'>('jobs');
-const salvageForm = reactive({ platform: 'twitter', account: '', limit: 50 });
+const salvageForm = reactive({ platform: 'twitter', account: '', limit: 0 });
 const importForm = reactive({ warcPath: '', offline: true });
 const selectedPlatform = ref('twitter');
 const fontPresets = {

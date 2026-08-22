@@ -34,9 +34,9 @@ const showManualImport = ref(false);
         <input v-model="salvageForm.account" type="text" placeholder="target_user" required class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-200 font-mono" />
       </div>
       <div>
-        <label class="block text-xs text-slate-400 mb-1">上限件数</label>
+        <label class="block text-xs text-slate-400 mb-1">上限件数 (0 = 全件無制限)</label>
         <div class="flex gap-2">
-          <input v-model.number="salvageForm.limit" type="number" min="1" max="5000" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-200 font-mono" />
+          <input v-model.number="salvageForm.limit" type="number" min="0" placeholder="0 = 全件" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-200 font-mono" />
           <button type="submit" :disabled="actionLoading || isJobRunning" class="bg-blue-600 hover:bg-blue-500 disabled:bg-slate-700 text-white text-xs font-semibold px-4 py-1.5 rounded-lg whitespace-nowrap">
             {{ actionLoading ? '⏳' : '実行' }}
           </button>

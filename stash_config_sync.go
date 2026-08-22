@@ -12,13 +12,14 @@ import (
 	"dozou_katanuki/models"
 )
 
-// SyncStashConfig は dozou の AppConfig を基に Stash の config.yml (bin/config.yml) を透過的に同期します
+// SyncStashConfig は dozou の AppConfig を基に Stash の config.yml (bin/stash/config.yml) を透過的に同期します
 func SyncStashConfig(cfg *models.AppConfig) error {
 	if cfg == nil {
 		return nil
 	}
 
 	configYmlCandidates := []string{
+		filepath.Join("bin", "stash", "config.yml"),
 		filepath.Join("bin", "config.yml"),
 		filepath.Join(".", "config.yml"),
 	}
@@ -31,7 +32,7 @@ func SyncStashConfig(cfg *models.AppConfig) error {
 		}
 	}
 	if targetPath == "" {
-		targetPath = filepath.Join("bin", "config.yml")
+		targetPath = filepath.Join("bin", "stash", "config.yml")
 	}
 
 	data, err := os.ReadFile(targetPath)

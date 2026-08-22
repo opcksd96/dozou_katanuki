@@ -53,6 +53,10 @@ func (a *App) startup(ctx context.Context) {
 	if cfg != nil {
 		schedCfg, netCfg, bcastCfg = cfg.Scheduler, cfg.Network, cfg.Broadcast
 		stashEnabled = cfg.Storage.StashEnabled
+		a.jobOrchestrator.SetStorageConfig(cfg.Storage)
+		if a.unifiedHandler != nil {
+			a.unifiedHandler.SetMediaDir(cfg.Storage.LocalMediaDir)
+		}
 	}
 
 	a.scheduler = middleware.NewSchedulerService(schedCfg, a.repo, a.jobOrchestrator, emitter)
@@ -65,7 +69,7 @@ func (a *App) startup(ctx context.Context) {
 	_ = a.broadcastService.Start(ctx)
 
 	if stashEnabled {
-		a.stashProber = middleware.NewStashProber("./bin/stash-win.exe", "http://127.0.0.1:9999/", emitter)
+		a.stashProber = middleware.NewStashProber("./bin/stash/stash-win.exe", "http://127.0.0.1:9999/", emitter)
 		a.stashProber.Start(ctx)
 	}
 

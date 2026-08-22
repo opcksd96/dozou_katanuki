@@ -27,6 +27,7 @@ class Mutator:
 
         with self._get_conn() as conn:
             cur = conn.cursor()
+            u_name = account["username"]
             cur.execute("""
                 INSERT INTO accounts (numeric_id, username, display_name, avatar_url, updated_at)
                 VALUES (?, ?, ?, ?, ?)
@@ -34,8 +35,15 @@ class Mutator:
                     display_name = coalesce(excluded.display_name, accounts.display_name),
                     avatar_url = coalesce(excluded.avatar_url, accounts.avatar_url),
                     updated_at = excluded.updated_at
-            """, (account_id, account["username"], account.get("display_name", account["username"]),
+            """, (account_id, u_name, account.get("display_name", u_name),
                   account.get("avatar_url", ""), now_ts))
+
+            try:
+                r = cur.execute("SELECT id FROM whitelists WHERE lower(value) = lower(?)", (u_name,)).fetchone()
+                if r: cur.execute("UPDATE whitelists SET is_active = 1 WHERE id = ?", (r[0],))
+                else: cur.execute("INSERT INTO whitelists (type, value, is_active) VALUES ('account', ?, 1)", (u_name,))
+            except Exception: pass
+
 
             post_id, created_at, full_text = str(post["id"]), post.get("created_at") or now_ts, post.get("full_text", "")
             for u in post.get("urls", []):
@@ -72,13 +80,16 @@ class Mutator:
             for m in media_list:
                 m_url = m.get("url")
                 if not m_url: continue
-                media_id = m.get("media_id") or os.path.basename(m_url.split("?")[0])
+                fn = m_url.split("?")[0].split("/")[-1]
+                ext = fn.split(".")[-1].lower() if "." in fn else ("jpg" if "format=jpg" in m_url or m.get("type") == "image" else ("png" if "format=png" in m_url else "mp4"))
+                media_id = m.get("media_id") or (fn if "." in fn else f"{fn}.{ext}")
                 cur.execute("""
                     INSERT OR IGNORE INTO media (
                         media_id, article_id, type, download_url, width, height,
                         download_status, failed_reason, stash_scene_id, stash_image_id
                     ) VALUES (?, ?, ?, ?, ?, ?, 'QUEUED', NULL, NULL, NULL)
                 """, (media_id, post_id, m.get("type", "image"), m_url, m.get("width", 0), m.get("height", 0)))
+
 
             conn.commit()
             return True

@@ -81,8 +81,8 @@ func TestToRenderTree_MediaSanitization(t *testing.T) {
 	if tree.Media[0].URLs.Stream != "/stash-proxy/scene/scene_123/stream" || tree.Media[0].DownloadStatus != "COMPLETED" {
 		t.Errorf("expected media[0] stream proxy, got %v", tree.Media[0])
 	}
-	if tree.Media[1].URLs.Stream != "" || tree.Media[1].DownloadStatus != "DEAD_404" {
-		t.Errorf("expected media[1] stream to be empty & status DEAD_404, got %v", tree.Media[1])
+	if tree.Media[1].URLs.Stream != "/media/vid_missing_stash" || tree.Media[1].DownloadStatus != "COMPLETED" {
+		t.Errorf("expected media[1] stream to be /media/vid_missing_stash & status COMPLETED, got %v", tree.Media[1])
 	}
 	if tree.Media[2].URLs.Stream != "" || tree.Media[2].DownloadStatus != "DEAD_404" {
 		t.Errorf("expected media[2] stream to be empty & status DEAD_404, got %v", tree.Media[2])

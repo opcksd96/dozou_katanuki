@@ -12,6 +12,7 @@ import (
 
 type UnifiedHandler struct {
 	avatarDir  string
+	mediaDir   string
 	stashProxy *httputil.ReverseProxy
 	jobOrch    *JobOrchestrator
 }
@@ -37,6 +38,7 @@ func NewUnifiedHandler(avatarDir string, stashURL *url.URL) *UnifiedHandler {
 }
 
 func (h *UnifiedHandler) SetJobOrchestrator(orch *JobOrchestrator) { h.jobOrch = orch }
+func (h *UnifiedHandler) SetMediaDir(dir string)                  { h.mediaDir = dir }
 
 func (h *UnifiedHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	path := r.URL.Path
@@ -48,38 +50,30 @@ func (h *UnifiedHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	if strings.HasPrefix(path, "/api/jobs/") { h.serveJobAPI(w, r); return }
 	if strings.HasPrefix(path, "/avatars/") || strings.HasPrefix(path, "/assets/") {
-		rel := strings.TrimPrefix(path, "/avatars/")
-		if strings.HasPrefix(path, "/assets/") { rel = strings.TrimPrefix(path, "/assets/") }
-
-		// セキュリティ: パストラバーサル防止 & 拡張子制限
+		rel := strings.TrimPrefix(strings.TrimPrefix(path, "/avatars/"), "/assets/")
 		absBase, err := filepath.Abs(h.avatarDir)
-		if err != nil {
-			http.NotFound(w, r)
-			return
-		}
+		if err != nil { http.NotFound(w, r); return }
 		targetPath, err := filepath.Abs(filepath.Join(absBase, filepath.Clean(rel)))
-		if err != nil || !strings.HasPrefix(targetPath, absBase) {
-			http.Error(w, "Forbidden", http.StatusForbidden)
-			return
+		if err != nil || !strings.HasPrefix(targetPath, absBase) { http.Error(w, "Forbidden", http.StatusForbidden); return }
+		if info, err := os.Stat(targetPath); err == nil && !info.IsDir() { http.ServeFile(w, r, targetPath); return }
+		h.serveDefaultAvatar(w); return
+	}
+	if strings.HasPrefix(path, "/media/") {
+		mID := filepath.Clean(strings.TrimPrefix(path, "/media/"))
+		foundPath := h.resolveMediaPath(mID)
+		if foundPath != "" {
+			f, err := os.Open(foundPath)
+			if err == nil {
+				defer f.Close()
+				if fi, err := f.Stat(); err == nil && !fi.IsDir() {
+					w.Header().Set("Access-Control-Allow-Origin", "*")
+					w.Header().Set("Content-Type", getContentType(foundPath))
+					http.ServeContent(w, r, fi.Name(), fi.ModTime(), f)
+					return
+				}
+			}
 		}
-
-		// 画像拡張子のみ許可（スクリプトやシステムファイルの読み出しを100%遮断）
-		ext := strings.ToLower(filepath.Ext(targetPath))
-		allowedExts := map[string]bool{".jpg": true, ".jpeg": true, ".png": true, ".webp": true, ".svg": true, ".gif": true}
-		if !allowedExts[ext] {
-			http.NotFound(w, r)
-			return
-		}
-
-		// 実体ファイルが存在する場合はサーブ
-		if info, err := os.Stat(targetPath); err == nil && !info.IsDir() {
-			http.ServeFile(w, r, targetPath)
-			return
-		}
-
-		// 実体ファイルが存在しない場合は、コンソール404エラーを防止しデフォルトSVGを返却
-		h.serveDefaultAvatar(w)
-		return
+		h.serveMediaPlaceholder(w); return
 	}
 	if strings.HasPrefix(path, "/stash-proxy/") {
 		if h.stashProxy != nil {
@@ -92,14 +86,32 @@ func (h *UnifiedHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	http.NotFound(w, r)
 }
 
+func (h *UnifiedHandler) resolveMediaPath(mID string) string {
+	dirs := []string{h.mediaDir, `G:\Media_Storage\Influencers`, "blobs", "stash", "media_local"}
+	for _, base := range dirs {
+		if base == "" { continue }
+		p := filepath.Join(base, mID)
+		if info, err := os.Stat(p); err == nil && !info.IsDir() { return p }
+		entries, err := os.ReadDir(base)
+		if err != nil { continue }
+		for _, e := range entries {
+			if e.IsDir() {
+				cand := filepath.Join(base, e.Name(), "X(Twitter)", "_assets", mID)
+				if info, err := os.Stat(cand); err == nil && !info.IsDir() { return cand }
+				cand2 := filepath.Join(base, e.Name(), mID)
+				if info, err := os.Stat(cand2); err == nil && !info.IsDir() { return cand2 }
+			}
+		}
+	}
+	return ""
+}
+
 func (h *UnifiedHandler) serveDefaultAvatar(w http.ResponseWriter) {
-	w.Header().Set("Content-Type", "image/svg+xml")
-	w.WriteHeader(http.StatusOK)
+	w.Header().Set("Content-Type", "image/svg+xml"); w.WriteHeader(http.StatusOK)
 	_, _ = w.Write([]byte(`<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64"><rect width="100%" height="100%" fill="#334155" rx="32"/><circle cx="32" cy="24" r="12" fill="#94a3b8"/><path d="M16 54c0-8.837 7.163-16 16-16s16 7.163 16 16" fill="#94a3b8"/></svg>`))
 }
 
 func (h *UnifiedHandler) serveMediaPlaceholder(w http.ResponseWriter) {
-	w.Header().Set("Content-Type", "image/svg+xml")
-	w.WriteHeader(http.StatusOK)
+	w.Header().Set("Content-Type", "image/svg+xml"); w.WriteHeader(http.StatusOK)
 	_, _ = w.Write([]byte(`<svg xmlns="http://www.w3.org/2000/svg" width="400" height="250"><rect width="100%" height="100%" fill="#1e293b" rx="8"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" fill="#64748b" font-family="sans-serif">Attached Media Preview</text></svg>`))
 }

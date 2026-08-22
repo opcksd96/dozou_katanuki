@@ -31,7 +31,20 @@ defineProps<{ config: models.AppConfig }>();
 
     <!-- 2. Storage 設定 -->
     <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-4 space-y-4">
-      <h3 class="text-sm font-bold text-slate-200 flex items-center gap-2"><span>💾</span> ストレージ・保全パス (Storage)</h3>
+      <div class="flex items-center justify-between">
+        <h3 class="text-sm font-bold text-slate-200 flex items-center gap-2"><span>💾</span> ストレージ・保全パス (Storage)</h3>
+        <label class="flex items-center gap-2 cursor-pointer bg-slate-950 px-3 py-1.5 rounded-lg border border-slate-700 hover:border-slate-600 transition-colors">
+          <input v-model="config.storage.stash_enabled" type="checkbox" class="rounded bg-slate-900 border-slate-700 text-purple-600 focus:ring-purple-500 w-4 h-4 cursor-pointer" />
+          <span class="text-xs font-semibold text-slate-300">
+            {{ config.storage.stash_enabled ? '🟢 Stash 連携モード' : '🟠 「Stash使わんし！」モード' }}
+          </span>
+        </label>
+      </div>
+      <p class="text-[11px] text-slate-400">
+        {{ config.storage.stash_enabled
+          ? 'Stashapp (:9999) と連携し、stash_dir 内の scenes/images を走査・ストリーミングします。'
+          : 'Stashapp を起動せず、local_media_dir 配下の物理ディレクトリから Go サーバーが直接メディアを配信します。' }}
+      </p>
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <label class="block text-xs text-slate-400 mb-1">データベースパス (db_path)</label>

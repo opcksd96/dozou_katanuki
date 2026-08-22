@@ -124,9 +124,9 @@ func (s *BroadcastService) handleRoot(w http.ResponseWriter, r *http.Request) {
 		http.StripPrefix("/plugins/", http.FileServer(http.Dir("plugins"))).ServeHTTP(w, r); return
 	}
 
-	// 4. Stash プロキシ / アバター
+	// 4. Stash プロキシ / アバター / メディア / ジョブ
 	if strings.HasPrefix(path, "/stash-proxy/") || strings.HasPrefix(path, "/avatars/") ||
-		strings.HasPrefix(path, "/assets/") || strings.HasPrefix(path, "/api/jobs/") {
+		strings.HasPrefix(path, "/assets/") || strings.HasPrefix(path, "/media/") || strings.HasPrefix(path, "/api/jobs/") {
 		if s.unifiedHandler != nil { s.unifiedHandler.ServeHTTP(w, r); return }
 	}
 

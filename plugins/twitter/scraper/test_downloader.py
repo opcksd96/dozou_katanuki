@@ -31,7 +31,7 @@ class TestDownloaderPipeline(unittest.TestCase):
         with sqlite3.connect(self.db_path) as conn:
             conn.execute("INSERT INTO media (media_id, article_id, type, download_url, download_status) VALUES ('img1.jpg', 'post_1', 'image', 'https://example.com/img1.jpg', 'QUEUED');")
         m_resp = MagicMock(status_code=200, iter_content=MagicMock(return_value=[b"fake_bytes"]))
-        with patch.object(self.dl.session, "get", return_value=m_resp), patch.object(self.dl.stash, "find_image_by_path", return_value="stash-img-123"):
+        with patch.object(self.dl.session, "get", return_value=m_resp), patch.object(self.dl.stash, "register_media", return_value="stash-img-123"):
             self.assertEqual(self.dl.process_queued_media(article_id="post_1"), 1)
         with sqlite3.connect(self.db_path) as conn:
             row = conn.cursor().execute("SELECT download_status, stash_image_id FROM media WHERE media_id = 'img1.jpg'").fetchone()
@@ -56,7 +56,7 @@ class TestDownloaderPipeline(unittest.TestCase):
             mock_aria.assert_not_called()
         with sqlite3.connect(self.db_path) as conn:
             row = conn.cursor().execute("SELECT download_status, failed_reason FROM media WHERE media_id = 'ext_vid.mp4'").fetchone()
-            self.assertEqual(row[0], "DEAD_404")
+            self.assertEqual(row[0], "EXCLUDED")
             self.assertIn("Whitelist外", row[1])
 
     def test_stage3_polling_recovery(self):
@@ -64,11 +64,25 @@ class TestDownloaderPipeline(unittest.TestCase):
             conn.execute("INSERT INTO media (media_id, article_id, type, download_url, download_status) VALUES ('vid2.mp4', 'post_1', 'video', 'https://example.com/vid2.mp4', 'OUTSOURCED');")
         target = self.dl._get_target_path("alice", "vid2.mp4")
         with open(target, "wb") as f: f.write(b"salvaged")
-        with patch.object(self.dl.stash, "find_scene_by_path", return_value="scene-777"):
+        with patch.object(self.dl.stash, "register_media", return_value="scene-777"):
             self.assertEqual(self.dl.poll_outsourced_media(), 1)
         with sqlite3.connect(self.db_path) as conn:
             row = conn.cursor().execute("SELECT download_status, stash_scene_id FROM media WHERE media_id = 'vid2.mp4'").fetchone()
             self.assertEqual(row, ("COMPLETED", "scene-777"))
+
+    def test_stash_reconciliation_by_standard_title(self):
+        with sqlite3.connect(self.db_path) as conn:
+            conn.execute("INSERT INTO media (media_id, article_id, type, download_status) VALUES ('unbound.jpg', 'post_1', 'image', 'QUEUED');")
+        mock_data = {
+            "allScenes": [],
+            "allImages": [{"id": "img-999", "title": "X (@alice): Tweet post_1"}]
+        }
+        with patch.object(self.dl.stash, "query", return_value=mock_data):
+            bound = self.dl.stash.reconcile_to_db(self.db_path)
+            self.assertEqual(bound, 1)
+        with sqlite3.connect(self.db_path) as conn:
+            row = conn.cursor().execute("SELECT stash_image_id, download_status FROM media WHERE media_id = 'unbound.jpg'").fetchone()
+            self.assertEqual(row, ("img-999", "COMPLETED"))
 
 
 if __name__ == "__main__":

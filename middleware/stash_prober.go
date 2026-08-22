@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
@@ -25,11 +26,31 @@ func NewStashProber(stashPath string, targetURL string, emitter EventEmitter) *S
 	if targetURL == "" {
 		targetURL = "http://127.0.0.1:9999/"
 	}
-	if stashPath == "" {
-		stashPath = "./bin/stash-win.exe"
+	candidates := []string{
+		stashPath,
+		filepath.Join("bin", "stash", "stash-win.exe"),
+		filepath.Join("bin", "stash-win.exe"),
+		"stash-win.exe",
+	}
+	resolvedPath := ""
+	for _, c := range candidates {
+		if c == "" {
+			continue
+		}
+		if _, err := os.Stat(c); err == nil {
+			resolvedPath = c
+			break
+		}
+	}
+	if resolvedPath == "" {
+		if stashPath != "" {
+			resolvedPath = stashPath
+		} else {
+			resolvedPath = filepath.Join("bin", "stash", "stash-win.exe")
+		}
 	}
 	return &StashProber{
-		stashPath: stashPath,
+		stashPath: resolvedPath,
 		targetURL: targetURL,
 		emitter:   emitter,
 	}

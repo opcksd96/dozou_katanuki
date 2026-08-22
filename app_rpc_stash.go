@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"path/filepath"
+	"regexp"
 	"time"
 
 	"dozou_katanuki/models"
@@ -204,4 +206,110 @@ func (a *App) UpdateStashMetadata(isScene bool, id, title, details string, ratin
 		}
 	}
 	return a.GetStashMetadata(id, id)
+}
+
+// TriggerStashScan は Stash の GraphQL API を通じてメタデータスキャンをトリガーします
+func (a *App) TriggerStashScan(paths []string) (bool, error) {
+	if err := a.waitForReady(); err != nil {
+		return false, err
+	}
+	input := map[string]interface{}{"rescan": false}
+	if len(paths) > 0 {
+		input["paths"] = paths
+	}
+	m := `mutation ScanMetadata($input: ScanMetadataInput!) {
+		metadataScan(input: $input)
+	}`
+	_, err := a.queryStashGraphQL(m, map[string]interface{}{"input": input})
+	if err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+// ReconcileStashMedia は Stashapp 内の全メディアから標準タイトルおよびファイル名を走査し、DB の media レコードへ逆引き自動バインドします (SPEC-STORAGE-001)
+func (a *App) ReconcileStashMedia() (int, error) {
+	if err := a.waitForReady(); err != nil {
+		return 0, err
+	}
+	q := `query {
+		allScenes { id title files { path } }
+		allImages { id title files { path } }
+	}`
+	data, err := a.queryStashGraphQL(q, nil)
+	if err != nil {
+		return 0, err
+	}
+
+	titleRegex := regexp.MustCompile(`^([A-Za-z0-9_]+)\s\(@([A-Za-z0-9_]+)\):\s([A-Za-z]+)\s([0-9]+)$`)
+	boundCount := 0
+
+	db := a.repo.DB()
+	if db == nil {
+		return 0, fmt.Errorf("database not initialized")
+	}
+
+	// 1. Process Scenes
+	if scnList, ok := data["allScenes"].([]interface{}); ok {
+		for _, item := range scnList {
+			if m, ok := item.(map[string]interface{}); ok {
+				title := getString(m, "title")
+				sID := getString(m, "id")
+				if matches := titleRegex.FindStringSubmatch(title); len(matches) == 5 {
+					postID := matches[4]
+					res := db.Exec("UPDATE media SET stash_scene_id = ?, download_status = 'COMPLETED' WHERE article_id = ? AND stash_scene_id IS NULL", sID, postID)
+					if res.Error == nil {
+						boundCount += int(res.RowsAffected)
+					}
+				}
+				if filesList, ok := m["files"].([]interface{}); ok {
+					for _, fItem := range filesList {
+						if fMap, ok := fItem.(map[string]interface{}); ok {
+							p := getString(fMap, "path")
+							if p != "" {
+								base := filepath.Base(p)
+								res := db.Exec("UPDATE media SET stash_scene_id = ?, download_status = 'COMPLETED' WHERE media_id = ? AND stash_scene_id IS NULL", sID, base)
+								if res.Error == nil {
+									boundCount += int(res.RowsAffected)
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	// 2. Process Images
+	if imgList, ok := data["allImages"].([]interface{}); ok {
+		for _, item := range imgList {
+			if m, ok := item.(map[string]interface{}); ok {
+				title := getString(m, "title")
+				imgID := getString(m, "id")
+				if matches := titleRegex.FindStringSubmatch(title); len(matches) == 5 {
+					postID := matches[4]
+					res := db.Exec("UPDATE media SET stash_image_id = ?, download_status = 'COMPLETED' WHERE article_id = ? AND stash_image_id IS NULL", imgID, postID)
+					if res.Error == nil {
+						boundCount += int(res.RowsAffected)
+					}
+				}
+				if filesList, ok := m["files"].([]interface{}); ok {
+					for _, fItem := range filesList {
+						if fMap, ok := fItem.(map[string]interface{}); ok {
+							p := getString(fMap, "path")
+							if p != "" {
+								base := filepath.Base(p)
+								res := db.Exec("UPDATE media SET stash_image_id = ?, download_status = 'COMPLETED' WHERE media_id = ? AND stash_image_id IS NULL", imgID, base)
+								if res.Error == nil {
+									boundCount += int(res.RowsAffected)
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	return boundCount, nil
 }

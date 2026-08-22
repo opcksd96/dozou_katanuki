@@ -24,6 +24,7 @@ type JobOrchestrator struct {
 	activeCmd    *exec.Cmd
 	activeJobID  string
 	pythonPath   string
+	storageArgs  []string
 	maxLogs      int
 }
 
@@ -51,6 +52,25 @@ func (j *JobOrchestrator) SetPythonPath(path string) {
 	j.mu.Lock()
 	defer j.mu.Unlock()
 	j.pythonPath = path
+}
+
+func (j *JobOrchestrator) SetStorageConfig(cfg models.StorageConfig) {
+	j.mu.Lock()
+	defer j.mu.Unlock()
+	var args []string
+	if cfg.DBPath != "" {
+		args = append(args, "--db-path", cfg.DBPath)
+	}
+	if cfg.StashEnabled {
+		if cfg.StashDir != "" {
+			args = append(args, "--storage-dir", cfg.StashDir)
+		}
+	} else {
+		if cfg.LocalMediaDir != "" {
+			args = append(args, "--storage-dir", cfg.LocalMediaDir)
+		}
+	}
+	j.storageArgs = args
 }
 
 func (j *JobOrchestrator) Close() {

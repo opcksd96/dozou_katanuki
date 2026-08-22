@@ -10,7 +10,7 @@ import (
 )
 
 func (j *JobOrchestrator) EnqueueSalvage(platform, account string, limit int, env ...map[string]string) (*models.JobProgress, error) {
-	if limit <= 0 { limit = 50 }
+	if limit < 0 { limit = 0 }
 	var envMap map[string]string
 	if len(env) > 0 { envMap = env[0] }
 	return j.EnqueueJob(&models.JobRequest{
@@ -76,6 +76,19 @@ func (j *JobOrchestrator) EnqueueTranslate(account string, overwrite bool, env .
 func (j *JobOrchestrator) EnqueueJob(req *models.JobRequest) (*models.JobProgress, error) {
 	if req.ID == "" { req.ID = fmt.Sprintf("job_%d", time.Now().UnixNano()) }
 	if req.CreatedAt.IsZero() { req.CreatedAt = time.Now() }
+
+	j.mu.RLock()
+	for i := 0; i < len(j.storageArgs); i += 2 {
+		flag := j.storageArgs[i]
+		hasFlag := false
+		for _, a := range req.Args {
+			if a == flag { hasFlag = true; break }
+		}
+		if !hasFlag && i+1 < len(j.storageArgs) {
+			req.Args = append(req.Args, flag, j.storageArgs[i+1])
+		}
+	}
+	j.mu.RUnlock()
 
 	progress := &models.JobProgress{
 		ID: req.ID, Type: req.Type, Status: models.JobStatusPending,

@@ -1,11 +1,12 @@
 # plugins/twitter/scraper/core/stash_client.py (100行以下)
-import json
+import json, os, re, sqlite3, time
 from typing import Any, Dict, List, Optional
 import requests
 
 
 class StashClient:
-    """Stashapp GraphQL API (:9999) 連携クライアント (SPEC-STASH-DB-001)"""
+    """Stashapp GraphQL API (:9999) 連携・ミューテーションエンジン (SPEC-STASH-DB-001 / SPEC-STORAGE-001)"""
+    TITLE_PATTERN = re.compile(r"^([A-Za-z0-9_]+)\s\(@([A-Za-z0-9_]+)\):\s([A-Za-z]+)\s([A-Za-z0-9_]+)$")
 
     def __init__(self, endpoint: str = "http://127.0.0.1:9999/graphql"):
         self.endpoint = endpoint
@@ -13,51 +14,86 @@ class StashClient:
 
     def query(self, query_str: str, variables: Optional[Dict[str, Any]] = None) -> Optional[Dict[str, Any]]:
         try:
-            payload = {"query": query_str, "variables": variables or {}}
-            resp = self.session.post(self.endpoint, json=payload, timeout=5)
+            resp = self.session.post(self.endpoint, json={"query": query_str, "variables": variables or {}}, timeout=5)
             if resp.status_code == 200:
-                data = resp.json()
-                if "errors" in data:
-                    return None
-                return data.get("data")
-        except Exception:
-            pass
+                d = resp.json()
+                if "data" in d and not d.get("errors"): return d["data"]
+        except Exception: pass
         return None
 
     def find_image_by_path(self, file_path: str) -> Optional[str]:
-        """物理ファイルパスから Stash Image ID を検索"""
-        q = """
-        query FindImageByPath($path: String!) {
-            findImages(image_filter: { path: { value: $path, modifier: EQUALS } }, filter: { per_page: 1 }) {
-                images { id }
-            }
-        }
-        """
-        res = self.query(q, {"path": file_path.replace("\\", "/")})
-        if res and res.get("findImages", {}).get("images"):
-            return str(res["findImages"]["images"][0]["id"])
+        bn = os.path.basename(file_path)
+        q = """query($p: String!, $bn: String!) {
+            findImages(image_filter: { path: { value: $p, modifier: EQUALS } }, filter: { per_page: 1 }) { images { id } }
+            f2: findImages(image_filter: { path: { value: $bn, modifier: INCLUDES } }, filter: { per_page: 1 }) { images { id } }
+        }"""
+        r = self.query(q, {"p": file_path.replace("\\", "/"), "bn": bn})
+        if r:
+            imgs = r.get("findImages", {}).get("images") or r.get("f2", {}).get("images")
+            if imgs: return str(imgs[0]["id"])
         return None
 
     def find_scene_by_path(self, file_path: str) -> Optional[str]:
-        """物理ファイルパスから Stash Scene ID を検索"""
-        q = """
-        query FindSceneByPath($path: String!) {
-            findScenes(scene_filter: { path: { value: $path, modifier: EQUALS } }, filter: { per_page: 1 }) {
-                scenes { id }
-            }
-        }
-        """
-        res = self.query(q, {"path": file_path.replace("\\", "/")})
-        if res and res.get("findScenes", {}).get("scenes"):
-            return str(res["findScenes"]["scenes"][0]["id"])
+        bn = os.path.basename(file_path)
+        q = """query($p: String!, $bn: String!) {
+            findScenes(scene_filter: { path: { value: $p, modifier: EQUALS } }, filter: { per_page: 1 }) { scenes { id } }
+            f2: findScenes(scene_filter: { path: { value: $bn, modifier: INCLUDES } }, filter: { per_page: 1 }) { scenes { id } }
+        }"""
+        r = self.query(q, {"p": file_path.replace("\\", "/"), "bn": bn})
+        if r:
+            scns = r.get("findScenes", {}).get("scenes") or r.get("f2", {}).get("scenes")
+            if scns: return str(scns[0]["id"])
         return None
 
-    def trigger_scan(self, paths: List[str]) -> bool:
-        """指定パスの Stash スキャンタスクを起動"""
-        q = """
-        mutation MetadataScan($input: ScanMetadataInput!) {
-            metadataScan(input: $input)
-        }
-        """
-        res = self.query(q, {"input": {"paths": paths, "rescan": False}})
-        return bool(res and res.get("metadataScan"))
+    def update_image(self, img_id: str, title: str, details: str = "", url: str = "", date: str = "") -> bool:
+        inp = {"id": img_id, "title": title}
+        if details: inp["details"] = details
+        if url: inp["url"] = url
+        if date: inp["date"] = date
+        return bool(self.query("mutation($in: ImageUpdateInput!) { imageUpdate(input: $in) { id } }", {"in": inp}))
+
+    def update_scene(self, scn_id: str, title: str, details: str = "", url: str = "", date: str = "") -> bool:
+        inp = {"id": scn_id, "title": title}
+        if details: inp["details"] = details
+        if url: inp["url"] = url
+        if date: inp["date"] = date
+        return bool(self.query("mutation($in: SceneUpdateInput!) { sceneUpdate(input: $in) { id } }", {"in": inp}))
+
+    def trigger_scan(self, paths: Optional[List[str]] = None) -> bool:
+        inp: Dict[str, Any] = {"rescan": False}
+        if paths: inp["paths"] = [p.replace("\\", "/") for p in paths]
+        return bool(self.query("mutation($in: ScanMetadataInput!) { metadataScan(input: $in) }", {"in": inp}))
+
+    def register_media(self, file_path: str, media_type: str = "image", title: str = "", url: str = "", date: str = "", max_wait: float = 2.0) -> Optional[str]:
+        find_fn = self.find_image_by_path if media_type == "image" else self.find_scene_by_path
+        m_id = find_fn(file_path)
+        if not m_id:
+            self.trigger_scan([file_path, os.path.dirname(file_path)])
+            end_t = time.time() + max_wait
+            while time.time() < end_t and not m_id:
+                time.sleep(0.2); m_id = find_fn(file_path)
+        if m_id and title:
+            (self.update_image if media_type == "image" else self.update_scene)(m_id, title=title, url=url, date=date)
+        return m_id
+
+    def reconcile_to_db(self, db_path: str) -> int:
+        res = self.query("query { allScenes { id title files { path } } allImages { id title files { path } } }")
+        if not res: return 0
+        bound = 0
+        with sqlite3.connect(db_path) as conn:
+            cur = conn.cursor()
+            for is_scn, items in [(True, res.get("allScenes", [])), (False, res.get("allImages", []))]:
+                col = "stash_scene_id" if is_scn else "stash_image_id"
+                for item in items:
+                    s_id, title, files = str(item.get("id", "")), item.get("title", ""), item.get("files", [])
+                    m = self.TITLE_PATTERN.match(title)
+                    if m:
+                        cur.execute(f"UPDATE media SET {col} = ?, download_status = 'COMPLETED' WHERE article_id = ? AND {col} IS NULL", (s_id, m.group(4)))
+                        bound += cur.rowcount
+                    for f in files:
+                        bn = os.path.basename(f.get("path", ""))
+                        if bn:
+                            cur.execute(f"UPDATE media SET {col} = ?, download_status = 'COMPLETED' WHERE media_id = ? AND {col} IS NULL", (s_id, bn))
+                            bound += cur.rowcount
+            conn.commit()
+        return bound

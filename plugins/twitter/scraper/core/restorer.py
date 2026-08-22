@@ -34,7 +34,7 @@ class Restorer:
 
         synced = 0
         for m_id, m_type, user in records:
-            dest = self.downloader._get_target_path(user or "unknown", m_id)
+            dest = self.downloader._get_target_path(user or "unknown", m_id, m_type)
             if os.path.exists(dest) and os.path.getsize(dest) > 0:
                 img_id = self.downloader.stash.find_image_by_path(dest) if m_type == "image" else None
                 scn_id = self.downloader.stash.find_scene_by_path(dest) if m_type != "image" else None

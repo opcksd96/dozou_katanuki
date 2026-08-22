@@ -56,6 +56,32 @@ export default defineConfig({
             res.end('Avatar Not Found');
             return;
           }
+          if (req.url && req.url.startsWith('/media/')) {
+            const mID = path.basename(req.url.split('?')[0]);
+            const bases = ['G:/Media_Storage/Influencers', path.resolve(__dirname, '..', 'blobs'), path.resolve(__dirname, '..', 'stash')];
+            for (const base of bases) {
+              if (!fs.existsSync(base)) continue;
+              const direct = path.join(base, mID);
+              if (fs.existsSync(direct) && !fs.statSync(direct).isDirectory()) {
+                const ext = path.extname(direct).toLowerCase();
+                res.setHeader('Content-Type', ext === '.png' ? 'image/png' : ext === '.webp' ? 'image/webp' : ext === '.mp4' ? 'video/mp4' : 'image/jpeg');
+                fs.createReadStream(direct).pipe(res);
+                return;
+              }
+              try {
+                const subdirs = fs.readdirSync(base);
+                for (const sub of subdirs) {
+                  const cand = path.join(base, sub, 'X(Twitter)', '_assets', mID);
+                  if (fs.existsSync(cand) && !fs.statSync(cand).isDirectory()) {
+                    const ext = path.extname(cand).toLowerCase();
+                    res.setHeader('Content-Type', ext === '.png' ? 'image/png' : ext === '.webp' ? 'image/webp' : ext === '.mp4' ? 'video/mp4' : 'image/jpeg');
+                    fs.createReadStream(cand).pipe(res);
+                    return;
+                  }
+                }
+              } catch (_) {}
+            }
+          }
           next();
         });
       },
@@ -67,6 +93,10 @@ export default defineConfig({
         target: 'http://127.0.0.1:9999',
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/stash-proxy/, ''),
+      },
+      '/media': {
+        target: 'http://127.0.0.1:5175',
+        changeOrigin: true,
       },
     },
   },

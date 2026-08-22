@@ -22,19 +22,28 @@ func BuildRenderMedia(m Media) RenderMedia {
 	var mediaURLs RenderMediaURLs
 	mediaURLs.Original = m.DownloadURL
 	effectiveStatus := m.DownloadStatus
-	if m.DownloadStatus == "COMPLETED" && (m.StashSceneID.Valid || m.StashImageID.Valid) {
-		if m.Type == "video" || m.Type == "gif" {
+
+	if m.DownloadStatus == "COMPLETED" {
+		if m.StashSceneID.Valid && m.StashSceneID.String != "" {
 			mediaURLs.Stream = "/stash-proxy/scene/" + m.StashSceneID.String + "/stream"
 			mediaURLs.Thumbnail = "/stash-proxy/scene/" + m.StashSceneID.String + "/screenshot"
 			mediaURLs.Preview = "/stash-proxy/scene/" + m.StashSceneID.String + "/preview"
 			mediaURLs.VTT = "/stash-proxy/scene/" + m.StashSceneID.String + "/vtt"
-		} else {
+		} else if m.StashImageID.Valid && m.StashImageID.String != "" {
 			mediaURLs.Image = "/stash-proxy/image/" + m.StashImageID.String + "/image"
 			mediaURLs.Thumbnail = "/stash-proxy/image/" + m.StashImageID.String + "/thumbnail"
+		} else {
+			if m.Type == "video" || m.Type == "gif" {
+				mediaURLs.Stream = "/media/" + m.MediaID
+				mediaURLs.Thumbnail = "/media/" + m.MediaID
+				mediaURLs.Preview = "/media/" + m.MediaID
+			} else {
+				mediaURLs.Image = "/media/" + m.MediaID
+				mediaURLs.Thumbnail = "/media/" + m.MediaID
+			}
 		}
-	} else if effectiveStatus == "COMPLETED" {
-		effectiveStatus = "DEAD_404"
 	}
+
 	return RenderMedia{
 		ID: m.MediaID, Type: m.Type, DownloadStatus: effectiveStatus,
 		FailedReason: m.FailedReason.String, URLs: mediaURLs, Width: m.Width, Height: m.Height,

@@ -64,11 +64,12 @@ class WarcImporter:
                             progress_callback(idx, tot, f"Saved post {parsed['post']['id']} (@{u})")
                 elif any(d in uri for d in ["twimg.com", "video.twimg.com"]):
                     media_id = os.path.basename(uri.split("?")[0])
-                    dest = self.downloader._get_target_path(account, media_id)
+                    m_type = "video" if any(media_id.endswith(ext) for ext in [".mp4", ".webm", ".m3u8"]) else "image"
+                    dest = self.downloader._get_target_path(account, media_id, m_type)
                     with open(dest, "wb") as mf:
                         mf.write(r.raw_stream.read())
-                    img_id = self.downloader.stash.find_image_by_path(dest) if not media_id.endswith(".mp4") else None
-                    scn_id = self.downloader.stash.find_scene_by_path(dest) if media_id.endswith(".mp4") else None
+                    img_id = self.downloader.stash.register_media(dest, "image") if m_type == "image" else None
+                    scn_id = self.downloader.stash.register_media(dest, "video") if m_type != "image" else None
                     self.downloader._update_status(media_id, "COMPLETED", None, img_id, scn_id)
                     extracted += 1
                     if progress_callback:
