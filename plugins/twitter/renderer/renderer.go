@@ -1,7 +1,6 @@
 package twitter_renderer
 
 import (
-	"fmt"
 	"strings"
 
 	"dozou_katanuki/models"
@@ -34,34 +33,7 @@ func (r *TwitterRenderer) RenderTweet(art *models.Article) *models.RenderTree {
 
 	mediaItems := make([]models.RenderMedia, 0, len(art.Media))
 	for _, m := range art.Media {
-		var mediaURLs models.RenderMediaURLs
-		mediaURLs.Original = m.DownloadURL
-
-		effectiveStatus := m.DownloadStatus
-		if m.DownloadStatus == "COMPLETED" && (m.StashSceneID.Valid || m.StashImageID.Valid) {
-			if m.Type == "video" || m.Type == "gif" {
-				mediaURLs.Stream = fmt.Sprintf("/stash-proxy/scene/%s/stream", m.StashSceneID.String)
-			} else {
-				mediaURLs.Image = fmt.Sprintf("/stash-proxy/image/%s/image", m.StashImageID.String)
-				mediaURLs.Thumbnail = fmt.Sprintf("/stash-proxy/image/%s/thumbnail", m.StashImageID.String)
-			}
-		} else {
-			if effectiveStatus == "COMPLETED" {
-				effectiveStatus = "DEAD_404"
-			}
-		}
-
-		mediaItems = append(mediaItems, models.RenderMedia{
-			ID:             m.MediaID,
-			Type:           m.Type,
-			DownloadStatus: effectiveStatus,
-			FailedReason:   m.FailedReason.String,
-			URLs:           mediaURLs,
-			Width:          m.Width,
-			Height:         m.Height,
-			StashSceneID:   m.StashSceneID.String,
-			StashImageID:   m.StashImageID.String,
-		})
+		mediaItems = append(mediaItems, models.BuildRenderMedia(m))
 	}
 
 	author := models.RenderAuthor{

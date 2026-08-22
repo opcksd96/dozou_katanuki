@@ -59,28 +59,44 @@ export default defineConfig({
           if (req.url && req.url.startsWith('/media/')) {
             const mID = path.basename(req.url.split('?')[0]);
             const bases = ['G:/Media_Storage/Influencers', path.resolve(__dirname, '..', 'blobs'), path.resolve(__dirname, '..', 'stash')];
+            const exts = ['', '.jpg', '.jpeg', '.png', '.webp', '.mp4', '.gif'];
             for (const base of bases) {
               if (!fs.existsSync(base)) continue;
-              const direct = path.join(base, mID);
-              if (fs.existsSync(direct) && !fs.statSync(direct).isDirectory()) {
-                const ext = path.extname(direct).toLowerCase();
-                res.setHeader('Content-Type', ext === '.png' ? 'image/png' : ext === '.webp' ? 'image/webp' : ext === '.mp4' ? 'video/mp4' : 'image/jpeg');
-                fs.createReadStream(direct).pipe(res);
-                return;
+              for (const ext of exts) {
+                const direct = path.join(base, mID + ext);
+                if (fs.existsSync(direct) && !fs.statSync(direct).isDirectory()) {
+                  const targetExt = path.extname(direct).toLowerCase();
+                  res.setHeader('Content-Type', targetExt === '.png' ? 'image/png' : targetExt === '.webp' ? 'image/webp' : targetExt === '.mp4' ? 'video/mp4' : targetExt === '.gif' ? 'image/gif' : 'image/jpeg');
+                  fs.createReadStream(direct).pipe(res);
+                  return;
+                }
               }
               try {
                 const subdirs = fs.readdirSync(base);
                 for (const sub of subdirs) {
-                  const cand = path.join(base, sub, 'X(Twitter)', '_assets', mID);
-                  if (fs.existsSync(cand) && !fs.statSync(cand).isDirectory()) {
-                    const ext = path.extname(cand).toLowerCase();
-                    res.setHeader('Content-Type', ext === '.png' ? 'image/png' : ext === '.webp' ? 'image/webp' : ext === '.mp4' ? 'video/mp4' : 'image/jpeg');
-                    fs.createReadStream(cand).pipe(res);
-                    return;
+                  for (const ext of exts) {
+                    const cand = path.join(base, sub, 'X(Twitter)', '_assets', mID + ext);
+                    if (fs.existsSync(cand) && !fs.statSync(cand).isDirectory()) {
+                      const targetExt = path.extname(cand).toLowerCase();
+                      res.setHeader('Content-Type', targetExt === '.png' ? 'image/png' : targetExt === '.webp' ? 'image/webp' : targetExt === '.mp4' ? 'video/mp4' : targetExt === '.gif' ? 'image/gif' : 'image/jpeg');
+                      fs.createReadStream(cand).pipe(res);
+                      return;
+                    }
+                    const cand2 = path.join(base, sub, mID + ext);
+                    if (fs.existsSync(cand2) && !fs.statSync(cand2).isDirectory()) {
+                      const targetExt = path.extname(cand2).toLowerCase();
+                      res.setHeader('Content-Type', targetExt === '.png' ? 'image/png' : targetExt === '.webp' ? 'image/webp' : targetExt === '.mp4' ? 'video/mp4' : targetExt === '.gif' ? 'image/gif' : 'image/jpeg');
+                      fs.createReadStream(cand2).pipe(res);
+                      return;
+                    }
                   }
                 }
               } catch (_) {}
             }
+            res.setHeader('Content-Type', 'image/svg+xml');
+            res.statusCode = 200;
+            res.end(`<svg xmlns="http://www.w3.org/2000/svg" width="400" height="250"><rect width="100%" height="100%" fill="#1e293b" rx="8"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" fill="#64748b" font-family="sans-serif">Attached Media Preview</text></svg>`);
+            return;
           }
           next();
         });

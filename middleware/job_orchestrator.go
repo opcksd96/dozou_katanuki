@@ -61,14 +61,10 @@ func (j *JobOrchestrator) SetStorageConfig(cfg models.StorageConfig) {
 	if cfg.DBPath != "" {
 		args = append(args, "--db-path", cfg.DBPath)
 	}
-	if cfg.StashEnabled {
-		if cfg.StashDir != "" {
-			args = append(args, "--storage-dir", cfg.StashDir)
-		}
-	} else {
-		if cfg.LocalMediaDir != "" {
-			args = append(args, "--storage-dir", cfg.LocalMediaDir)
-		}
+	if cfg.LocalMediaDir != "" {
+		args = append(args, "--storage-dir", cfg.LocalMediaDir)
+	} else if cfg.StashDir != "" {
+		args = append(args, "--storage-dir", cfg.StashDir)
 	}
 	j.storageArgs = args
 }

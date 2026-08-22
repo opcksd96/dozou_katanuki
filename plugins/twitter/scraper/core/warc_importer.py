@@ -70,10 +70,12 @@ class WarcImporter:
                         mf.write(r.raw_stream.read())
                     img_id = self.downloader.stash.register_media(dest, "image") if m_type == "image" else None
                     scn_id = self.downloader.stash.register_media(dest, "video") if m_type != "image" else None
-                    self.downloader._update_status(media_id, "COMPLETED", None, img_id, scn_id)
+                    status = "COMPLETED" if (img_id or scn_id or self.offline) else "RETAINED"
+                    reason = None if (img_id or scn_id or self.offline) else "Extracted to disk, awaiting Stash index"
+                    self.downloader._update_status(media_id, status, reason, img_id, scn_id)
                     extracted += 1
                     if progress_callback:
-                        progress_callback(idx, tot, f"Extracted media {media_id} -> COMPLETED")
+                        progress_callback(idx, tot, f"Extracted media {media_id} -> {status}")
 
         if progress_callback:
             progress_callback(tot, tot, f"Offline import completed: {saved} posts, {extracted} media extracted.")

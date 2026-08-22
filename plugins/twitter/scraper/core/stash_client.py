@@ -64,14 +64,16 @@ class StashClient:
         if paths: inp["paths"] = [p.replace("\\", "/") for p in paths]
         return bool(self.query("mutation($in: ScanMetadataInput!) { metadataScan(input: $in) }", {"in": inp}))
 
-    def register_media(self, file_path: str, media_type: str = "image", title: str = "", url: str = "", date: str = "", max_wait: float = 2.0) -> Optional[str]:
+    def register_media(self, file_path: str, media_type: str = "image", title: str = "", url: str = "", date: str = "", max_wait: float = 10.0) -> Optional[str]:
         find_fn = self.find_image_by_path if media_type == "image" else self.find_scene_by_path
         m_id = find_fn(file_path)
         if not m_id:
-            self.trigger_scan([file_path, os.path.dirname(file_path)])
+            scan_target = os.path.dirname(file_path) or file_path
+            self.trigger_scan([scan_target])
             end_t = time.time() + max_wait
             while time.time() < end_t and not m_id:
-                time.sleep(0.2); m_id = find_fn(file_path)
+                time.sleep(0.3)
+                m_id = find_fn(file_path)
         if m_id and title:
             (self.update_image if media_type == "image" else self.update_scene)(m_id, title=title, url=url, date=date)
         return m_id
@@ -92,8 +94,10 @@ class StashClient:
                         bound += cur.rowcount
                     for f in files:
                         bn = os.path.basename(f.get("path", ""))
+                        bn_no_ext = os.path.splitext(bn)[0]
                         if bn:
-                            cur.execute(f"UPDATE media SET {col} = ?, download_status = 'COMPLETED' WHERE media_id = ? AND {col} IS NULL", (s_id, bn))
+                            cur.execute(f"UPDATE media SET {col} = ?, download_status = 'COMPLETED' WHERE (media_id = ? OR media_id = ? OR media_id LIKE ? OR download_url LIKE ? OR download_url LIKE ?) AND ({col} IS NULL OR {col} = '')",
+                                        (s_id, bn, bn_no_ext, f"%_{bn}", f"%/{bn}", f"%/{bn}?%"))
                             bound += cur.rowcount
             conn.commit()
         return bound

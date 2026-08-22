@@ -36,10 +36,13 @@ class Restorer:
         for m_id, m_type, user in records:
             dest = self.downloader._get_target_path(user or "unknown", m_id, m_type)
             if os.path.exists(dest) and os.path.getsize(dest) > 0:
-                img_id = self.downloader.stash.find_image_by_path(dest) if m_type == "image" else None
-                scn_id = self.downloader.stash.find_scene_by_path(dest) if m_type != "image" else None
-                self.downloader._update_status(m_id, "COMPLETED", None, img_id, scn_id)
-                synced += 1
+                img_id = self.downloader.stash.register_media(dest, "image") if m_type == "image" else None
+                scn_id = self.downloader.stash.register_media(dest, "video") if m_type != "image" else None
+                if img_id or scn_id:
+                    self.downloader._update_status(m_id, "COMPLETED", None, img_id, scn_id)
+                    synced += 1
+                else:
+                    self.downloader._update_status(m_id, "RETAINED", "Saved on disk, awaiting Stash index", None, None)
         return synced
 
     def run_restore(self, progress_callback: Optional[Callable[[int, int, str], None]] = None) -> Dict[str, int]:

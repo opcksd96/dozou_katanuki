@@ -86,20 +86,31 @@ func (h *UnifiedHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	http.NotFound(w, r)
 }
 
+func checkFileCandidates(dir string, name string) string {
+	if dir == "" || name == "" { return "" }
+	p := filepath.Join(dir, name)
+	if info, err := os.Stat(p); err == nil && !info.IsDir() { return p }
+	exts := []string{".jpg", ".jpeg", ".png", ".webp", ".mp4", ".gif"}
+	for _, ext := range exts {
+		pExt := filepath.Join(dir, name+ext)
+		if info, err := os.Stat(pExt); err == nil && !info.IsDir() { return pExt }
+	}
+	return ""
+}
+
 func (h *UnifiedHandler) resolveMediaPath(mID string) string {
 	dirs := []string{h.mediaDir, `G:\Media_Storage\Influencers`, "blobs", "stash", "media_local"}
 	for _, base := range dirs {
 		if base == "" { continue }
-		p := filepath.Join(base, mID)
-		if info, err := os.Stat(p); err == nil && !info.IsDir() { return p }
+		if hit := checkFileCandidates(base, mID); hit != "" { return hit }
 		entries, err := os.ReadDir(base)
 		if err != nil { continue }
 		for _, e := range entries {
 			if e.IsDir() {
-				cand := filepath.Join(base, e.Name(), "X(Twitter)", "_assets", mID)
-				if info, err := os.Stat(cand); err == nil && !info.IsDir() { return cand }
-				cand2 := filepath.Join(base, e.Name(), mID)
-				if info, err := os.Stat(cand2); err == nil && !info.IsDir() { return cand2 }
+				candDir := filepath.Join(base, e.Name(), "X(Twitter)", "_assets")
+				if hit := checkFileCandidates(candDir, mID); hit != "" { return hit }
+				candDir2 := filepath.Join(base, e.Name())
+				if hit := checkFileCandidates(candDir2, mID); hit != "" { return hit }
 			}
 		}
 	}

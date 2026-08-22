@@ -8,7 +8,7 @@ from .stash_client import StashClient
 
 class Downloader:
     """メディア原本ストリーム取得 & Stash登録 & Motrix委託エンジン (SPEC-PLUGIN-001)"""
-    DEFAULT_STORAGE = "stash"
+    DEFAULT_STORAGE = "G:/Media_Storage/Influencers" if os.path.exists("G:/Media_Storage/Influencers") else "blobs"
 
     def __init__(self, db_path: str = "archive.db", storage_dir: Optional[str] = None):
         self.db_path = db_path
@@ -57,7 +57,9 @@ class Downloader:
         if os.path.exists(dest) and os.path.getsize(dest) > 0:
             img_id = self.stash.register_media(dest, "image", title=t_title, url=u) if m_type == "image" else None
             scn_id = self.stash.register_media(dest, "video", title=t_title, url=u) if m_type != "image" else None
-            return "COMPLETED", None, img_id, scn_id
+            if img_id or scn_id:
+                return "COMPLETED", None, img_id, scn_id
+            return "RETAINED", "Saved to disk, awaiting Stash index", None, None
 
         base_u = u.rsplit(":", 1)[0] if any(u.endswith(s) for s in [":large", ":orig", ":small", ":medium"]) else u
         http_u = base_u.replace("https://", "http://")
@@ -79,7 +81,9 @@ class Downloader:
                         if os.path.exists(dest) and os.path.getsize(dest) > 0:
                             img_id = self.stash.register_media(dest, "image", title=t_title, url=u) if m_type == "image" else None
                             scn_id = self.stash.register_media(dest, "video", title=t_title, url=u) if m_type != "image" else None
-                            return "COMPLETED", None, img_id, scn_id
+                            if img_id or scn_id:
+                                return "COMPLETED", None, img_id, scn_id
+                            return "RETAINED", "Saved to disk, awaiting Stash index", None, None
                     elif resp.status_code in (403, 404, 410): break
                     elif resp.status_code == 429: time.sleep(1.0)
                 except Exception: time.sleep(0.2)
@@ -96,7 +100,9 @@ class Downloader:
             if os.path.exists(dest) and os.path.getsize(dest) > 0:
                 img = self.stash.register_media(dest, "image") if m_type == "image" else None
                 scn = self.stash.register_media(dest, "video") if m_type != "image" else None
-                self._update_status(m_id, "COMPLETED", None, img, scn); salvaged += 1
+                if img or scn:
+                    self._update_status(m_id, "COMPLETED", None, img, scn)
+                    salvaged += 1
         return salvaged
 
     def _update_status(self, media_id: str, status: str, reason: Optional[str], img_id: Optional[str], scn_id: Optional[str]) -> None:

@@ -11,8 +11,6 @@ cd /d "%~dp0"
 echo [*] 作業ディレクトリを初期化中...
 if not exist "blobs" mkdir blobs
 if not exist "backups\dumps" mkdir backups\dumps
-if not exist "stash\scenes" mkdir stash\scenes
-if not exist "stash\images" mkdir stash\images
 if not exist "assets\avatars" mkdir assets\avatars
 if not exist "cache" mkdir cache
 
