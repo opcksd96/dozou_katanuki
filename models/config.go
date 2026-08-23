@@ -40,11 +40,13 @@ type BroadcastConfig struct {
 	AllowedNetworks []string `json:"allowed_networks"`
 }
 
-// AppearanceConfig はUI表示および多言語フォント設定を表します
+// AppearanceConfig はUI表示および多言語フォント・テーマ・文字倍率設定を表します
 type AppearanceConfig struct {
-	FontFamilyJa string `json:"font_family_ja"`
-	FontFamilyEn string `json:"font_family_en"`
-	FontFamilyZh string `json:"font_family_zh"`
+	Theme        string  `json:"theme,omitempty"`      // "system", "dark", "light"
+	FontScale    float64 `json:"font_scale,omitempty"` // 0.8 ~ 1.5 (default: 1.0)
+	FontFamilyJa string  `json:"font_family_ja"`
+	FontFamilyEn string  `json:"font_family_en"`
+	FontFamilyZh string  `json:"font_family_zh"`
 }
 
 // TranslationConfig は翻訳APIの動作設定を表します

@@ -24,10 +24,10 @@ const groups = [
     ],
   },
   {
-    title: 'システム設定',
+    title: '設定・カスタマイズ',
     items: [
-      { id: 'config', icon: '🌐', label: 'システム設定' },
-      { id: 'skin', icon: '🎨', label: 'スキン・フォント' },
+      { id: 'config', icon: '⚙️', label: 'システム設定' },
+      { id: 'skin', icon: '🧩', label: 'プラグイン・スキン' },
     ],
   },
 ];

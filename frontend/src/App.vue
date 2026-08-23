@@ -16,8 +16,11 @@ import MediaOverlay from './components/media/MediaOverlay.vue';
 import AdminModal from './components/admin/AdminModal.vue';
 import KeyboardShortcutModal from './components/layout/KeyboardShortcutModal.vue';
 import ToastContainer from './components/layout/ToastContainer.vue';
+import { Loader2, Box } from 'lucide-vue-next';
+import { useTheme } from './composables/useTheme';
 
 const isAdminOpen = ref(false), activeArticleId = ref<string | null>(null);
+const { initTheme } = useTheme();
 const {
   articles, accounts, selectedAccount, currentFilter, searchQuery, systemLang,
   loading, hasMore, renderKey, isStashReady, selectAccount, setFilter, setSearchQuery, clearSearchQuery,
@@ -44,13 +47,14 @@ const { focusedIndex, isHelpOpen } = useKeyboardNavigation({
 
 const focusedId = computed(() => (focusedIndex.value >= 0 && focusedIndex.value < currentNavItems.value.length) ? currentNavItems.value[focusedIndex.value].id : null);
 onMounted(() => {
+  initTheme();
   loadSkin('twitter');
   try { if ((window as any)?.runtime?.EventsOnMultiple) (window as any).runtime.EventsOnMultiple('open:admin', () => { isAdminOpen.value = true; }, -1); } catch {}
 });
 </script>
 
 <template>
-  <div class="min-h-screen bg-slate-950 text-slate-100 flex flex-col items-center">
+  <div class="min-h-screen bg-slate-950/85 text-slate-100 flex flex-col items-center selection:bg-blue-500/30 selection:text-blue-200">
     <GlobalAppBar :active-article-id="activeArticleId" :active-article-handle="detail?.article?.author.handle || ''" :is-stash-online="isStashReady" @open-admin="isAdminOpen = true" @back-to-timeline="closeDetail" />
 
     <div class="w-full max-w-2xl px-4 py-4">
@@ -59,15 +63,27 @@ onMounted(() => {
         <AccountScopeSelector v-else :accounts="accounts" :selected-id="selectedAccount" @select="selectAccount" />
       </template>
 
-      <main :key="renderKey" class="w-full border border-slate-800 rounded-2xl bg-slate-950 overflow-hidden shadow-xl min-h-[600px]">
+      <main :key="renderKey" class="w-full border border-white/10 rounded-2xl bg-slate-950/90 backdrop-blur-2xl overflow-hidden shadow-2xl min-h-[600px] transition-all duration-300">
         <!-- Stash 待機画面 -->
-        <div v-if="!isStashReady" class="p-16 flex flex-col items-center justify-center min-h-[500px] text-center space-y-6 animate-pulse">
-          <div class="w-20 h-20 rounded-2xl bg-blue-600/20 border border-blue-500/40 flex items-center justify-center text-4xl shadow-xl">📦</div>
-          <div class="space-y-2 max-w-sm"><h2 class="text-base font-bold text-slate-100">Stash メディアサーバー接続確認中...</h2><p class="text-xs text-slate-400 font-mono">ポート9999疎通プロービング中</p></div>
+        <div v-if="!isStashReady" class="p-16 flex flex-col items-center justify-center min-h-[500px] text-center space-y-6">
+          <div class="relative w-20 h-20 rounded-2xl bg-gradient-to-br from-blue-600/20 to-indigo-600/20 border border-blue-500/40 flex items-center justify-center text-blue-400 shadow-xl shadow-blue-500/10">
+            <Box class="w-10 h-10 animate-bounce" />
+            <div class="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-blue-500 animate-ping"></div>
+          </div>
+          <div class="space-y-2 max-w-sm">
+            <h2 class="text-base font-bold text-slate-100 flex items-center justify-center gap-2">
+              <Loader2 class="w-4 h-4 animate-spin text-blue-400" />
+              Stash メディアサーバー接続確認中...
+            </h2>
+            <p class="text-xs text-slate-400 font-mono">ポート9999疎通プロービング中</p>
+          </div>
         </div>
         <!-- タイムライン / 詳細 -->
         <div v-else-if="activeArticleId">
-          <div v-if="detailLoading && !detail" class="p-8 text-center text-slate-500 font-mono">Loading detail...</div>
+          <div v-if="detailLoading && !detail" class="p-12 text-center text-slate-500 font-mono flex items-center justify-center gap-2">
+            <Loader2 class="w-4 h-4 animate-spin text-blue-400" />
+            <span>詳細データを読み込み中...</span>
+          </div>
           <ArticleDetailView v-else-if="detail" :article="detail.article" :thread="detail.thread" :target-lang="systemLang" :loading="detailLoading" :focused-article-id="focusedId || undefined" @back="closeDetail" @select-article="openDetail" @toggle-like="toggleLike" @retry-media="retryMedia" @click-tag="(t) => { closeDetail(); setSearchQuery('#' + t); }" @click-mention="(m) => { closeDetail(); setSearchQuery('@' + m); }" @click-media="(m, l, a) => openMedia(m, l, a)" />
         </div>
         <TimelineContainer v-else :articles="articles" :current-filter="currentFilter" :search-query="searchQuery" :system-lang="systemLang" :loading="loading" :has-more="hasMore" :focused-article-id="focusedId" @filter="setFilter" @clear-search="clearSearchQuery" @load-more="loadMore" @open-detail="openDetail" @toggle-like="toggleLike" @retry-media="retryMedia" @open-media="(m, l, a) => openMedia(m, l, a)" @click-tag="(t) => setSearchQuery('#' + t)" @click-mention="(m) => setSearchQuery('@' + m)" />

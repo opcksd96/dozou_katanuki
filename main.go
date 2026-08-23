@@ -62,7 +62,8 @@ func main() {
 		Width:            1024,
 		Height:           768,
 		StartHidden:      true,
-		BackgroundColour: &options.RGBA{R: 2, G: 6, B: 23, A: 255},
+		Frameless:        true,
+		BackgroundColour: &options.RGBA{R: 2, G: 6, B: 23, A: 220},
 		Menu:             appMenu,
 		AssetServer: &assetserver.Options{
 			Assets:  assets,
@@ -73,8 +74,9 @@ func main() {
 		OnShutdown: appInstance.Shutdown,
 		Windows: &windows.Options{
 			Theme:                windows.Dark,
-			WebviewIsTransparent: false,
-			WindowIsTranslucent:  false,
+			WebviewIsTransparent: true,
+			WindowIsTranslucent:  true,
+			BackdropType:         windows.Mica,
 		},
 		Bind: []interface{}{appInstance},
 	})

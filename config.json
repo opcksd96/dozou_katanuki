@@ -32,6 +32,8 @@
     ]
   },
   "appearance": {
+    "theme": "dark",
+    "font_scale": 1.0,
     "font_family_ja": "Hiragino Sans, Meiryo, sans-serif",
     "font_family_en": "Nunito, sans-serif",
     "font_family_zh": "Microsoft YaHei, SimHei, sans-serif"

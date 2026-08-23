@@ -2,6 +2,7 @@
 <script setup lang="ts">
 import { models } from '../../../wailsjs/go/models';
 import ConfigSystemStorage from './config/ConfigSystemStorage.vue';
+import ConfigAppearanceFont from './config/ConfigAppearanceFont.vue';
 import ConfigNetworkScheduler from './config/ConfigNetworkScheduler.vue';
 import ConfigBroadcast from './config/ConfigBroadcast.vue';
 import ConfigTranslation from './config/ConfigTranslation.vue';
@@ -31,6 +32,7 @@ const emit = defineEmits<{
       </div>
 
       <ConfigSystemStorage :config="config" />
+      <ConfigAppearanceFont :config="config" />
       <ConfigTranslation :config="config" />
       <ConfigNetworkScheduler :config="config" />
       <ConfigBroadcast :config="config" />

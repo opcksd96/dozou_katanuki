@@ -1,15 +1,9 @@
-<!-- frontend/src/components/admin/skin/SkinFontSettings.vue (100行以下) -->
+<!-- frontend/src/components/admin/config/ConfigAppearanceFont.vue (100行以下) -->
 <script setup lang="ts">
 import { models } from '../../../../wailsjs/go/models';
 import { useTheme, ThemeMode } from '../../../composables/useTheme';
 
-const props = defineProps<{
-  config: models.AppConfig | null;
-  fontPresets: { ja: Array<{ label: string; value: string }>; en: Array<{ label: string; value: string }>; zh: Array<{ label: string; value: string }> };
-  savingConfig: boolean;
-}>();
-defineEmits<{ (e: 'save'): void }>();
-
+const props = defineProps<{ config: models.AppConfig }>();
 const { currentTheme, fontScale, setTheme, setFontScale } = useTheme();
 
 const scalePresets = [
@@ -20,14 +14,14 @@ const scalePresets = [
 ];
 
 const handleThemeSelect = (theme: ThemeMode) => {
-  if (props.config?.appearance) {
+  if (props.config.appearance) {
     props.config.appearance.theme = theme;
   }
   setTheme(theme);
 };
 
 const handleScaleSelect = (scale: number) => {
-  if (props.config?.appearance) {
+  if (props.config.appearance) {
     props.config.appearance.font_scale = scale;
   }
   setFontScale(scale);
@@ -40,22 +34,17 @@ const handleSliderChange = (e: Event) => {
 </script>
 
 <template>
-  <div v-if="config" class="bg-slate-900/60 p-4 border border-slate-800 rounded-xl space-y-4">
-    <div class="flex items-center justify-between">
-      <h4 class="text-xs font-bold text-slate-200 flex items-center gap-1.5">
-        <span>✨</span> 外観・文字サイズ・フォント設定 (Appearance & Font)
-      </h4>
-      <button @click="$emit('save')" :disabled="savingConfig" class="px-3.5 py-1 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold rounded-lg shadow disabled:opacity-50 cursor-pointer">
-        {{ savingConfig ? '保存中...' : '💾 外観・フォント設定を保存' }}
-      </button>
-    </div>
+  <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-4 space-y-4">
+    <h3 class="text-sm font-bold text-slate-200 flex items-center gap-2">
+      <span>🎨</span> 外観・文字サイズ・フォント設定 (Appearance & Typography)
+    </h3>
 
     <!-- 1. 外観モード (Theme) & フォントサイズ倍率 (Font Scale) -->
-    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
       <!-- テーマモード -->
       <div class="space-y-1.5">
-        <label class="block text-[11px] font-semibold text-slate-300">🌙 外観テーマモード (Theme)</label>
-        <div class="grid grid-cols-3 gap-1.5">
+        <label class="block text-xs font-semibold text-slate-300">🌙 外観テーマモード (Theme)</label>
+        <div class="grid grid-cols-3 gap-2">
           <button
             type="button"
             @click="handleThemeSelect('system')"
@@ -98,7 +87,7 @@ const handleSliderChange = (e: Event) => {
       <!-- フォントサイズ倍率 (Font Scale) -->
       <div class="space-y-1.5">
         <div class="flex items-center justify-between">
-          <label class="block text-[11px] font-semibold text-slate-300">🔍 文字サイズ倍率 (Font Scale)</label>
+          <label class="block text-xs font-semibold text-slate-300">🔍 文字サイズ倍率 (Font Scale)</label>
           <span class="text-xs font-mono font-bold text-blue-400">{{ Math.round(fontScale * 100) }}%</span>
         </div>
         <div class="flex items-center gap-2">
@@ -133,7 +122,7 @@ const handleSliderChange = (e: Event) => {
 
     <!-- 2. 多言語フォント設定 -->
     <div class="space-y-2 pt-2 border-t border-slate-800/80">
-      <label class="block text-[11px] font-semibold text-slate-300">🔤 各言語のフォントファミリー (Font Families)</label>
+      <label class="block text-xs font-semibold text-slate-300">🔤 各言語のフォントファミリー (Font Families)</label>
       <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <div>
           <label class="block text-[10px] text-slate-400 mb-1">🇯🇵 日本語フォント</label>

@@ -1,10 +1,7 @@
-<!-- frontend/src/components/admin/SkinFontEditor.vue (100行以下) -->
+<!-- frontend/src/components/admin/SkinFontEditor.vue (100行以下 - SPEC-PLUGIN-001) -->
 <script setup lang="ts">
 import { ref, watch, onMounted } from 'vue';
-import { models } from '../../../wailsjs/go/models';
-
 import SkinCssEditor from './skin/SkinCssEditor.vue';
-import SkinFontSettings from './skin/SkinFontSettings.vue';
 import SkinCardPreview from './skin/SkinCardPreview.vue';
 
 const props = defineProps<{
@@ -13,17 +10,12 @@ const props = defineProps<{
   savingSkin: boolean;
   skinStatus: { success: boolean; message: string } | null;
   selectedPlatform: string;
-  fontPresets: { ja: Array<{ label: string; value: string }>; en: Array<{ label: string; value: string }>; zh: Array<{ label: string; value: string }> };
-  config: models.AppConfig | null;
-  savingConfig: boolean;
-  saveStatus: { success: boolean; message: string } | null;
 }>();
 
 const emit = defineEmits<{
   (e: 'fetchSkin', platform: string): void;
   (e: 'saveSkin', platform: string, css: string): void;
   (e: 'applyDynamicSkin', css: string): void;
-  (e: 'saveConfig'): void;
 }>();
 
 const localCSS = ref(props.skinCSS || '');
@@ -40,7 +32,6 @@ const onUpdateCSS = (val: string) => {
   isDirty.value = true;
   emit('applyDynamicSkin', val);
 };
-
 </script>
 
 <template>
@@ -48,15 +39,15 @@ const onUpdateCSS = (val: string) => {
     <div class="flex items-center justify-between">
       <div>
         <h3 class="text-base font-bold text-slate-100 flex items-center gap-2">
-          <span>🎨</span> スキンCSS ＆ グローバルフォント設定
+          <span>🧩</span> プラグイン・スキン設定 (Plugins & Skin)
           <span class="text-[10px] font-mono bg-purple-950/80 text-purple-400 border border-purple-700/50 px-2 py-0.5 rounded">SPEC-PLUGIN-001</span>
         </h3>
-        <p class="text-xs text-slate-400 mt-0.5">タイムラインのカードデザイン (design.css) と各言語の表示フォントをカスタマイズします。</p>
+        <p class="text-xs text-slate-400 mt-0.5">プラットフォーム（Twitter/Bluesky等）ごとの表示スキン (design.css) のカスタマイズとプレビューを行います。</p>
       </div>
     </div>
 
-    <div v-if="skinStatus || saveStatus" class="p-2.5 rounded-lg text-xs font-semibold" :class="(skinStatus || saveStatus)?.success ? 'bg-emerald-950/70 border border-emerald-500/40 text-emerald-300' : 'bg-rose-950/70 border border-rose-500/40 text-rose-300'">
-      {{ (skinStatus || saveStatus)?.message }}
+    <div v-if="skinStatus" class="p-2.5 rounded-lg text-xs font-semibold" :class="skinStatus.success ? 'bg-emerald-950/70 border border-emerald-500/40 text-emerald-300' : 'bg-rose-950/70 border border-rose-500/40 text-rose-300'">
+      {{ skinStatus.message }}
     </div>
 
     <SkinCssEditor
@@ -69,12 +60,6 @@ const onUpdateCSS = (val: string) => {
     />
 
     <SkinCardPreview :platform="selectedPlatform || 'twitter'" />
-
-    <SkinFontSettings
-      :config="config"
-      :font-presets="fontPresets"
-      :saving-config="savingConfig"
-      @save="() => emit('saveConfig')"
-    />
   </div>
 </template>
+

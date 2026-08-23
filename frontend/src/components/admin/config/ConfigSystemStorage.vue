@@ -8,7 +8,7 @@ defineProps<{ config: models.AppConfig }>();
   <div class="space-y-4">
     <!-- 1. System 設定 -->
     <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-4 space-y-4">
-      <h3 class="text-sm font-bold text-slate-200 flex items-center gap-2"><span>🌐</span> システム基本設定 (System)</h3>
+      <h3 class="text-sm font-bold text-slate-200 flex items-center gap-2"><span>🌐</span> システム基本動作設定 (System)</h3>
       <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div>
           <label class="block text-xs text-slate-400 mb-1">システム言語</label>
