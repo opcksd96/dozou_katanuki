@@ -9,8 +9,7 @@ class StashClient:
     TITLE_PATTERN = re.compile(r"^([A-Za-z0-9_]+)\s\(@([A-Za-z0-9_]+)\):\s([A-Za-z]+)\s([A-Za-z0-9_]+)$")
 
     def __init__(self, endpoint: str = "http://127.0.0.1:9999/graphql"):
-        self.endpoint = endpoint
-        self.session = requests.Session()
+        self.endpoint, self.session = endpoint, requests.Session()
 
     def query(self, query_str: str, variables: Optional[Dict[str, Any]] = None) -> Optional[Dict[str, Any]]:
         try:
@@ -69,13 +68,9 @@ class StashClient:
         m_id = find_fn(file_path)
         if not m_id:
             scan_target = os.path.dirname(file_path) or file_path
-            self.trigger_scan([scan_target])
-            end_t = time.time() + max_wait
-            while time.time() < end_t and not m_id:
-                time.sleep(0.3)
-                m_id = find_fn(file_path)
-        if m_id and title:
-            (self.update_image if media_type == "image" else self.update_scene)(m_id, title=title, url=url, date=date)
+            self.trigger_scan([scan_target]); end_t = time.time() + max_wait
+            while time.time() < end_t and not m_id: time.sleep(0.3); m_id = find_fn(file_path)
+        if m_id and title: (self.update_image if media_type == "image" else self.update_scene)(m_id, title=title, url=url, date=date)
         return m_id
 
     def reconcile_to_db(self, db_path: str) -> int:
@@ -87,17 +82,17 @@ class StashClient:
             for is_scn, items in [(True, res.get("allScenes", [])), (False, res.get("allImages", []))]:
                 col = "stash_scene_id" if is_scn else "stash_image_id"
                 for item in items:
-                    s_id, title, files = str(item.get("id", "")), item.get("title", ""), item.get("files", [])
-                    m = self.TITLE_PATTERN.match(title)
-                    if m:
-                        cur.execute(f"UPDATE media SET {col} = ?, download_status = 'COMPLETED' WHERE article_id = ? AND {col} IS NULL", (s_id, m.group(4)))
-                        bound += cur.rowcount
+                    s_id, title, files, matched = str(item.get("id", "")), item.get("title", ""), item.get("files", []), False
                     for f in files:
                         bn = os.path.basename(f.get("path", ""))
-                        bn_no_ext = os.path.splitext(bn)[0]
                         if bn:
                             cur.execute(f"UPDATE media SET {col} = ?, download_status = 'COMPLETED' WHERE (media_id = ? OR media_id = ? OR media_id LIKE ? OR download_url LIKE ? OR download_url LIKE ?) AND ({col} IS NULL OR {col} = '')",
-                                        (s_id, bn, bn_no_ext, f"%_{bn}", f"%/{bn}", f"%/{bn}?%"))
+                                        (s_id, bn, os.path.splitext(bn)[0], f"%_{bn}", f"%/{bn}", f"%/{bn}?%"))
+                            if cur.rowcount > 0: bound += cur.rowcount; matched = True
+                    if not matched:
+                        m = self.TITLE_PATTERN.match(title)
+                        if m:
+                            cur.execute(f"UPDATE media SET {col} = ?, download_status = 'COMPLETED' WHERE media_id IN (SELECT media_id FROM media WHERE article_id = ? AND {col} IS NULL LIMIT 1)", (s_id, m.group(4)))
                             bound += cur.rowcount
             conn.commit()
         return bound

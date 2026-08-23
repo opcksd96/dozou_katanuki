@@ -20,6 +20,7 @@ class TestWarcImporter(unittest.TestCase):
                 CREATE TABLE articles (id TEXT PRIMARY KEY, account_id TEXT NOT NULL, conversation_id TEXT, reply_to_id TEXT, reply_to_handle TEXT, created_at DATETIME, full_text TEXT, lang TEXT DEFAULT 'ja', full_text_ja TEXT, full_text_en TEXT, full_text_zh TEXT, via TEXT DEFAULT 'twitter', is_repost INTEGER DEFAULT 0, is_liked INTEGER DEFAULT 0, wayback_url TEXT);
                 CREATE TABLE media (media_id TEXT PRIMARY KEY, article_id TEXT NOT NULL, type TEXT, download_url TEXT, width INTEGER, height INTEGER, download_status TEXT, failed_reason TEXT, stash_scene_id TEXT, stash_image_id TEXT);
                 CREATE TABLE url_redirects (short_url TEXT PRIMARY KEY, expanded_url TEXT, article_id TEXT);
+                CREATE TABLE whitelists (id INTEGER PRIMARY KEY AUTOINCREMENT, type TEXT NOT NULL, value TEXT NOT NULL UNIQUE, is_active BOOLEAN DEFAULT 1);
             """)
 
     def _create_dummy_warc(self):

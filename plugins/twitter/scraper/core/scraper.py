@@ -1,5 +1,5 @@
 # plugins/twitter/scraper/core/scraper.py (100行以下)
-import io, os, time, urllib.parse
+import io, os, re, time, urllib.parse
 from typing import Any, Dict, List, Optional
 import requests
 from warcio.archiveiterator import ArchiveIterator
@@ -16,14 +16,18 @@ class Scraper:
         self.output_dir = output_dir
         self.session = requests.Session()
         self.session.headers.update({
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 dozou_katanuki/1.0"
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+            "Accept-Language": "ja,en-US;q=0.9,en;q=0.8",
+            "Sec-Ch-Ua": '"Chromium";v="128", "Not;A=Brand";v="24", "Google Chrome";v="128"',
+            "Sec-Ch-Ua-Platform": '"Windows"'
         })
 
     def _get_warc_path(self, original_url: str, timestamp: str, account: str = "") -> str:
-        parsed = urllib.parse.urlparse(original_url)
-        path_parts = [p for p in parsed.path.split("/") if p]
-        post_id = path_parts[-1] if len(path_parts) >= 3 else timestamp
-        username = account or (path_parts[0] if path_parts else "unknown")
+        m = re.search(r'status(?:es)?/(\d+)', original_url)
+        post_id = m.group(1) if m else timestamp
+        m_user = re.search(r'(?:twitter\.com|x\.com)/([a-zA-Z0-9_]+)', original_url)
+        username = (account or (m_user.group(1) if m_user else "unknown")).lower()
         return os.path.join(self.output_dir, self.platform, username, post_id, "snapshot.warc.gz")
 
     def search_cdx(self, account: str, limit: int = 0) -> List[Dict[str, str]]:
@@ -44,7 +48,7 @@ class Scraper:
         return []
 
     def fetch_snapshot(self, timestamp: str, original_url: str, account: str = "") -> Optional[str]:
-        """原本WARCが存在すればローカルから即時返却 (再アクセス完全抑止)。未存在時のみWayback取得"""
+        """原本WARCが存在すればローカルから即時返却。未存在時のみWayback取得 (非同期耐性/高速フォールバック)"""
         warc_path = self._get_warc_path(original_url, timestamp, account)
         if os.path.exists(warc_path) and os.path.getsize(warc_path) > 0:
             try:
@@ -56,17 +60,13 @@ class Scraper:
                 print(f"[Scraper] WARC cache read error ({warc_path}): {e}")
 
         wayback_url = f"https://web.archive.org/web/{timestamp}id_/{original_url}"
-        for attempt in range(2):
-            try:
-                resp = self.session.get(wayback_url, timeout=12)
-                if resp.status_code == 200:
-                    self._save_warc_dump(warc_path, original_url, timestamp, resp)
-                    return resp.text
-                elif resp.status_code in (404, 410): break
-                elif resp.status_code == 429: time.sleep(1.5 * (attempt + 1))
-            except Exception as e:
-                print(f"[Scraper] Snapshot fetch error ({wayback_url}): {e}")
-                time.sleep(0.5)
+        try:
+            resp = requests.get(wayback_url, headers=self.session.headers, timeout=4.0)
+            if resp.status_code == 200:
+                self._save_warc_dump(warc_path, original_url, timestamp, resp)
+                return resp.text
+        except Exception:
+            pass
         return None
 
     def _save_warc_dump(self, warc_file: str, original_url: str, timestamp: str, resp: requests.Response) -> None:

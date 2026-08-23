@@ -70,4 +70,19 @@ class Aria2Client:
         return str(res) if res else None
 
     def tell_status(self, gid: str) -> Optional[Dict[str, Any]]:
-        return self._call("aria2.tellStatus", [gid, ["status", "totalLength", "completedLength"]])
+        return self._call("aria2.tellStatus", [gid, ["status", "totalLength", "completedLength", "errorCode", "errorMessage"]])
+
+    def wait_for_download(self, gid: str, timeout_sec: float = 60.0, poll_sec: float = 1.0) -> bool:
+        """GID のダウンロード完了を同期待機 (aria2 status: complete/error/timeout)"""
+        start_t = time.time()
+        while time.time() - start_t < timeout_sec:
+            st = self.tell_status(gid)
+            if not st: return False
+            status = st.get("status", "")
+            if status == "complete": return True
+            if status in ("error", "removed"):
+                print(f"[Aria2Client] Download failed (GID: {gid}): {st.get('errorMessage', 'unknown')}", flush=True)
+                return False
+            time.sleep(poll_sec)
+        print(f"[Aria2Client] Download timed out (GID: {gid}, {timeout_sec}s)", flush=True)
+        return False

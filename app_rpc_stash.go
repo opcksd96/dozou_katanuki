@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"path/filepath"
 	"regexp"
+	"strings"
 	"time"
 
 	"dozou_katanuki/models"
@@ -255,24 +256,28 @@ func (a *App) ReconcileStashMedia() (int, error) {
 			if m, ok := item.(map[string]interface{}); ok {
 				title := getString(m, "title")
 				sID := getString(m, "id")
-				if matches := titleRegex.FindStringSubmatch(title); len(matches) == 5 {
-					postID := matches[4]
-					res := db.Exec("UPDATE media SET stash_scene_id = ?, download_status = 'COMPLETED' WHERE article_id = ? AND stash_scene_id IS NULL", sID, postID)
-					if res.Error == nil {
-						boundCount += int(res.RowsAffected)
-					}
-				}
+				matchedByFile := false
 				if filesList, ok := m["files"].([]interface{}); ok {
 					for _, fItem := range filesList {
 						if fMap, ok := fItem.(map[string]interface{}); ok {
 							p := getString(fMap, "path")
 							if p != "" {
 								base := filepath.Base(p)
-								res := db.Exec("UPDATE media SET stash_scene_id = ?, download_status = 'COMPLETED' WHERE media_id = ? AND stash_scene_id IS NULL", sID, base)
-								if res.Error == nil {
+								res := db.Exec("UPDATE media SET stash_scene_id = ?, download_status = 'COMPLETED' WHERE (media_id = ? OR media_id = ? OR download_url LIKE ?) AND (stash_scene_id IS NULL OR stash_scene_id = '')", sID, base, strings.TrimSuffix(base, filepath.Ext(base)), "%/"+base)
+								if res.Error == nil && res.RowsAffected > 0 {
 									boundCount += int(res.RowsAffected)
+									matchedByFile = true
 								}
 							}
+						}
+					}
+				}
+				if !matchedByFile && title != "" {
+					if matches := titleRegex.FindStringSubmatch(title); len(matches) == 5 {
+						postID := matches[4]
+						res := db.Exec("UPDATE media SET stash_scene_id = ?, download_status = 'COMPLETED' WHERE media_id IN (SELECT media_id FROM media WHERE article_id = ? AND type != 'image' AND (stash_scene_id IS NULL OR stash_scene_id = '') LIMIT 1)", sID, postID)
+						if res.Error == nil {
+							boundCount += int(res.RowsAffected)
 						}
 					}
 				}
@@ -286,24 +291,28 @@ func (a *App) ReconcileStashMedia() (int, error) {
 			if m, ok := item.(map[string]interface{}); ok {
 				title := getString(m, "title")
 				imgID := getString(m, "id")
-				if matches := titleRegex.FindStringSubmatch(title); len(matches) == 5 {
-					postID := matches[4]
-					res := db.Exec("UPDATE media SET stash_image_id = ?, download_status = 'COMPLETED' WHERE article_id = ? AND stash_image_id IS NULL", imgID, postID)
-					if res.Error == nil {
-						boundCount += int(res.RowsAffected)
-					}
-				}
+				matchedByFile := false
 				if filesList, ok := m["files"].([]interface{}); ok {
 					for _, fItem := range filesList {
 						if fMap, ok := fItem.(map[string]interface{}); ok {
 							p := getString(fMap, "path")
 							if p != "" {
 								base := filepath.Base(p)
-								res := db.Exec("UPDATE media SET stash_image_id = ?, download_status = 'COMPLETED' WHERE media_id = ? AND stash_image_id IS NULL", imgID, base)
-								if res.Error == nil {
+								res := db.Exec("UPDATE media SET stash_image_id = ?, download_status = 'COMPLETED' WHERE (media_id = ? OR media_id = ? OR download_url LIKE ?) AND (stash_image_id IS NULL OR stash_image_id = '')", imgID, base, strings.TrimSuffix(base, filepath.Ext(base)), "%/"+base)
+								if res.Error == nil && res.RowsAffected > 0 {
 									boundCount += int(res.RowsAffected)
+									matchedByFile = true
 								}
 							}
+						}
+					}
+				}
+				if !matchedByFile && title != "" {
+					if matches := titleRegex.FindStringSubmatch(title); len(matches) == 5 {
+						postID := matches[4]
+						res := db.Exec("UPDATE media SET stash_image_id = ?, download_status = 'COMPLETED' WHERE media_id IN (SELECT media_id FROM media WHERE article_id = ? AND type = 'image' AND (stash_image_id IS NULL OR stash_image_id = '') LIMIT 1)", imgID, postID)
+						if res.Error == nil {
+							boundCount += int(res.RowsAffected)
 						}
 					}
 				}

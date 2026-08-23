@@ -36,7 +36,9 @@ def test_restorer():
         with open(os.path.join(blobs_dir, "shield.jpg"), "wb") as f: f.write(b"mock_image_bytes")
 
         restorer = Restorer(dumps_dir=dumps_dir, db_path=db_path, storage_dir=blobs_dir, avatar_dir=avatar_dir)
-        stats = restorer.run_restore()
+        from unittest.mock import patch
+        with patch.object(restorer.downloader.stash, "register_media", return_value="img-123"):
+            stats = restorer.run_restore()
 
         assert stats["articles"] == 1 and stats["avatars"] == 1
         assert os.path.exists(os.path.join(avatar_dir, "mash_avatar.jpg"))

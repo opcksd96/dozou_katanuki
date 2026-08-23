@@ -51,5 +51,29 @@ class TestDataDecorator(unittest.TestCase):
             self.assertIn("https://example.com/nes-apu", art[0])
 
 
+    def test_multiple_media_extraction_from_html(self):
+        html = """
+        <div data-tweet-id="123456789">
+            <strong class="fullname">Mash</strong>
+            <img src="https://pbs.twimg.com/profile_images/1/avatar.jpg" class="avatar" />
+            <div class="AdaptiveMedia">
+                <img src="https://pbs.twimg.com/media/photo_1.jpg:large" />
+                <img src="https://pbs.twimg.com/media/photo_2.jpg:orig" />
+                <img src="https://pbs.twimg.com/media/photo_3?format=png&name=small" />
+                <video src="https://video.twimg.com/ext_tw_video/vid_1.mp4"></video>
+            </div>
+        </div>
+        """
+        parsed = self.parser.parse_record(html, "https://twitter.com/mash_fgo/status/123456789")
+        self.assertIsNotNone(parsed)
+        media = parsed.get("media", [])
+        self.assertEqual(len(media), 4)
+        urls = [m["url"] for m in media]
+        self.assertTrue(any("photo_1" in u for u in urls))
+        self.assertTrue(any("photo_2" in u for u in urls))
+        self.assertTrue(any("photo_3" in u for u in urls))
+        self.assertTrue(any("vid_1" in u for u in urls))
+
+
 if __name__ == "__main__":
     unittest.main()

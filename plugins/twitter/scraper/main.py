@@ -1,14 +1,10 @@
 # plugins/twitter/scraper/main.py (100行以下)
-import argparse, json, os, sqlite3, sys, time
+import argparse, concurrent.futures, json, os, re, sqlite3, sys, time
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 if CURRENT_DIR not in sys.path: sys.path.insert(0, CURRENT_DIR)
 
-from core.downloader import Downloader
-from core.mutator import Mutator
-from core.restorer import Restorer
-from core.scraper import Scraper
-from core.translator import Translator
-from core.warc_importer import WarcImporter
+from core.downloader import Downloader; from core.mutator import Mutator; from core.restorer import Restorer
+from core.scraper import Scraper; from core.translator import Translator; from core.warc_importer import WarcImporter
 from parsers.twitter_parser import TwitterParser
 
 
@@ -20,76 +16,80 @@ def run_batch_translate(db_path: str, article_id: str = "", account: str = "", o
     trans = Translator()
     with sqlite3.connect(db_path) as conn:
         cur = conn.cursor()
-        if article_id:
-            rows = cur.execute("SELECT id, full_text FROM articles WHERE id = ?", (article_id,)).fetchall()
+        if article_id: rows = cur.execute("SELECT id, full_text FROM articles WHERE id = ?", (article_id,)).fetchall()
         else:
-            q, params = "SELECT id, full_text FROM articles WHERE 1=1", []
-            if account: q += " AND account_id = (SELECT numeric_id FROM accounts WHERE username = ? OR numeric_id = ?)"; params.extend([account, account])
+            q, p = "SELECT id, full_text FROM articles WHERE 1=1", []
+            if account: q += " AND account_id = (SELECT numeric_id FROM accounts WHERE username = ? OR numeric_id = ?)"; p.extend([account, account])
             if not overwrite: q += " AND (full_text_ja IS NULL OR full_text_ja = '' OR (full_text_ja = full_text AND full_text_en = full_text AND lang != 'ja'))"
-            q += " LIMIT ?"; params.append(limit)
-            rows = cur.execute(q, params).fetchall()
-
+            q += " LIMIT ?"; p.append(limit); rows = cur.execute(q, p).fetchall()
         if dry_run and article_id and rows: return print(f"JSON:{json.dumps(trans.translate_article(rows[0][1]), ensure_ascii=False)}")
-        total = len(rows); emit_progress(0, max(total, 1), f"Starting translation for {total} articles...")
+        total = len(rows); emit_progress(0, max(total, 1), f"[PHASE-5:TRANSLATE] Translating {total} articles...")
         for idx, (aid, ftext) in enumerate(rows, start=1):
-            t_res = trans.translate_article(ftext)
-            cur.execute("UPDATE articles SET lang=?, full_text_ja=?, full_text_en=?, full_text_zh=? WHERE id=?",
-                        (t_res["lang"], t_res["ja"], t_res["en"], t_res["zh"], aid))
-            conn.commit(); emit_progress(idx, total, f"Translated [{idx}/{total}] article {aid}")
-        emit_progress(total, total, f"Completed translation for {total} articles.")
+            t = trans.translate_article(ftext)
+            cur.execute("UPDATE articles SET lang=?, full_text_ja=?, full_text_en=?, full_text_zh=? WHERE id=?", (t["lang"], t["ja"], t["en"], t["zh"], aid))
+            conn.commit(); emit_progress(idx, total, f"[PHASE-5:TRANSLATE] [{idx}/{total}] article {aid}")
+        emit_progress(total, total, f"[PHASE-5:TRANSLATE] Completed translation for {total} articles.")
 
 
-def run_auto_salvage(platform: str, account: str, limit: int, db_path: str, storage_dir: str, enable_trans: bool) -> None:
-    emit_progress(0, 100 if limit <= 0 else limit, f"Starting auto salvage for @{account} on {platform}...")
-    if account:
-        try:
-            with sqlite3.connect(db_path) as conn:
-                r = conn.cursor().execute("SELECT id FROM whitelists WHERE lower(value) = lower(?)", (account,)).fetchone()
-                if r: conn.execute("UPDATE whitelists SET is_active = 1 WHERE id = ?", (r[0],))
-                else: conn.execute("INSERT INTO whitelists (type, value, is_active) VALUES ('account', ?, 1)", (account,))
-                conn.commit()
-        except Exception: pass
-    scraper, parser, mutator, dl = Scraper(platform=platform), TwitterParser(), Mutator(db_path=db_path, enable_translation=enable_trans), Downloader(db_path=db_path, storage_dir=storage_dir)
+def run_auto_salvage(platform: str, account: str, limit: int, db_path: str, storage_dir: str, enable_trans: bool, max_workers: int = 3, chunk_size: int = 50) -> None:
+    emit_progress(0, 100 if limit <= 0 else limit, f"[PHASE-1:CDX_SEARCH] Starting auto salvage for @{account} on {platform}...")
+    scraper, parser, mutator, trans = Scraper(platform=platform), TwitterParser(), Mutator(db_path=db_path, enable_translation=False), (Translator() if enable_trans else None)
     snapshots = scraper.search_cdx(account=account, limit=limit)
-    if not snapshots: return emit_progress(1, 1, f"No snapshots for @{account}.")
-    tot, c = len(snapshots), 0
-    emit_progress(0, tot, f"Found {tot} snapshots. Starting...")
-    for idx, snap in enumerate(snapshots, start=1):
-        raw = scraper.fetch_snapshot(snap.get("timestamp", ""), snap.get("original", ""), account=account)
-        if raw:
-            p = parser.parse_record(raw, snap.get("original", ""))
-            if p and mutator.upsert_record(p):
-                dl.process_queued_media(p["post"]["id"]); c += 1
-        emit_progress(idx, tot, f"Processed [{idx}/{tot}] snapshots...")
-        time.sleep(0.2)
-    emit_progress(tot, tot, f"Completed: Processed {c} posts.")
+    if not snapshots:
+        emit_progress(100, 100, f"[PHASE-1:CDX_SEARCH] No snapshots found or CDX rate-limited for @{account}.")
+        return
+
+    tot = len(snapshots); emit_progress(0, tot, f"[PHASE-1:CDX_SEARCH] Found {tot} snapshots. Fetching & parsing with {max_workers} workers...")
+    def _fetch_and_parse(snap):
+        t0 = time.time(); orig, ts = snap.get("original", ""), snap.get("timestamp", "")
+        raw = scraper.fetch_snapshot(ts, orig, account=account)
+        if not raw: return None, {"status": "FETCH_FAILED", "url": orig, "ts": ts, "ms": int((time.time() - t0)*1000)}
+        p = parser.parse_record(raw, orig)
+        if not p: return None, {"status": "PARSE_FAILED", "url": orig, "ts": ts, "ms": int((time.time() - t0)*1000)}
+        post = p.get("post", {}); ftext = post.get("full_text", "")
+        for u in post.get("urls", []):
+            if u.get("short_url") and u.get("expanded_url") and u["short_url"] in ftext: ftext = ftext.replace(u["short_url"], u["expanded_url"])
+        post["full_text"] = ftext
+        if trans:
+            t = trans.translate_article(ftext); post["lang"], post["full_text_ja"], post["full_text_en"], post["full_text_zh"] = t.get("lang", "ja"), t.get("ja"), t.get("en"), t.get("zh")
+        else: post["lang"], post["full_text_ja"] = "ja", ftext
+        return p, {"status": "OK", "url": orig, "id": post.get("id"), "media": len(p.get("media", [])), "ms": int((time.time() - t0)*1000)}
+
+    buffer, journal, saved, done = [], [], 0, 0
+    with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as ex:
+        futs = [ex.submit(_fetch_and_parse, s) for s in snapshots]
+        for fut in concurrent.futures.as_completed(futs):
+            done += 1; parsed_json, log_info = fut.result()
+            journal.append(log_info)
+            if parsed_json: buffer.append(parsed_json)
+            if len(buffer) >= chunk_size or (done == tot and buffer):
+                t_db = time.time(); c_saved = mutator.upsert_batch(buffer); saved += c_saved
+                emit_progress(done, tot, f"[PHASE-6:DRIVER_COMMIT] Saved chunk of {c_saved} articles in {int((time.time() - t_db)*1000)}ms (Total: {saved}/{tot})")
+                buffer.clear()
+            elif done % 5 == 0 or done == tot:
+                emit_progress(done, tot, f"[PHASE-2_4:COLLECT] [{done}/{tot}] buffer={len(buffer)} last_ms={log_info.get('ms')} status={log_info.get('status')}")
+
+    s_ok = sum(1 for j in journal if j.get("status") == "OK")
+    emit_progress(100, 100, f"[SALVAGE_SUMMARY] Completed. Target={tot} | Parsed={s_ok} | Errors={tot - s_ok} | DB_Saved={saved}")
 
 
 def main():
     p = argparse.ArgumentParser(description="Twitter Scraper Sidecar")
     p.add_argument("-m", "--mode", choices=["auto", "manual", "download", "poll", "restore", "translate"], default="auto")
-    p.add_argument("-p", "--platform", default="twitter")
-    p.add_argument("-a", "--account", default=""); p.add_argument("-l", "--limit", type=int, default=0)
-    p.add_argument("-w", "--warc-path", default=""); p.add_argument("--dumps-dir", default="backups/dumps")
-    p.add_argument("--avatar-dir", default="assets/avatars"); p.add_argument("--media-id", default="")
-    p.add_argument("--article-id", default=""); p.add_argument("--offline", action="store_true")
-    p.add_argument("--no-translate", action="store_true"); p.add_argument("--overwrite", action="store_true")
-    p.add_argument("--dry-run", action="store_true"); p.add_argument("--db-path", default="archive.db")
-    p.add_argument("--storage-dir", default="")
+    p.add_argument("-p", "--platform", default="twitter"); p.add_argument("-a", "--account", default=""); p.add_argument("-l", "--limit", type=int, default=0)
+    p.add_argument("-w", "--warc-path", default=""); p.add_argument("--dumps-dir", default="backups/dumps"); p.add_argument("--avatar-dir", default="assets/avatars")
+    p.add_argument("--media-id", default=""); p.add_argument("--article-id", default=""); p.add_argument("--offline", action="store_true")
+    p.add_argument("--no-translate", action="store_true"); p.add_argument("--overwrite", action="store_true"); p.add_argument("--dry-run", action="store_true")
+    p.add_argument("--db-path", default="archive.db"); p.add_argument("--storage-dir", default=""); p.add_argument("-j", "--threads", type=int, default=3)
+    p.add_argument("--chunk-size", type=int, default=50)
     args = p.parse_args()
 
-    if args.mode == "translate":
-        run_batch_translate(args.db_path, article_id=args.article_id, account=args.account, overwrite=args.overwrite, limit=args.limit, dry_run=args.dry_run)
-    elif args.mode == "auto":
-        run_auto_salvage(args.platform, args.account, args.limit, args.db_path, args.storage_dir, not args.no_translate and not args.offline)
-    elif args.mode == "manual":
-        WarcImporter(args.warc_path, db_path=args.db_path, storage_dir=args.storage_dir, offline=args.offline).run_import(emit_progress)
-    elif args.mode == "download":
-        emit_progress(1, 1, f"Processed: {Downloader(db_path=args.db_path, storage_dir=args.storage_dir).process_queued_media(args.article_id or None, args.media_id or None)}")
-    elif args.mode == "poll":
-        emit_progress(1, 1, f"Salvaged: {Downloader(db_path=args.db_path, storage_dir=args.storage_dir).poll_outsourced_media()}")
-    elif args.mode == "restore":
-        Restorer(dumps_dir=args.dumps_dir, db_path=args.db_path, storage_dir=args.storage_dir, avatar_dir=args.avatar_dir).run_restore(emit_progress)
+    if args.mode == "translate": run_batch_translate(args.db_path, article_id=args.article_id, account=args.account, overwrite=args.overwrite, limit=args.limit, dry_run=args.dry_run)
+    elif args.mode == "auto": run_auto_salvage(args.platform, args.account, args.limit, args.db_path, args.storage_dir, not args.no_translate and not args.offline, max_workers=args.threads, chunk_size=args.chunk_size)
+    elif args.mode == "manual": WarcImporter(args.warc_path, db_path=args.db_path, storage_dir=args.storage_dir, offline=args.offline).run_import(emit_progress)
+    elif args.mode == "download": emit_progress(1, 1, f"Processed: {Downloader(db_path=args.db_path, storage_dir=args.storage_dir).process_queued_media(args.article_id or None, args.media_id or None)}")
+    elif args.mode == "poll": emit_progress(1, 1, f"Salvaged: {Downloader(db_path=args.db_path, storage_dir=args.storage_dir).poll_outsourced_media()}")
+    elif args.mode == "restore": Restorer(dumps_dir=args.dumps_dir, db_path=args.db_path, storage_dir=args.storage_dir, avatar_dir=args.avatar_dir, max_workers=args.threads).run_restore(emit_progress)
 
 
 if __name__ == "__main__":
