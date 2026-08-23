@@ -1,385 +1,75 @@
-// frontend/src/composables/admin/useAdminDatabase.ts (100行以下)
-import { ref } from 'vue';
-const getApp = () => (window as any)?.go?.main?.App;
+import { ref, computed } from 'vue';
+import { useAdminDatabaseAccounts } from './useAdminDatabaseAccounts';
+import { useAdminDatabaseArticles } from './useAdminDatabaseArticles';
+import { useAdminDatabaseMedia } from './useAdminDatabaseMedia';
+
+const getApp = () => (window as any)?.go?.app?.App || (window as any)?.go?.main?.App;
 
 export function useAdminDatabase() {
   const activeSubTab = ref<'accounts' | 'posts' | 'media' | 'whitelist'>('accounts');
-  const searchResults = ref<any[]>([]), totalCount = ref(0), isSearchLoading = ref(false), isTranslating = ref(false);
-  const searchQuery = ref(''), searchAccount = ref('all'), searchFilter = ref('all'), page = ref(1), limit = ref(20);
-  const errorMessage = ref<string | null>(null);
-
-  const accountsList = ref<any[]>([]), selectedAccountDetail = ref<any>(null), isAccountLoading = ref(false);
-  const mediaResults = ref<any[]>([]), mediaTotal = ref(0), isMediaLoading = ref(false);
-  const mediaStatusFilter = ref('all'), mediaTypeFilter = ref<'all' | 'image' | 'video'>('all');
-  const mediaStats = ref<{ total_count: number; image_count: number; video_count: number }>({ total_count: 0, image_count: 0, video_count: 0 });
   const tableData = ref<{ columns: string[]; rows: any[]; total: number }>({ columns: [], rows: [], total: 0 });
+  const accounts = useAdminDatabaseAccounts();
+  const articles = useAdminDatabaseArticles();
+  const media = useAdminDatabaseMedia();
 
-  const clearError = () => { errorMessage.value = null; };
-
-  const searchArticles = async () => {
-    isSearchLoading.value = true;
-    errorMessage.value = null;
-    try {
-      const app = getApp();
-      if (app?.SearchArticles) {
-        const offset = Math.max(0, (page.value - 1) * limit.value);
-        const res = await app.SearchArticles(searchQuery.value.trim(), searchAccount.value, searchFilter.value, limit.value, offset);
-        searchResults.value = res?.items || res?.Items || [];
-        totalCount.value = res?.total || res?.Total || 0;
-      }
-    } catch (e: any) {
-      console.error('[AdminDB] SearchArticles error:', e);
-      errorMessage.value = `投稿の検索に失敗しました: ${e?.message || e}`;
-    } finally {
-      isSearchLoading.value = false;
-    }
+  const errorMessage = computed(() => accounts.errorMessage.value || articles.errorMessage.value || media.errorMessage.value || null);
+  const clearError = () => {
+    accounts.errorMessage.value = null;
+    articles.errorMessage.value = null;
+    media.errorMessage.value = null;
   };
 
-  const fetchAccounts = async () => {
-    isAccountLoading.value = true;
-    errorMessage.value = null;
-    try {
-      const app = getApp();
-      if (app?.ListAllAccounts) {
-        const res = await app.ListAllAccounts();
-        accountsList.value = res || [];
-      }
-    } catch (e: any) {
-      console.error('[AdminDB] ListAllAccounts error:', e);
-      errorMessage.value = `アカウント一覧の取得に失敗しました: ${e?.message || e}`;
-    } finally {
-      isAccountLoading.value = false;
-    }
-  };
-
-  const selectAccount = async (numericId: string) => {
-    isAccountLoading.value = true;
-    errorMessage.value = null;
-    try {
-      const app = getApp();
-      if (app?.GetAccountDetail) {
-        selectedAccountDetail.value = await app.GetAccountDetail(numericId);
-      }
-    } catch (e: any) {
-      console.error('[AdminDB] GetAccountDetail error:', e);
-      errorMessage.value = `アカウント詳細の取得に失敗しました: ${e?.message || e}`;
-    } finally {
-      isAccountLoading.value = false;
-    }
-  };
-
-  const fetchMedia = async () => {
-    isMediaLoading.value = true;
-    errorMessage.value = null;
-    try {
-      const app = getApp();
-      if (app?.GetMediaList) {
-        const offset = Math.max(0, (page.value - 1) * limit.value);
-        const res = await app.GetMediaList(searchAccount.value, mediaStatusFilter.value, mediaTypeFilter.value, limit.value, offset);
-        mediaResults.value = res?.items || res?.Items || [];
-        mediaTotal.value = res?.total || res?.Total || 0;
-        if (res?.stats) {
-          mediaStats.value = res.stats;
-        }
-      }
-    } catch (e: any) {
-      console.error('[AdminDB] GetMediaList error:', e);
-      errorMessage.value = `メディア一覧の取得に失敗しました: ${e?.message || e}`;
-    } finally {
-      isMediaLoading.value = false;
-    }
-  };
-
-  const saveTranslation = async (id: string, ja: string, en: string, zh: string) => {
-    try {
-      const app = getApp();
-      if (app?.UpdateArticleTranslations) {
-        await app.UpdateArticleTranslations(id, ja, en, zh);
-        await searchArticles();
-      }
-    } catch (e: any) {
-      console.error('[AdminDB] UpdateArticleTranslations error:', e);
-      errorMessage.value = `翻訳の保存に失敗しました: ${e?.message || e}`;
-    }
-  };
-
-  const autoTranslate = async (id: string) => {
-    const app = getApp();
-    if (!app?.AutoTranslateArticle) return null;
-    isTranslating.value = true;
-    errorMessage.value = null;
-    try {
-      const res = await app.AutoTranslateArticle(id);
-      return res;
-    } catch (e: any) {
-      console.error('[AdminDB] AutoTranslateArticle error:', e);
-      errorMessage.value = `自動翻訳に失敗しました: ${e?.message || e}`;
-      return null;
-    } finally {
-      isTranslating.value = false;
-    }
-  };
-
-  const showAccountPosts = (numericId: string) => {
-    searchAccount.value = numericId;
-    page.value = 1;
+  const showAccountPosts = (id: string, onNav?: (tab: 'posts') => void) => {
+    articles.searchAccount.value = id;
+    articles.page.value = 1;
     activeSubTab.value = 'posts';
-    searchArticles();
+    articles.searchArticles();
+    if (onNav) onNav('posts');
   };
 
-  const showAccountMedia = (numericId: string) => {
-    searchAccount.value = numericId;
-    page.value = 1;
+  const showAccountMedia = (id: string, onNav?: (tab: 'media') => void) => {
+    media.mediaAccount.value = id;
+    media.mediaPage.value = 1;
     activeSubTab.value = 'media';
-    fetchMedia();
+    media.fetchMedia();
+    if (onNav) onNav('media');
   };
 
-  const startBatchTranslate = async (acc = 'all', ovw = false) => {
-    try { return await getApp()?.StartTranslateJob?.(acc, ovw); }
-    catch (e: any) { errorMessage.value = `一括翻訳の開始に失敗しました: ${e?.message || e}`; }
-  };
-  const retryMedia = async (mId: string) => {
-    try { await getApp()?.RetryMediaDownload?.(mId); await fetchMedia(); }
-    catch (e: any) { errorMessage.value = `メディア再取得に失敗しました: ${e?.message || e}`; }
-  };
-
-  const fetchStashMetadata = async (sceneId: string, imageId: string) => {
-    try {
-      const app = getApp();
-      if (app?.GetStashMetadata) {
-        return await app.GetStashMetadata(sceneId, imageId);
-      }
-    } catch (e: any) {
-      console.error('[AdminDB] GetStashMetadata error:', e);
-    }
-    return null;
-  };
-
+  const startMediaDownload = async (mId = '') => { try { return await getApp()?.StartMediaDownloadJob?.('twitter', mId); } catch {} };
+  const startMediaPoll = async () => { try { return await getApp()?.StartMediaPollJob?.('twitter'); } catch {} };
+  const requeueMedia = async (status = 'DEAD_404') => { try { const count = await getApp()?.RequeueMediaByStatus?.(status, media.mediaAccount.value); await media.fetchMedia(); return count; } catch { return 0; } };
+  const mergeDuplicates = async () => { try { const count = await getApp()?.MergeDuplicateMedia?.(); await media.fetchMedia(); return count; } catch { return 0; } };
+  const purgeLowResDuplicates = async () => { try { const count = await getApp()?.PurgeLowerResolutionDuplicates?.(); await media.fetchMedia(); return count; } catch { return 0; } };
+  const reconcileStashMedia = async () => { try { const count = await getApp()?.ReconcileStashMedia?.(); await media.fetchMedia(); return count; } catch { return 0; } };
+  const fetchStashMetadata = async (sId: string, iId: string) => { try { return await getApp()?.GetStashMetadata?.(sId, iId); } catch { return null; } };
   const updateStashMetadata = async (isScene: boolean, id: string, title: string, details: string, rating100: number) => {
-    try {
-      const app = getApp();
-      if (app?.UpdateStashMetadata) {
-        return await app.UpdateStashMetadata(isScene, id, title, details, rating100);
-      }
-    } catch (e: any) {
-      console.error('[AdminDB] UpdateStashMetadata error:', e);
-      errorMessage.value = `Stashメタデータの更新に失敗しました: ${e?.message || e}`;
-    }
-    return null;
-  };
-
-  const updateMediaMetadata = async (mediaId: string, downloadStatus: string, stashSceneId: string, stashImageId: string, failedReason: string) => {
-    try {
-      const app = getApp();
-      if (app?.UpdateMediaMetadata) {
-        await app.UpdateMediaMetadata(mediaId, downloadStatus, stashSceneId, stashImageId, failedReason);
-        await fetchMedia();
-        return true;
-      }
-    } catch (e: any) {
-      console.error('[AdminDB] UpdateMediaMetadata error:', e);
-      errorMessage.value = `メタデータの更新に失敗しました: ${e?.message || e}`;
-    }
-    return false;
-  };
-
-  const purgeMedia = async (mId: string) => {
-    try {
-      const app = getApp();
-      if (app?.PurgeMedia) {
-        await app.PurgeMedia(mId);
-        await fetchMedia();
-        return true;
-      }
-    } catch (e: any) {
-      errorMessage.value = `メディアのパージに失敗しました: ${e?.message || e}`;
-    }
-    return false;
-  };
-
-  const purgeMediaByStatus = async (status: string) => {
-    try {
-      const app = getApp();
-      if (app?.PurgeMediaByStatus) {
-        const count = await app.PurgeMediaByStatus(status, searchAccount.value);
-        await fetchMedia();
-        return count;
-      }
-    } catch (e: any) {
-      errorMessage.value = `一括パージに失敗しました: ${e?.message || e}`;
-    }
-    return 0;
-  };
-
-  const updateAccount = async (numericId: string, displayName: string, username: string, avatarUrl: string, description: string) => {
-    isAccountLoading.value = true;
-    errorMessage.value = null;
-    try {
-      const app = getApp();
-      if (app?.UpdateAccount) {
-        await app.UpdateAccount(numericId, displayName, username, avatarUrl, description);
-        await fetchAccounts();
-        await selectAccount(numericId);
-        return true;
-      }
-      return false;
-    } catch (e: any) {
-      console.error('[AdminDB] UpdateAccount error:', e);
-      errorMessage.value = `アカウント情報の更新に失敗しました: ${e?.message || e}`;
-      return false;
-    } finally {
-      isAccountLoading.value = false;
-    }
-  };
-
-  const saveAvatarImage = async (platform: string, virtualKey: string, base64Data: string) => {
-    errorMessage.value = null;
-    try {
-      const app = getApp();
-      if (app?.SaveAvatarImage) {
-        const savedPath = await app.SaveAvatarImage(platform, virtualKey, base64Data);
-        return savedPath;
-      }
-      return null;
-    } catch (e: any) {
-      console.error('[AdminDB] SaveAvatarImage error:', e);
-      errorMessage.value = `アバター画像の保存に失敗しました: ${e?.message || e}`;
-      return null;
-    }
-  };
-
-  const fetchAvailableAvatars = async (platform = 'twitter'): Promise<string[]> => {
-    try {
-      const app = getApp();
-      if (app?.ListAvailableAvatars) {
-        return (await app.ListAvailableAvatars(platform)) || [];
-      }
-      return [];
-    } catch (e: any) {
-      console.error('[AdminDB] ListAvailableAvatars error:', e);
-      return [];
-    }
-  };
-
-  const startMediaDownload = async (mediaId = '') => {
-    try {
-      const app = getApp();
-      if (app?.StartMediaDownloadJob) {
-        return await app.StartMediaDownloadJob('twitter', mediaId);
-      }
-    } catch (e: any) {
-      errorMessage.value = `メディアダウンロードの開始に失敗しました: ${e?.message || e}`;
-    }
-  };
-
-  const startMediaPoll = async () => {
-    try {
-      const app = getApp();
-      if (app?.StartMediaPollJob) {
-        return await app.StartMediaPollJob('twitter');
-      }
-    } catch (e: any) {
-      errorMessage.value = `Aria2委託回収の開始に失敗しました: ${e?.message || e}`;
-    }
-  };
-
-  const requeueMedia = async (status = 'DEAD_404') => {
-    try {
-      const app = getApp();
-      if (app?.RequeueMediaByStatus) {
-        const count = await app.RequeueMediaByStatus(status, searchAccount.value);
-        await fetchMedia();
-        return count;
-      }
-    } catch (e: any) {
-      errorMessage.value = `リトライキューイングに失敗しました: ${e?.message || e}`;
-    }
-    return 0;
-  };
-
-  const openInExplorer = async (mediaId: string) => {
-    try {
-      const app = getApp();
-      if (app?.OpenInExplorer) await app.OpenInExplorer(mediaId);
-    } catch (e: any) {
-      errorMessage.value = `エクスプローラーで開けませんでした: ${e?.message || e}`;
-    }
-  };
-
-  const openWithDefaultApp = async (mediaId: string) => {
-    try {
-      const app = getApp();
-      if (app?.OpenWithDefaultApp) await app.OpenWithDefaultApp(mediaId);
-    } catch (e: any) {
-      errorMessage.value = `既定アプリで開けませんでした: ${e?.message || e}`;
-    }
-  };
-
-  const toggleBookmark = async (mediaId: string) => {
-    try {
-      const app = getApp();
-      if (app?.ToggleMediaBookmark) {
-        const res = await app.ToggleMediaBookmark(mediaId);
-        // ローカルアイテムの更新
-        const item = mediaResults.value.find((m: any) => (m.media_id || m.id) === mediaId);
-        if (item) item.is_bookmarked = res;
-        return res;
-      }
-    } catch (e: any) {
-      console.error('[AdminDB] ToggleMediaBookmark error:', e);
-    }
-  };
-
-  const mergeDuplicates = async () => {
-    try {
-      const app = getApp();
-      if (app?.MergeDuplicateMedia) {
-        const count = await app.MergeDuplicateMedia();
-        await fetchMedia();
-        return count;
-      }
-    } catch (e: any) {
-      errorMessage.value = `重複メディア統合に失敗しました: ${e?.message || e}`;
-    }
-    return 0;
-  };
-
-  const purgeLowResDuplicates = async () => {
-    try {
-      const app = getApp();
-      if (app?.PurgeLowerResolutionDuplicates) {
-        const count = await app.PurgeLowerResolutionDuplicates();
-        await fetchMedia();
-        return count;
-      }
-    } catch (e: any) {
-      errorMessage.value = `低解像度パージに失敗しました: ${e?.message || e}`;
-    }
-    return 0;
-  };
-
-  const reconcileStashMedia = async () => {
-    try {
-      const app = getApp();
-      if (app?.ReconcileStashMedia) {
-        const count = await app.ReconcileStashMedia();
-        await fetchMedia();
-        return count;
-      }
-    } catch (e: any) {
-      errorMessage.value = `Stash自動同期に失敗しました: ${e?.message || e}`;
-    }
-    return 0;
+    try { return await getApp()?.UpdateStashMetadata?.(isScene, id, title, details, rating100); } catch { return null; }
   };
 
   return {
-    activeSubTab, searchResults, totalCount, isSearchLoading, isTranslating, searchQuery, searchAccount,
-    searchFilter, page, limit, errorMessage, clearError, accountsList, selectedAccountDetail, isAccountLoading,
-    mediaResults, mediaTotal, isMediaLoading, mediaStatusFilter, mediaTypeFilter, mediaStats, tableData, searchArticles, fetchAccounts,
-    selectAccount, updateAccount, saveAvatarImage, fetchAvailableAvatars, fetchMedia, saveTranslation, autoTranslate, startBatchTranslate, retryMedia,
-    fetchStashMetadata, updateStashMetadata, updateMediaMetadata, purgeMedia, purgeMediaByStatus,
-    showAccountPosts, showAccountMedia,
-    startMediaDownload, startMediaPoll, requeueMedia, openInExplorer, openWithDefaultApp, toggleBookmark,
-    mergeDuplicates, purgeLowResDuplicates, reconcileStashMedia,
+    activeSubTab, tableData, errorMessage, clearError,
+    // Articles
+    searchResults: articles.searchResults, totalCount: articles.totalCount, isSearchLoading: articles.isSearchLoading,
+    isTranslating: articles.isTranslating, searchQuery: articles.searchQuery, searchAccount: articles.searchAccount,
+    searchFilter: articles.searchFilter, page: articles.page, limit: articles.limit, searchArticles: articles.searchArticles,
+    setPage: articles.setPage, setAccount: articles.setAccount,
+    saveTranslation: articles.saveTranslation, autoTranslate: articles.autoTranslate, startBatchTranslate: articles.startBatchTranslate,
+    // Accounts
+    accountsList: accounts.accountsList, selectedAccountDetail: accounts.selectedAccountDetail, isAccountLoading: accounts.isAccountLoading,
+    fetchAccounts: accounts.fetchAccounts, selectAccount: accounts.selectAccount, updateAccount: accounts.updateAccount,
+    saveAvatarImage: accounts.saveAvatarImage, fetchAvailableAvatars: accounts.fetchAvailableAvatars,
+    // Media
+    mediaResults: media.mediaResults, mediaTotal: media.mediaTotal, isMediaLoading: media.isMediaLoading,
+    mediaAccount: media.mediaAccount, mediaPage: media.mediaPage, mediaLimit: media.mediaLimit,
+    mediaStatusFilter: media.mediaStatusFilter, mediaTypeFilter: media.mediaTypeFilter, mediaStats: media.mediaStats,
+    fetchMedia: media.fetchMedia, setMediaPage: media.setMediaPage, setMediaLimit: media.setMediaLimit,
+    setMediaAccount: media.setMediaAccount, setMediaStatusFilter: media.setMediaStatusFilter, setMediaTypeFilter: media.setMediaTypeFilter,
+    updateMediaMetadata: media.updateMediaMetadata, purgeMedia: media.purgeMedia,
+    purgeMediaByStatus: (status: string) => media.purgeMediaByStatus(status, media.mediaAccount.value),
+    toggleBookmark: media.toggleBookmark, openInExplorer: media.openInExplorer, openWithDefaultApp: media.openWithDefaultApp,
+    retryMedia: media.retryMedia, showAccountPosts, showAccountMedia,
+    startMediaDownload, startMediaPoll, requeueMedia, mergeDuplicates, purgeLowResDuplicates, reconcileStashMedia,
+    fetchStashMetadata, updateStashMetadata,
   };
 }
+

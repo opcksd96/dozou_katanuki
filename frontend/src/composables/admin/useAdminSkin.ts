@@ -1,7 +1,7 @@
 // frontend/src/composables/admin/useAdminSkin.ts (100行以下)
 import { ref } from 'vue';
 
-const getApp = () => (window as any)?.go?.main?.App;
+const getApp = () => (window as any)?.go?.app?.App || (window as any)?.go?.main?.App;
 
 export function useAdminSkin() {
   const skinCSS = ref('');

@@ -9,6 +9,7 @@ import (
 	"syscall"
 	"time"
 
+	"dozou_katanuki/app"
 	"dozou_katanuki/middleware"
 
 	"github.com/wailsapp/wails/v2"
@@ -24,7 +25,6 @@ import (
 var assets embed.FS
 
 func main() {
-	// Ctrl+C / SIGINT / SIGTERM を検知して即座に終了するセーフガード
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
 	go func() {
@@ -40,21 +40,20 @@ func main() {
 	}
 
 	unifiedHandler := middleware.NewUnifiedHandler("./assets", stashURL)
-	app := NewApp(unifiedHandler, assets)
+	appInstance := app.NewApp(unifiedHandler, assets)
 
-	// OS ネイティブメニュー
 	appMenu := menu.NewMenu()
 	toolsMenu := appMenu.AddSubmenu("設定・管理 (Admin)")
 	toolsMenu.AddText("⚙️ 設定・Admin Board...", keys.CmdOrCtrl(","), func(_ *menu.CallbackData) {
-		if app.ctx != nil {
-			runtime.EventsEmit(app.ctx, "open:admin")
+		if appInstance.Ctx != nil {
+			runtime.EventsEmit(appInstance.Ctx, "open:admin")
 		}
 	})
 
 	viewMenu := appMenu.AddSubmenu("表示 (View)")
 	viewMenu.AddText("再読み込み (Reload)", keys.CmdOrCtrl("r"), func(_ *menu.CallbackData) {
-		if app.ctx != nil {
-			runtime.WindowReload(app.ctx)
+		if appInstance.Ctx != nil {
+			runtime.WindowReload(appInstance.Ctx)
 		}
 	})
 
@@ -69,15 +68,15 @@ func main() {
 			Assets:  assets,
 			Handler: unifiedHandler,
 		},
-		OnStartup:  app.startup,
-		OnDomReady: app.domReady,
-		OnShutdown: app.shutdown,
+		OnStartup:  appInstance.Startup,
+		OnDomReady: appInstance.DomReady,
+		OnShutdown: appInstance.Shutdown,
 		Windows: &windows.Options{
 			Theme:                windows.Dark,
 			WebviewIsTransparent: false,
 			WindowIsTranslucent:  false,
 		},
-		Bind: []interface{}{app},
+		Bind: []interface{}{appInstance},
 	})
 
 	if err != nil {

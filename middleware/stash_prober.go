@@ -6,10 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"os/exec"
 	"path/filepath"
-	"strings"
-	"syscall"
 	"time"
 )
 
@@ -23,9 +20,7 @@ type StashProber struct {
 }
 
 func NewStashProber(stashPath string, targetURL string, emitter EventEmitter) *StashProber {
-	if targetURL == "" {
-		targetURL = "http://127.0.0.1:9999/"
-	}
+	if targetURL == "" { targetURL = "http://127.0.0.1:9999/" }
 	candidates := []string{
 		stashPath,
 		filepath.Join("bin", "stash", "stash-win.exe"),
@@ -34,31 +29,20 @@ func NewStashProber(stashPath string, targetURL string, emitter EventEmitter) *S
 	}
 	resolvedPath := ""
 	for _, c := range candidates {
-		if c == "" {
-			continue
-		}
-		if _, err := os.Stat(c); err == nil {
-			resolvedPath = c
-			break
+		if c != "" {
+			if _, err := os.Stat(c); err == nil {
+				resolvedPath = c
+				break
+			}
 		}
 	}
 	if resolvedPath == "" {
-		if stashPath != "" {
-			resolvedPath = stashPath
-		} else {
-			resolvedPath = filepath.Join("bin", "stash", "stash-win.exe")
-		}
+		if stashPath != "" { resolvedPath = stashPath } else { resolvedPath = filepath.Join("bin", "stash", "stash-win.exe") }
 	}
-	return &StashProber{
-		stashPath: resolvedPath,
-		targetURL: targetURL,
-		emitter:   emitter,
-	}
+	return &StashProber{stashPath: resolvedPath, targetURL: targetURL, emitter: emitter}
 }
 
-func (p *StashProber) IsConnected() bool {
-	return p.connected
-}
+func (p *StashProber) IsConnected() bool { return p.connected }
 
 func (p *StashProber) Start(ctx context.Context) {
 	proberCtx, cancel := context.WithCancel(ctx)
@@ -87,10 +71,7 @@ func (p *StashProber) probeLoop(ctx context.Context) {
 					p.connected = true
 					if p.emitter != nil {
 						p.emitter("stash:ready", true)
-						p.emitter("toast:notify", map[string]string{
-							"type":    "success",
-							"message": "🟢 Stash 接続完了！",
-						})
+						p.emitter("toast:notify", map[string]string{"type": "success", "message": "🟢 Stash 接続完了！"})
 					}
 					fmt.Println("[StashProber] 🟢 Stash 接続確認完了 (Ready)")
 				}
@@ -98,13 +79,9 @@ func (p *StashProber) probeLoop(ctx context.Context) {
 				if p.connected {
 					p.connected = false
 					disconnectedSince = time.Now()
-					if p.emitter != nil {
-						p.emitter("stash:ready", false)
-					}
+					if p.emitter != nil { p.emitter("stash:ready", false) }
 					fmt.Println("[StashProber] ⚠️ Stash 切断検知 (Reconnecting...)")
 				}
-
-				// 2秒以上切断状態が継続し、直近5秒以内にキックしていない場合
 				if time.Since(disconnectedSince) > 2*time.Second && time.Since(lastKickAt) > 5*time.Second {
 					if !p.isStashProcessAlive() {
 						lastKickAt = time.Now()
@@ -115,57 +92,4 @@ func (p *StashProber) probeLoop(ctx context.Context) {
 			}
 		}
 	}
-}
-
-func (p *StashProber) isStashProcessAlive() bool {
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
-	defer cancel()
-	cmd := exec.CommandContext(ctx, "tasklist", "/FI", "IMAGENAME eq stash-win.exe")
-	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true, CreationFlags: 0x08000000}
-	out, err := cmd.Output()
-	if err != nil {
-		return false
-	}
-	s := strings.ToLower(string(out))
-	return strings.Contains(s, "stash-win.exe")
-}
-
-func (p *StashProber) kickStashAsync() {
-	if p.isStashProcessAlive() {
-		fmt.Println("[StashProber] Stash プロセスが既に存在するため二重起動を抑止しました。")
-		return
-	}
-
-	if p.emitter != nil {
-		p.emitter("toast:notify", map[string]string{
-			"type":    "info",
-			"message": "📦 Stash をバックグラウンド起動中...",
-		})
-	}
-	go func() {
-		if p.isStashProcessAlive() {
-			return
-		}
-		absPath, err := filepath.Abs(p.stashPath)
-		if err != nil {
-			return
-		}
-		cmd := exec.Command(absPath)
-		cmd.Dir = filepath.Dir(absPath)
-		cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true, CreationFlags: 0x08000000 | 0x00000200}
-		_ = cmd.Start()
-		fmt.Printf("[StashProber] Stash プロセスをバックグラウンドキックしました: %s\n", absPath)
-	}()
-}
-
-func (p *StashProber) Stop() {
-	if p.cancelFunc != nil {
-		p.cancelFunc()
-	}
-	p.running = false
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
-	defer cancel()
-	cmd := exec.CommandContext(ctx, "taskkill", "/F", "/IM", "stash-win.exe")
-	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true, CreationFlags: 0x08000000}
-	_ = cmd.Run()
 }

@@ -63,7 +63,7 @@ func ToRenderTree(item models.Article, platform string) models.RenderTree {
 			DisplayName: item.Account.DisplayName, AvatarURL: avatarURL,
 			Bio: item.Account.Description,
 		},
-		Media: MapMediaToRenderMedia(item.Media), Metrics: models.RenderMetrics{},
+		Media: MapMediaToRenderMediaWithContext(item.Media, platform, item.Account.Username), Metrics: models.RenderMetrics{},
 		IsLiked: item.IsLiked, SourceURL: item.WaybackURL,
 		ParentID: item.ReplyToID.String, ReplyToHandle: item.ReplyToHandle.String,
 	}
@@ -76,3 +76,8 @@ func BuildRenderMedia(m models.Media) models.RenderMedia {
 func MapMediaToRenderMedia(mediaList []models.Media) []models.RenderMedia {
 	return models.MapMediaToRenderMedia(mediaList)
 }
+
+func MapMediaToRenderMediaWithContext(mediaList []models.Media, platform, username string) []models.RenderMedia {
+	return models.MapMediaToRenderMediaWithContext(mediaList, platform, username)
+}
+

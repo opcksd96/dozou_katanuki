@@ -2,7 +2,7 @@
 import { ref, onMounted, onUnmounted } from 'vue';
 import { EventsOn, EventsOff } from '../../../wailsjs/runtime/runtime';
 
-const getApp = () => (window as any)?.go?.main?.App;
+const getApp = () => (window as any)?.go?.app?.App || (window as any)?.go?.main?.App;
 
 export function useAdminJob() {
   const activeJob = ref<any>(null), jobList = ref<any[]>([]), jobLogs = ref<string[]>([]), isJobRunning = ref(false);

@@ -1,62 +1,37 @@
+<!-- frontend/src/components/media/StashPlayer.vue (100行以下) -->
 <script setup lang="ts">
 import { ref, shallowRef, computed, onMounted, onBeforeUnmount, watch } from 'vue';
 import Plyr from 'plyr';
 import Hls from 'hls.js';
 import { EventsOn } from '../../../wailsjs/runtime/runtime';
 
-const props = withDefaults(
-  defineProps<{
-    src: string;
-    poster?: string;
-    autoplay?: boolean;
-    controls?: boolean;
-    stashSceneId?: string;
-    showExpandButton?: boolean;
-  }>(),
-  { autoplay: false, controls: true, showExpandButton: true }
-);
+const props = withDefaults(defineProps<{ src: string; poster?: string; autoplay?: boolean; controls?: boolean; stashSceneId?: string; showExpandButton?: boolean }>(), { autoplay: false, controls: true, showExpandButton: true });
+const emit = defineEmits<{ (e: 'expand'): void }>();
 
-const emit = defineEmits<{
-  (e: 'expand'): void;
-}>();
-
-const videoRef = ref<HTMLVideoElement | null>(null);
-const playerRef = shallowRef<Plyr | null>(null);
-const hlsRef = shallowRef<Hls | null>(null);
+const videoRef = ref<HTMLVideoElement | null>(null), playerRef = shallowRef<Plyr | null>(null), hlsRef = shallowRef<Hls | null>(null);
 const isError = ref(false), retryCount = ref(0);
 let unoffStashReady: (() => void) | null = null;
-const currentHostname = computed(() => {
-  if (typeof window !== 'undefined' && window.location?.hostname) {
-    return window.location.hostname;
-  }
-  return '127.0.0.1';
-});
+const host = computed(() => typeof window !== 'undefined' && window.location?.hostname ? window.location.hostname : '127.0.0.1');
 const stashUrl = computed(() => {
-  if (props.stashSceneId) return `http://${currentHostname.value}:9999/scenes/${props.stashSceneId}`;
-  const match = props.src?.match(/\/stash-proxy\/scene\/([^/]+)/);
-  return match?.[1] ? `http://${currentHostname.value}:9999/scenes/${match[1]}` : null;
+  if (props.stashSceneId) return `http://${host.value}:9999/scenes/${props.stashSceneId}`;
+  const m = props.src?.match(/\/stash-proxy\/scene\/([^/]+)/);
+  return m?.[1] ? `http://${host.value}:9999/scenes/${m[1]}` : null;
 });
 
-const destroyPlayer = () => {
-  if (hlsRef.value) { hlsRef.value.destroy(); hlsRef.value = null; }
-  if (playerRef.value) { playerRef.value.destroy(); playerRef.value = null; }
-};
-
+const destroyPlayer = () => { if (hlsRef.value) { hlsRef.value.destroy(); hlsRef.value = null; } if (playerRef.value) { playerRef.value.destroy(); playerRef.value = null; } };
 const initPlayer = () => {
   destroyPlayer();
   if (!videoRef.value || !props.src) { isError.value = !props.src; return; }
   isError.value = false;
   if ((props.src.includes('.m3u8') || props.src.includes('/m3u8')) && Hls.isSupported()) {
     const hls = new Hls({ enableWorker: true, lowLatencyMode: true });
-    hls.loadSource(props.src);
-    hls.attachMedia(videoRef.value);
+    hls.loadSource(props.src); hls.attachMedia(videoRef.value);
     hls.on(Hls.Events.ERROR, (_, data) => { if (data.fatal) handleError(); });
     hlsRef.value = hls;
   }
   playerRef.value = new Plyr(videoRef.value, {
     controls: ['play-large', 'play', 'rewind', 'fast-forward', 'progress', 'current-time', 'duration', 'mute', 'volume', 'settings', 'pip', 'fullscreen'],
-    seekTime: 10, settings: ['speed'], speed: { selected: 1, options: [0.5, 0.75, 1, 1.25, 1.5, 2] },
-    keyboard: { focused: false, global: false }, autoplay: props.autoplay, muted: props.autoplay, clickToPlay: true
+    seekTime: 10, settings: ['speed'], keyboard: { focused: false, global: false }, autoplay: props.autoplay, muted: props.autoplay, clickToPlay: true
   });
 };
 
@@ -65,68 +40,27 @@ const handleError = () => { isError.value = true; if (retryCount.value < 2) setT
 watch(() => props.src, () => { retryCount.value = 0; initPlayer(); });
 onMounted(() => {
   initPlayer();
-  try {
-    if ((window as any)?.runtime?.EventsOnMultiple) {
-      unoffStashReady = EventsOn('stash:ready', () => { if (isError.value) handleRetry(); });
-    }
-  } catch (_) {}
+  try { if ((window as any)?.runtime?.EventsOnMultiple) unoffStashReady = EventsOn('stash:ready', () => { if (isError.value) handleRetry(); }); } catch {}
 });
-onBeforeUnmount(() => {
-  if (unoffStashReady) try { unoffStashReady(); } catch (_) {}
-  destroyPlayer();
-});
+onBeforeUnmount(() => { if (unoffStashReady) try { unoffStashReady(); } catch {} destroyPlayer(); });
 </script>
 
 <template>
   <div @click.stop class="relative w-full h-full flex items-center justify-center bg-black rounded overflow-hidden select-none group/player">
-    <video
-      v-show="!isError"
-      ref="videoRef"
-      :src="src"
-      :poster="poster"
-      playsinline
-      preload="metadata"
-      class="max-w-full max-h-full object-contain rounded"
-      @error="handleError"
-    >
-      動画の再生に対応していません。
-    </video>
-
-    <!-- ツールバー導線ボタン (ホバー時表示) -->
+    <video v-show="!isError" ref="videoRef" :src="src" :poster="poster" playsinline preload="metadata" class="max-w-full max-h-full object-contain rounded" @error="handleError">動画の再生に対応していません。</video>
     <div class="absolute top-2.5 right-2.5 z-30 opacity-0 group-hover/player:opacity-100 transition-opacity flex items-center gap-1.5">
-      <!-- 詳細オーバーレイ展開ボタン -->
-      <button
-        v-if="showExpandButton && !isError"
-        @click.stop="emit('expand')"
-        title="全画面・ツイート詳細オーバーレイで開く"
-        class="bg-black/75 hover:bg-blue-600/90 text-white text-[11px] font-mono px-2.5 py-1 rounded-lg border border-white/20 flex items-center gap-1.5 cursor-pointer shadow-lg backdrop-blur-md transition-all active:scale-95"
-      >
-        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
-        </svg>
+      <button v-if="showExpandButton && !isError" @click.stop="emit('expand')" class="bg-black/75 hover:bg-blue-600 text-white text-[11px] font-mono px-2.5 py-1 rounded-lg border border-white/20 flex items-center gap-1 cursor-pointer">
         <span>全画面詳細</span>
       </button>
-
-      <!-- Stash スマート別窓導線ボタン -->
-      <a
-        v-if="stashUrl && !isError"
-        :href="stashUrl"
-        target="_blank"
-        rel="noopener noreferrer"
-        @click.stop
-        title="Stash でこのシーンを開く"
-        class="bg-black/75 hover:bg-purple-600/90 text-white text-[11px] font-mono px-2.5 py-1 rounded-lg border border-white/20 flex items-center gap-1.5 shadow-lg backdrop-blur-md transition-all"
-      >
-        <span>📦</span><span>Stash</span><span class="text-[9px] opacity-70">↗</span>
+      <a v-if="stashUrl && !isError" :href="stashUrl" target="_blank" rel="noopener noreferrer" @click.stop class="bg-black/75 hover:bg-purple-600 text-white text-[11px] font-mono px-2.5 py-1 rounded-lg border border-white/20 flex items-center gap-1">
+        <span>📦 Stash ↗</span>
       </a>
     </div>
-
-    <!-- エラー時フォールバック -->
     <div v-if="isError" class="flex flex-col items-center justify-center p-6 text-slate-400 gap-2">
       <span class="text-2xl">⚠️</span>
-      <div class="flex items-center gap-2 mt-1">
+      <div class="flex gap-2 mt-1">
         <button @click.stop="handleRetry" class="px-2.5 py-1 text-xs bg-slate-800 hover:bg-slate-700 text-cyan-400 rounded font-mono border border-slate-700">🔄 再試行</button>
-        <a v-if="stashUrl" :href="stashUrl" target="_blank" @click.stop class="px-2.5 py-1 text-xs bg-purple-950/60 hover:bg-purple-900/80 text-purple-300 rounded font-mono border border-purple-700/50">📦 Stash確認</a>
+        <a v-if="stashUrl" :href="stashUrl" target="_blank" @click.stop class="px-2.5 py-1 text-xs bg-purple-950 hover:bg-purple-900 text-purple-300 rounded font-mono border border-purple-700">📦 Stash確認</a>
       </div>
     </div>
   </div>

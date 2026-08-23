@@ -34,17 +34,24 @@ func InitDB(dbPath string) (*gorm.DB, error) {
 	)
 	if err != nil { return nil, err }
 
-	// GAP-1: 5つの複合インデックスを適用 (SPEC-STORAGE-001)
+	// GAP-1: Wiki仕様 10大インデックス完全適用 (SPEC-DATABASE-001 §1.3)
 	indexes := []string{
-		"CREATE INDEX IF NOT EXISTS idx_articles_account_created ON articles (account_id, created_at DESC);",
-		"CREATE INDEX IF NOT EXISTS idx_media_article_type ON media (article_id, type);",
-		"CREATE INDEX IF NOT EXISTS idx_media_status_type ON media (download_status, type);",
-		"CREATE INDEX IF NOT EXISTS idx_history_account_recorded ON account_profile_history (account_id, recorded_at DESC);",
-		"CREATE INDEX IF NOT EXISTS idx_whitelist_type_active ON whitelists (type, is_active);",
+		"CREATE INDEX IF NOT EXISTS idx_articles_is_liked_created ON articles(is_liked, created_at DESC) WHERE is_liked = 1;",
+		"CREATE INDEX IF NOT EXISTS idx_articles_account_created ON articles(account_id, created_at DESC);",
+		"CREATE INDEX IF NOT EXISTS idx_articles_conversation ON articles(conversation_id, created_at ASC);",
+		"CREATE INDEX IF NOT EXISTS idx_articles_reply_to ON articles(reply_to_id);",
+		"CREATE INDEX IF NOT EXISTS idx_articles_created_at ON articles(created_at DESC);",
+		"CREATE INDEX IF NOT EXISTS idx_history_lookup ON account_profile_histories(account_id, avatar_seq DESC);",
+		"CREATE INDEX IF NOT EXISTS idx_accounts_username ON accounts(username);",
+		"CREATE INDEX IF NOT EXISTS idx_media_article ON media(article_id);",
+		"CREATE UNIQUE INDEX IF NOT EXISTS idx_media_stash_scene ON media(stash_scene_id) WHERE stash_scene_id IS NOT NULL;",
+		"CREATE UNIQUE INDEX IF NOT EXISTS idx_media_stash_image ON media(stash_image_id) WHERE stash_image_id IS NOT NULL;",
+		"CREATE INDEX IF NOT EXISTS idx_media_status_type ON media(download_status, type);",
+		"CREATE INDEX IF NOT EXISTS idx_whitelist_type_active ON whitelists(type, is_active);",
 	}
 	for _, idxSql := range indexes { _ = db.Exec(idxSql).Error }
 
 	_ = MigrateAvatarsToBase64(db)
-	log.Printf("[Driver] Database initialized successfully (WAL mode & Composite Indexes applied): %s", dbPath)
+	log.Printf("[Driver] Database initialized (WAL mode & 10 Major Indexes applied): %s", dbPath)
 	return db, nil
 }

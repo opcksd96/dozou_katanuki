@@ -20,6 +20,11 @@ type Media struct {
 
 // BuildRenderMedia converts a DB Media record to frontend RenderMedia with normalized URLs and status
 func BuildRenderMedia(m Media) RenderMedia {
+	return BuildRenderMediaWithContext(m, "", "")
+}
+
+// BuildRenderMediaWithContext converts Media to RenderMedia considering platform and username
+func BuildRenderMediaWithContext(m Media, platform, username string) RenderMedia {
 	var mediaURLs RenderMediaURLs
 	mediaURLs.Original = m.DownloadURL
 	effectiveStatus := m.DownloadStatus
@@ -34,13 +39,17 @@ func BuildRenderMedia(m Media) RenderMedia {
 			mediaURLs.Image = "/stash-proxy/image/" + m.StashImageID.String + "/image"
 			mediaURLs.Thumbnail = "/stash-proxy/image/" + m.StashImageID.String + "/thumbnail"
 		} else {
+			localPath := "/media/" + m.MediaID
+			if platform != "" && username != "" {
+				localPath = "/media-local/" + platform + "/" + username + "/" + m.MediaID
+			}
 			if m.Type == "video" || m.Type == "gif" {
-				mediaURLs.Stream = "/media/" + m.MediaID
-				mediaURLs.Thumbnail = "/media/" + m.MediaID
-				mediaURLs.Preview = "/media/" + m.MediaID
+				mediaURLs.Stream = localPath
+				mediaURLs.Thumbnail = localPath
+				mediaURLs.Preview = localPath
 			} else {
-				mediaURLs.Image = "/media/" + m.MediaID
-				mediaURLs.Thumbnail = "/media/" + m.MediaID
+				mediaURLs.Image = localPath
+				mediaURLs.Thumbnail = localPath
 			}
 		}
 	}
@@ -55,9 +64,15 @@ func BuildRenderMedia(m Media) RenderMedia {
 
 // MapMediaToRenderMedia converts slice of Media to slice of RenderMedia
 func MapMediaToRenderMedia(mediaList []Media) []RenderMedia {
+	return MapMediaToRenderMediaWithContext(mediaList, "", "")
+}
+
+// MapMediaToRenderMediaWithContext converts slice of Media with context
+func MapMediaToRenderMediaWithContext(mediaList []Media, platform, username string) []RenderMedia {
 	result := make([]RenderMedia, 0, len(mediaList))
 	for _, m := range mediaList {
-		result = append(result, BuildRenderMedia(m))
+		result = append(result, BuildRenderMediaWithContext(m, platform, username))
 	}
 	return result
 }
+

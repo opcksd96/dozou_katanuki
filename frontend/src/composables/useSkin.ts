@@ -44,7 +44,7 @@ export function useSkin() {
   const loadSkin = async (platform: string = 'twitter', ctx?: SkinContext) => {
     currentPlatform.value = platform;
     try {
-      const app = (window as any)?.go?.main?.App;
+      const app = (window as any)?.go?.app?.App || (window as any)?.go?.main?.App;
       if (app) {
         let pkg: any = null;
         if (typeof app.GetSkinPackage === 'function') pkg = await app.GetSkinPackage(platform);

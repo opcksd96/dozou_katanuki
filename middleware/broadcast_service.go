@@ -20,11 +20,11 @@ type BroadcastService struct {
 	timelineService *TimelineService
 	emitter         EventEmitter
 	distFS          fs.FS
-	server  *http.Server
-	listener net.Listener
-	useTLS  bool
-	mu      sync.RWMutex
-	running bool
+	server          *http.Server
+	listener        net.Listener
+	useTLS          bool
+	mu              sync.RWMutex
+	running         bool
 }
 
 func NewBroadcastService(netCfg models.NetworkConfig, bcastCfg models.BroadcastConfig, handler *UnifiedHandler, timeline *TimelineService, emitter EventEmitter) *BroadcastService {
@@ -37,9 +37,7 @@ func NewBroadcastService(netCfg models.NetworkConfig, bcastCfg models.BroadcastC
 }
 
 func (s *BroadcastService) SetDistFS(dfs fs.FS) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.distFS = dfs
+	s.mu.Lock(); defer s.mu.Unlock(); s.distFS = dfs
 }
 
 func (s *BroadcastService) Start(ctx context.Context) error {
@@ -53,35 +51,25 @@ func (s *BroadcastService) Start(ctx context.Context) error {
 }
 
 func (s *BroadcastService) Stop() error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	s.mu.Lock(); defer s.mu.Unlock()
 	if !s.running { return nil }
 	s.running = false
 	var err error
-	if s.server != nil {
-		err = s.server.Close()
-		s.server = nil
-	}
-	if s.listener != nil {
-		_ = s.listener.Close()
-		s.listener = nil
-	}
+	if s.server != nil { err = s.server.Close(); s.server = nil }
+	if s.listener != nil { _ = s.listener.Close(); s.listener = nil }
 	log.Println("[Broadcast] LAN Broadcast Server stopped.")
 	return err
 }
 
 func (s *BroadcastService) UpdateConfig(netCfg models.NetworkConfig, bcastCfg models.BroadcastConfig) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	s.mu.Lock(); defer s.mu.Unlock()
 	s.netCfg, s.bcastCfg = netCfg, bcastCfg
 	if s.running {
 		if s.server != nil { _ = s.server.Close() }
 		if s.listener != nil { _ = s.listener.Close() }
 		s.server, s.listener, s.running = nil, nil, false
 	}
-	if s.bcastCfg.Enabled {
-		return s.startServerLocked()
-	}
+	if s.bcastCfg.Enabled { return s.startServerLocked() }
 	return nil
 }
 

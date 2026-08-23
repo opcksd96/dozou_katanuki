@@ -53,10 +53,11 @@ watch(() => [props.article, props.article?.content?.ja, props.article?.content?.
     <div class="space-y-1">
       <label class="text-[10px] text-slate-400 font-semibold flex justify-between">
         <span>原文プレビュー (保護ビュー)</span>
-        <span class="text-slate-500 font-mono text-[9px] truncate max-w-[200px]">{{ article.author?.handle ? '@' + article.author.handle : '' }}</span>
+        <span class="text-slate-500 font-mono text-[9px] truncate max-w-[200px]">{{ article?.author?.handle ? '@' + article.author.handle : '' }}</span>
       </label>
-      <div class="p-2 bg-slate-950/80 rounded-lg text-[11px] text-slate-300 font-sans select-text max-h-12 overflow-y-auto border border-slate-800/80 leading-relaxed" v-html="article.content.original"></div>
+      <div class="p-2 bg-slate-950/80 rounded-lg text-[11px] text-slate-300 font-sans select-text max-h-12 overflow-y-auto border border-slate-800/80 leading-relaxed" v-html="article?.content?.original || ''"></div>
     </div>
+
 
     <!-- 言語切り替えタブ -->
     <div class="flex items-center justify-between border-b border-slate-800/80 pb-1 text-[11px]">

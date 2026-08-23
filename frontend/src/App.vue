@@ -31,7 +31,6 @@ useKeyboardReload();
 
 const currentAccountObj = computed(() => accounts.value.find((a) => a.numeric_id === selectedAccount.value) || null);
 const currentNavItems = computed(() => (activeArticleId.value && detail.value) ? [detail.value.article, ...(detail.value.thread || [])] : articles.value);
-
 const openDetail = (id: string) => { activeArticleId.value = id; fetchDetail(id); window.scrollTo({ top: 0, behavior: 'smooth' }); };
 const closeDetail = () => { activeArticleId.value = null; clearDetail(); };
 
@@ -46,14 +45,8 @@ const { focusedIndex, isHelpOpen } = useKeyboardNavigation({
 const focusedId = computed(() => (focusedIndex.value >= 0 && focusedIndex.value < currentNavItems.value.length) ? currentNavItems.value[focusedIndex.value].id : null);
 onMounted(() => {
   loadSkin('twitter');
-  try {
-    if ((window as any)?.runtime?.EventsOnMultiple) {
-      (window as any).runtime.EventsOnMultiple('open:admin', () => { isAdminOpen.value = true; }, -1);
-    }
-  } catch (_) {}
+  try { if ((window as any)?.runtime?.EventsOnMultiple) (window as any).runtime.EventsOnMultiple('open:admin', () => { isAdminOpen.value = true; }, -1); } catch {}
 });
-
-
 </script>
 
 <template>
@@ -67,33 +60,12 @@ onMounted(() => {
       </template>
 
       <main :key="renderKey" class="w-full border border-slate-800 rounded-2xl bg-slate-950 overflow-hidden shadow-xl min-h-[600px]">
-        <!-- Stash 起動待機ローディング画面 -->
+        <!-- Stash 待機画面 -->
         <div v-if="!isStashReady" class="p-16 flex flex-col items-center justify-center min-h-[500px] text-center space-y-6 animate-pulse">
-          <div class="relative">
-            <div class="w-20 h-20 rounded-2xl bg-blue-600/20 border border-blue-500/40 flex items-center justify-center text-4xl shadow-xl shadow-blue-500/10">
-              📦
-            </div>
-            <div class="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-amber-500/20 border border-amber-400/50 flex items-center justify-center">
-              <span class="w-2.5 h-2.5 rounded-full bg-amber-400 animate-ping"></span>
-            </div>
-          </div>
-
-          <div class="space-y-2 max-w-sm">
-            <h2 class="text-base font-bold text-slate-100 tracking-tight">
-              Stash メディアサーバー接続確認中...
-            </h2>
-            <p class="text-xs text-slate-400 leading-relaxed font-mono">
-              ローカルメディア・エンジンのポート (9999) 疎通をプロービングしています。起動完了次第、タイムラインを展開します。
-            </p>
-          </div>
-
-          <!-- スピナーバー -->
-          <div class="w-48 h-1.5 bg-slate-900 rounded-full overflow-hidden border border-slate-800">
-            <div class="w-full h-full bg-gradient-to-r from-blue-600 via-indigo-400 to-blue-600 animate-shimmer"></div>
-          </div>
+          <div class="w-20 h-20 rounded-2xl bg-blue-600/20 border border-blue-500/40 flex items-center justify-center text-4xl shadow-xl">📦</div>
+          <div class="space-y-2 max-w-sm"><h2 class="text-base font-bold text-slate-100">Stash メディアサーバー接続確認中...</h2><p class="text-xs text-slate-400 font-mono">ポート9999疎通プロービング中</p></div>
         </div>
-
-        <!-- 接続完了後のタイムラインDOM -->
+        <!-- タイムライン / 詳細 -->
         <div v-else-if="activeArticleId">
           <div v-if="detailLoading && !detail" class="p-8 text-center text-slate-500 font-mono">Loading detail...</div>
           <ArticleDetailView v-else-if="detail" :article="detail.article" :thread="detail.thread" :target-lang="systemLang" :loading="detailLoading" :focused-article-id="focusedId || undefined" @back="closeDetail" @select-article="openDetail" @toggle-like="toggleLike" @retry-media="retryMedia" @click-tag="(t) => { closeDetail(); setSearchQuery('#' + t); }" @click-mention="(m) => { closeDetail(); setSearchQuery('@' + m); }" @click-media="(m, l, a) => openMedia(m, l, a)" />

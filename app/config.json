@@ -1,0 +1,44 @@
+{
+  "system": {
+    "env": "production",
+    "default_framework": "twitter",
+    "language": "ja"
+  },
+  "network": {
+    "frontend_port": 5173,
+    "middleware_port": 5175,
+    "stash_port": 9999,
+    "public_bind_address": "0.0.0.0",
+    "internal_bind_address": "127.0.0.1"
+  },
+  "storage": {
+    "db_path": "./archive.db",
+    "stash_enabled": true,
+    "local_media_dir": "G:/Media_Storage/Influencers",
+    "stash_dir": "./stash",
+    "dumps_dir": "./dumps"
+  },
+  "scheduler": {
+    "poll_interval_sec": 300,
+    "backup_interval_hours": 24,
+    "max_backup_generations": 7
+  },
+  "broadcast": {
+    "enabled": true,
+    "allowed_networks": [
+      "192.168.10.0/24",
+      "192.168.3.0/24",
+      "127.0.0.1/32"
+    ]
+  },
+  "appearance": {
+    "font_family_ja": "Hiragino Sans, Meiryo, sans-serif",
+    "font_family_en": "Nunito, sans-serif",
+    "font_family_zh": "Microsoft YaHei, SimHei, sans-serif"
+  },
+  "translation": {
+    "provider": "google",
+    "deepl_api_key": "",
+    "google_translate_api_key": "AIzaSyC3yHPAajnLd6nDP95uOo2NE5zyA_GpI1k"
+  }
+}

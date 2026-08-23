@@ -1,7 +1,7 @@
 // frontend/src/composables/admin/useAdminConfig.ts (100行以下)
 import { ref, reactive } from 'vue';
 
-const getApp = () => (window as any)?.go?.main?.App;
+const getApp = () => (window as any)?.go?.app?.App || (window as any)?.go?.main?.App;
 
 export function useAdminConfig() {
   const configForm = reactive<any>({

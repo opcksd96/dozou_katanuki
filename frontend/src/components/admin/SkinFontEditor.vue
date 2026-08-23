@@ -1,7 +1,8 @@
 <!-- frontend/src/components/admin/SkinFontEditor.vue (100行以下) -->
 <script setup lang="ts">
-import { ref, watch } from 'vue';
+import { ref, watch, onMounted } from 'vue';
 import { models } from '../../../wailsjs/go/models';
+
 import SkinCssEditor from './skin/SkinCssEditor.vue';
 import SkinFontSettings from './skin/SkinFontSettings.vue';
 import SkinCardPreview from './skin/SkinCardPreview.vue';
@@ -30,11 +31,16 @@ const isDirty = ref(false);
 
 watch(() => props.skinCSS, (val) => { localCSS.value = val || ''; isDirty.value = false; }, { immediate: true });
 
+onMounted(() => {
+  if (!props.skinCSS) emit('fetchSkin', props.selectedPlatform || 'twitter');
+});
+
 const onUpdateCSS = (val: string) => {
   localCSS.value = val;
   isDirty.value = true;
   emit('applyDynamicSkin', val);
 };
+
 </script>
 
 <template>

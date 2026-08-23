@@ -1,5 +1,5 @@
 import { ref } from 'vue';
-import { GetArticleDetail } from '../../wailsjs/go/main/App';
+import { GetArticleDetail } from '../../wailsjs/go/app/App';
 import type { RenderTree } from '../models/RenderTree';
 
 export interface ArticleDetailResult {
