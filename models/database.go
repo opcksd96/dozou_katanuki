@@ -21,15 +21,19 @@ type AccountDetailResult struct {
 // MediaItemDetail はメディア管理ビュー用のレコードモデルです（RenderMediaを埋め込み統一）
 type MediaItemDetail struct {
 	RenderMedia
-	MediaID      string    `json:"media_id"`
-	ArticleID    string    `json:"article_id"`
-	AccountID    string    `json:"account_id"`
-	Username     string    `json:"username"`
-	DisplayName  string    `json:"display_name"`
-	AvatarURL    string    `json:"avatar_url"`
-	RawStatus    string    `json:"raw_status"`
-	HasStash     bool      `json:"has_stash"`
-	CreatedAt    time.Time `json:"created_at"`
+	MediaID     string    `json:"media_id"`
+	ArticleID   string    `json:"article_id"`
+	AccountID   string    `json:"account_id"`
+	Username    string    `json:"username"`
+	DisplayName string    `json:"display_name"`
+	AvatarURL   string    `json:"avatar_url"`
+	RawStatus   string    `json:"raw_status"`
+	HasStash    bool      `json:"has_stash"`
+	CreatedAt   time.Time `json:"created_at"`
+	Title       string    `json:"title"`
+	FullText    string    `json:"full_text"`
+	FullTextJA  string    `json:"full_text_ja,omitempty"`
+	TweetDate   string    `json:"tweet_date"`
 }
 
 // MediaScanItem はリポジトリ層からサービス層へ引き渡す中間スキャンモデルです
@@ -40,6 +44,8 @@ type MediaScanItem struct {
 	Username       string
 	DisplayName    string
 	CreatedAt      time.Time
+	FullText       string
+	FullTextJA     string
 	ProfileHistory []AccountProfileHistory
 }
 

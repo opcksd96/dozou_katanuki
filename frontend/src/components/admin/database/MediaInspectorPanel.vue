@@ -154,9 +154,34 @@ const handleUndoStash = async () => {
           <div class="text-slate-400 text-[11px] truncate">@{{ media.username }} <span class="text-slate-500">({{ media.account_id || '-' }})</span></div>
         </div>
       </div>
-      <div v-if="media.created_at" class="text-[10px] text-slate-500 pt-1 border-t border-slate-850 flex items-center justify-between">
-        <span>投稿日: {{ new Date(media.created_at).toLocaleString() }}</span>
+      <div v-if="media.created_at || media.tweet_date" class="text-[10px] text-slate-500 pt-1 border-t border-slate-850 flex items-center justify-between">
+        <span>投稿日: {{ media.tweet_date || (media.created_at ? new Date(media.created_at).toLocaleString() : '-') }}</span>
       </div>
+    </div>
+
+    <!-- 1.5. 親ツイート本文 (Parent Tweet Details) -->
+    <div v-if="media.full_text || media.full_text_ja" class="p-3 bg-slate-950/80 rounded-xl border border-slate-800 space-y-2">
+      <div class="flex items-center justify-between text-[10px]">
+        <span class="text-slate-400 font-bold uppercase tracking-wider">📝 親ツイート本文</span>
+        <button @click="copyToClipboard(media.full_text_ja || media.full_text, 'tweet')" class="text-blue-400 hover:text-blue-300">
+          {{ copiedField === 'tweet' ? '✓ コピー済' : '📋 コピー' }}
+        </button>
+      </div>
+      <div class="p-2.5 bg-slate-900 rounded-lg border border-slate-800 space-y-1.5 select-text">
+        <div v-if="media.full_text_ja" class="text-xs text-slate-100 leading-relaxed font-sans">
+          {{ media.full_text_ja }}
+        </div>
+        <div v-if="media.full_text && media.full_text !== media.full_text_ja" class="text-[11px] text-slate-400 leading-relaxed font-sans border-t border-slate-800 pt-1">
+          {{ media.full_text }}
+        </div>
+      </div>
+      <button 
+        v-if="stashDirectUrl"
+        @click="editDetails = (media.full_text_ja ? media.full_text_ja + '\n\n' + media.full_text : media.full_text)"
+        class="w-full py-1 bg-slate-800 hover:bg-slate-700 text-purple-300 border border-purple-700/40 rounded text-[10px] font-mono flex items-center justify-center gap-1 transition-colors"
+      >
+        <span>⬇️</span> 本文を Stash 詳細メモへ転記
+      </button>
     </div>
 
     <!-- 2. Stash 連携・GraphQL メタデータインスペクタ -->
@@ -179,16 +204,33 @@ const handleUndoStash = async () => {
         </div>
       </div>
 
-      <!-- Stash ファイル詳細 -->
-      <div v-if="stashData?.files?.length" class="space-y-1 text-[10px] text-slate-400 bg-slate-900/60 p-2 rounded border border-slate-800/80">
-        <div class="flex justify-between"><span>解像度:</span> <span class="text-slate-200 font-bold">{{ stashData.files[0].width }}x{{ stashData.files[0].height }}</span></div>
-        <div v-if="stashData.files[0].duration" class="flex justify-between"><span>再生時間:</span> <span class="text-slate-200">{{ Math.round(stashData.files[0].duration) }}秒</span></div>
-        <div v-if="stashData.files[0].video_codec" class="flex justify-between"><span>コーデック:</span> <span class="text-slate-200">{{ stashData.files[0].video_codec }} / {{ stashData.files[0].audio_codec || 'none' }}</span></div>
-        <div v-if="stashData.files[0].bit_rate" class="flex justify-between"><span>ビットレート:</span> <span class="text-slate-200">{{ Math.round(stashData.files[0].bit_rate / 1000) }} kbps</span></div>
-        <div class="truncate" :title="stashData.files[0].path"><span>パス:</span> <span class="text-slate-300 font-mono text-[9px]">{{ stashData.files[0].path }}</span></div>
+      <!-- Stash ファイル・詳細メタデータ -->
+      <div v-if="stashData" class="space-y-2 text-xs text-slate-300 bg-slate-900/80 p-3 rounded-lg border border-slate-800">
+        <!-- Stash 側の詳細テキスト (親ツイート本文) -->
+        <div v-if="stashData.details" class="space-y-1">
+          <div class="text-[10px] text-purple-400 font-bold uppercase flex items-center justify-between">
+            <span>📝 Stash 詳細テキスト (Parent Tweet)</span>
+            <button @click="copyToClipboard(stashData.details, 'stash_details')" class="text-blue-400 hover:text-blue-300">
+              {{ copiedField === 'stash_details' ? '✓ コピー済' : '📋 コピー' }}
+            </button>
+          </div>
+          <div class="p-2 bg-slate-950/80 rounded border border-slate-800/80 text-slate-200 text-xs leading-relaxed whitespace-pre-wrap font-sans select-text">
+            {{ stashData.details }}
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-2 text-[11px] text-slate-400 pt-1 border-t border-slate-800/60">
+          <div v-if="stashData.date"><span class="text-slate-500">日付:</span> <span class="text-slate-200 font-semibold">{{ stashData.date }}</span></div>
+          <div v-if="stashData.studio"><span class="text-slate-500">スタジオ:</span> <span class="text-slate-200 font-semibold">{{ stashData.studio }}</span></div>
+          <div v-if="stashData.files?.length"><span class="text-slate-500">解像度:</span> <span class="text-slate-200 font-bold">{{ stashData.files[0].width }}x{{ stashData.files[0].height }}</span></div>
+          <div v-if="stashData.files?.[0]?.duration"><span class="text-slate-500">再生時間:</span> <span class="text-slate-200">{{ Math.round(stashData.files[0].duration) }}秒</span></div>
+        </div>
+        <div v-if="stashData.files?.[0]?.path" class="truncate text-[10px] text-slate-500 font-mono" :title="stashData.files[0].path">
+          <span>パス:</span> <span class="text-slate-400">{{ stashData.files[0].path }}</span>
+        </div>
       </div>
 
-      <button v-if="stashDirectUrl" @click="openStash" class="w-full py-1.5 bg-purple-950 hover:bg-purple-900 text-purple-200 border border-purple-700/60 font-bold rounded-lg transition-colors flex items-center justify-center gap-1.5 text-[11px]">
+      <button v-if="stashDirectUrl" @click="openStash" class="w-full py-1.5 bg-purple-950 hover:bg-purple-900 text-purple-200 border border-purple-700/60 font-bold rounded-lg transition-colors flex items-center justify-center gap-1.5 text-xs">
         🎛️ Stash WebUI で開く ↗
       </button>
     </div>

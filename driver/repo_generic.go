@@ -33,6 +33,8 @@ type mediaScanRow struct {
 	Username    string    `gorm:"column:username"`
 	DisplayName string    `gorm:"column:display_name"`
 	CreatedAt   time.Time `gorm:"column:created_at"`
+	FullText    string    `gorm:"column:full_text"`
+	FullTextJA  string    `gorm:"column:full_text_ja"`
 }
 
 // FetchRawMediaItems はリポジトリ層でメディアとアカウント・世代履歴を取得します
@@ -70,10 +72,10 @@ func (r *Repository) FetchRawMediaItems(accountID, status, mediaType string, lim
 
 	var total int64
 	if err := q.Count(&total).Error; err != nil { return nil, 0, stats, err }
-	if limit <= 0 { limit = 20 }
+	if limit <= 0 { limit = 24 }
 
 	var rows []mediaScanRow
-	err := q.Select("media.*, articles.created_at as created_at, accounts.username as username, accounts.display_name as display_name, accounts.numeric_id as account_id").
+	err := q.Select("media.*, articles.created_at as created_at, articles.full_text as full_text, articles.full_text_ja as full_text_ja, accounts.username as username, accounts.display_name as display_name, accounts.numeric_id as account_id").
 		Order("articles.created_at DESC").Limit(limit).Offset(offset).Scan(&rows).Error
 	if err != nil { return nil, 0, stats, err }
 
@@ -105,6 +107,8 @@ func (r *Repository) FetchRawMediaItems(accountID, status, mediaType string, lim
 			Username:       row.Username,
 			DisplayName:    row.DisplayName,
 			CreatedAt:      row.CreatedAt,
+			FullText:       row.FullText,
+			FullTextJA:     row.FullTextJA,
 			ProfileHistory: historyByAccount[row.AccountID],
 		})
 	}
@@ -120,6 +124,8 @@ func (r *Repository) SearchMediaDetails(accountID, status, mediaType string, lim
 	for _, item := range rawItems {
 		rm := models.BuildRenderMedia(item.Media)
 		hasStash := item.Media.StashSceneID.Valid && item.Media.StashSceneID.String != "" || item.Media.StashImageID.Valid && item.Media.StashImageID.String != ""
+		title := fmt.Sprintf("X (@%s): Tweet %s", item.Username, item.ArticleID)
+		tweetDate := item.CreatedAt.Format("2006-01-02")
 		items = append(items, models.MediaItemDetail{
 			RenderMedia: rm,
 			MediaID:     item.Media.MediaID,
@@ -130,6 +136,10 @@ func (r *Repository) SearchMediaDetails(accountID, status, mediaType string, lim
 			RawStatus:   item.Media.DownloadStatus,
 			HasStash:    hasStash,
 			CreatedAt:   item.CreatedAt,
+			Title:       title,
+			FullText:    item.FullText,
+			FullTextJA:  item.FullTextJA,
+			TweetDate:   tweetDate,
 		})
 	}
 	return &models.MediaSearchResult{Items: items, Total: total, Stats: stats}, nil

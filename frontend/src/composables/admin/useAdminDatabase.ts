@@ -261,6 +261,117 @@ export function useAdminDatabase() {
     }
   };
 
+  const startMediaDownload = async (mediaId = '') => {
+    try {
+      const app = getApp();
+      if (app?.StartMediaDownloadJob) {
+        return await app.StartMediaDownloadJob('twitter', mediaId);
+      }
+    } catch (e: any) {
+      errorMessage.value = `メディアダウンロードの開始に失敗しました: ${e?.message || e}`;
+    }
+  };
+
+  const startMediaPoll = async () => {
+    try {
+      const app = getApp();
+      if (app?.StartMediaPollJob) {
+        return await app.StartMediaPollJob('twitter');
+      }
+    } catch (e: any) {
+      errorMessage.value = `Aria2委託回収の開始に失敗しました: ${e?.message || e}`;
+    }
+  };
+
+  const requeueMedia = async (status = 'DEAD_404') => {
+    try {
+      const app = getApp();
+      if (app?.RequeueMediaByStatus) {
+        const count = await app.RequeueMediaByStatus(status, searchAccount.value);
+        await fetchMedia();
+        return count;
+      }
+    } catch (e: any) {
+      errorMessage.value = `リトライキューイングに失敗しました: ${e?.message || e}`;
+    }
+    return 0;
+  };
+
+  const openInExplorer = async (mediaId: string) => {
+    try {
+      const app = getApp();
+      if (app?.OpenInExplorer) await app.OpenInExplorer(mediaId);
+    } catch (e: any) {
+      errorMessage.value = `エクスプローラーで開けませんでした: ${e?.message || e}`;
+    }
+  };
+
+  const openWithDefaultApp = async (mediaId: string) => {
+    try {
+      const app = getApp();
+      if (app?.OpenWithDefaultApp) await app.OpenWithDefaultApp(mediaId);
+    } catch (e: any) {
+      errorMessage.value = `既定アプリで開けませんでした: ${e?.message || e}`;
+    }
+  };
+
+  const toggleBookmark = async (mediaId: string) => {
+    try {
+      const app = getApp();
+      if (app?.ToggleMediaBookmark) {
+        const res = await app.ToggleMediaBookmark(mediaId);
+        // ローカルアイテムの更新
+        const item = mediaResults.value.find((m: any) => (m.media_id || m.id) === mediaId);
+        if (item) item.is_bookmarked = res;
+        return res;
+      }
+    } catch (e: any) {
+      console.error('[AdminDB] ToggleMediaBookmark error:', e);
+    }
+  };
+
+  const mergeDuplicates = async () => {
+    try {
+      const app = getApp();
+      if (app?.MergeDuplicateMedia) {
+        const count = await app.MergeDuplicateMedia();
+        await fetchMedia();
+        return count;
+      }
+    } catch (e: any) {
+      errorMessage.value = `重複メディア統合に失敗しました: ${e?.message || e}`;
+    }
+    return 0;
+  };
+
+  const purgeLowResDuplicates = async () => {
+    try {
+      const app = getApp();
+      if (app?.PurgeLowerResolutionDuplicates) {
+        const count = await app.PurgeLowerResolutionDuplicates();
+        await fetchMedia();
+        return count;
+      }
+    } catch (e: any) {
+      errorMessage.value = `低解像度パージに失敗しました: ${e?.message || e}`;
+    }
+    return 0;
+  };
+
+  const reconcileStashMedia = async () => {
+    try {
+      const app = getApp();
+      if (app?.ReconcileStashMedia) {
+        const count = await app.ReconcileStashMedia();
+        await fetchMedia();
+        return count;
+      }
+    } catch (e: any) {
+      errorMessage.value = `Stash自動同期に失敗しました: ${e?.message || e}`;
+    }
+    return 0;
+  };
+
   return {
     activeSubTab, searchResults, totalCount, isSearchLoading, isTranslating, searchQuery, searchAccount,
     searchFilter, page, limit, errorMessage, clearError, accountsList, selectedAccountDetail, isAccountLoading,
@@ -268,5 +379,7 @@ export function useAdminDatabase() {
     selectAccount, updateAccount, saveAvatarImage, fetchAvailableAvatars, fetchMedia, saveTranslation, autoTranslate, startBatchTranslate, retryMedia,
     fetchStashMetadata, updateStashMetadata, updateMediaMetadata, purgeMedia, purgeMediaByStatus,
     showAccountPosts, showAccountMedia,
+    startMediaDownload, startMediaPoll, requeueMedia, openInExplorer, openWithDefaultApp, toggleBookmark,
+    mergeDuplicates, purgeLowResDuplicates, reconcileStashMedia,
   };
 }

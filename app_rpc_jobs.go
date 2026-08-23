@@ -54,6 +54,28 @@ func (a *App) ListJobs() ([]*models.JobProgress, error) {
 	return a.jobOrchestrator.ListJobs(), nil
 }
 
+// StartMediaDownloadJob はメディアダウンロードジョブをキューに追加する Wails バインドメソッドです
+func (a *App) StartMediaDownloadJob(platform, mediaID string) (*models.JobProgress, error) {
+	if err := a.waitForReady(); err != nil {
+		return nil, err
+	}
+	if platform == "" {
+		platform = "twitter"
+	}
+	return a.jobOrchestrator.EnqueueMediaDownload(platform, mediaID)
+}
+
+// StartMediaPollJob は外部委託（Aria2/Motrix）メディア回収ジョブをキューに追加する Wails バインドメソッドです
+func (a *App) StartMediaPollJob(platform string) (*models.JobProgress, error) {
+	if err := a.waitForReady(); err != nil {
+		return nil, err
+	}
+	if platform == "" {
+		platform = "twitter"
+	}
+	return a.jobOrchestrator.EnqueueMediaPoll(platform)
+}
+
 // CancelJob はジョブの実行を中断する Wails バインドメソッドです
 func (a *App) CancelJob(jobID string) error {
 	if err := a.waitForReady(); err != nil {
@@ -61,3 +83,4 @@ func (a *App) CancelJob(jobID string) error {
 	}
 	return a.jobOrchestrator.CancelJob(jobID)
 }
+

@@ -228,14 +228,14 @@ func (a *App) TriggerStashScan(paths []string) (bool, error) {
 	return true, nil
 }
 
-// ReconcileStashMedia は Stashapp 内の全メディアから標準タイトルおよびファイル名を走査し、DB の media レコードへ逆引き自動バインドします (SPEC-STORAGE-001)
+// ReconcileStashMedia は Stashapp 内の全メディアから標準タイトルおよびファイル名を走査し、DB の media レコードへ逆引き自動バインドし、親ツイート本文を Stash の details へ自動同期します (SPEC-STORAGE-001)
 func (a *App) ReconcileStashMedia() (int, error) {
 	if err := a.waitForReady(); err != nil {
 		return 0, err
 	}
 	q := `query {
-		allScenes { id title files { path } }
-		allImages { id title files { path } }
+		allScenes { id title details files { path } }
+		allImages { id title details files { path } }
 	}`
 	data, err := a.queryStashGraphQL(q, nil)
 	if err != nil {
@@ -254,31 +254,101 @@ func (a *App) ReconcileStashMedia() (int, error) {
 	if scnList, ok := data["allScenes"].([]interface{}); ok {
 		for _, item := range scnList {
 			if m, ok := item.(map[string]interface{}); ok {
-				title := getString(m, "title")
 				sID := getString(m, "id")
 				matchedByFile := false
+				var articleID string
+
 				if filesList, ok := m["files"].([]interface{}); ok {
 					for _, fItem := range filesList {
 						if fMap, ok := fItem.(map[string]interface{}); ok {
 							p := getString(fMap, "path")
 							if p != "" {
 								base := filepath.Base(p)
-								res := db.Exec("UPDATE media SET stash_scene_id = ?, download_status = 'COMPLETED' WHERE (media_id = ? OR media_id = ? OR download_url LIKE ?) AND (stash_scene_id IS NULL OR stash_scene_id = '')", sID, base, strings.TrimSuffix(base, filepath.Ext(base)), "%/"+base)
-								if res.Error == nil && res.RowsAffected > 0 {
-									boundCount += int(res.RowsAffected)
-									matchedByFile = true
+								var med models.Media
+								if err := db.Where("(media_id = ? OR media_id = ? OR download_url LIKE ?)", base, strings.TrimSuffix(base, filepath.Ext(base)), "%/"+base).First(&med).Error; err == nil {
+									articleID = med.ArticleID
+									res := db.Model(&models.Media{}).Where("media_id = ?", med.MediaID).Updates(map[string]interface{}{
+										"stash_scene_id":  sID,
+										"download_status": "COMPLETED",
+									})
+									if res.Error == nil {
+										boundCount++
+										matchedByFile = true
+									}
 								}
 							}
 						}
 					}
 				}
+				title := getString(m, "title")
 				if !matchedByFile && title != "" {
 					if matches := titleRegex.FindStringSubmatch(title); len(matches) == 5 {
 						postID := matches[4]
-						res := db.Exec("UPDATE media SET stash_scene_id = ?, download_status = 'COMPLETED' WHERE media_id IN (SELECT media_id FROM media WHERE article_id = ? AND type != 'image' AND (stash_scene_id IS NULL OR stash_scene_id = '') LIMIT 1)", sID, postID)
-						if res.Error == nil {
-							boundCount += int(res.RowsAffected)
+						articleID = postID
+						var med models.Media
+						if err := db.Where("article_id = ? AND type != 'image'", postID).First(&med).Error; err == nil {
+							db.Model(&models.Media{}).Where("media_id = ?", med.MediaID).Updates(map[string]interface{}{
+								"stash_scene_id":  sID,
+								"download_status": "COMPLETED",
+							})
+							boundCount++
 						}
+					}
+				}
+
+				// 親ツイートメタデータを Stash に完全同期
+				if articleID != "" {
+					var art models.Article
+					if err := db.Preload("Account").Where("id = ?", articleID).First(&art).Error; err == nil {
+						textToSync := art.FullText
+						if art.FullTextJA.Valid && art.FullTextJA.String != "" {
+							textToSync = art.FullTextJA.String + "\n\n" + art.FullText
+						}
+						dateStr := art.CreatedAt.Format("2006-01-02")
+						uname := art.Account.Username
+						dname := art.Account.DisplayName
+						sIDObj := a.findOrCreateStudio(uname)
+						pIDObj := a.findOrCreatePerformer(uname, dname)
+
+						urlsList := []string{fmt.Sprintf("https://twitter.com/%s/status/%s", uname, articleID)}
+						if art.WaybackURL != "" {
+							urlsList = append(urlsList, art.WaybackURL)
+						}
+						urlsList = append(urlsList, fmt.Sprintf("http://localhost:9999/plugin/x-timeline-middleware/index.html?view=x-timeline&performer=%s&jump_to_tweet=%s", uname, articleID))
+
+						cFieldsMap := map[string]interface{}{
+							"tweet_id":      articleID,
+							"original_name": dname,
+							"source_system": "X_Wayback",
+							"wayback_url":   "[]",
+							"dead_media":    "[]",
+						}
+						if art.WaybackURL != "" {
+							cFieldsMap["wayback_url"] = fmt.Sprintf("[\"%s\"]", art.WaybackURL)
+							tsRegex := regexp.MustCompile(`/web/(\d{14})`)
+							if match := tsRegex.FindStringSubmatch(art.WaybackURL); len(match) == 2 {
+								cFieldsMap["wayback_timestamp"] = match[1]
+							}
+						}
+
+						input := map[string]interface{}{
+							"id":            sID,
+							"title":         fmt.Sprintf("X (@%s): Tweet %s", uname, articleID),
+							"details":       textToSync,
+							"urls":          urlsList,
+							"url":           urlsList[0],
+							"date":          dateStr,
+							"custom_fields": map[string]interface{}{"partial": cFieldsMap},
+						}
+						if sIDObj != "" {
+							input["studio_id"] = sIDObj
+						}
+						if pIDObj != "" {
+							input["performer_ids"] = []string{pIDObj}
+						}
+
+						mutation := `mutation SceneUpdate($input: SceneUpdateInput!) { sceneUpdate(input: $input) { id } }`
+						_, _ = a.queryStashGraphQL(mutation, map[string]interface{}{"input": input})
 					}
 				}
 			}
@@ -289,31 +359,101 @@ func (a *App) ReconcileStashMedia() (int, error) {
 	if imgList, ok := data["allImages"].([]interface{}); ok {
 		for _, item := range imgList {
 			if m, ok := item.(map[string]interface{}); ok {
-				title := getString(m, "title")
 				imgID := getString(m, "id")
 				matchedByFile := false
+				var articleID string
+
 				if filesList, ok := m["files"].([]interface{}); ok {
 					for _, fItem := range filesList {
 						if fMap, ok := fItem.(map[string]interface{}); ok {
 							p := getString(fMap, "path")
 							if p != "" {
 								base := filepath.Base(p)
-								res := db.Exec("UPDATE media SET stash_image_id = ?, download_status = 'COMPLETED' WHERE (media_id = ? OR media_id = ? OR download_url LIKE ?) AND (stash_image_id IS NULL OR stash_image_id = '')", imgID, base, strings.TrimSuffix(base, filepath.Ext(base)), "%/"+base)
-								if res.Error == nil && res.RowsAffected > 0 {
-									boundCount += int(res.RowsAffected)
-									matchedByFile = true
+								var med models.Media
+								if err := db.Where("(media_id = ? OR media_id = ? OR download_url LIKE ?)", base, strings.TrimSuffix(base, filepath.Ext(base)), "%/"+base).First(&med).Error; err == nil {
+									articleID = med.ArticleID
+									res := db.Model(&models.Media{}).Where("media_id = ?", med.MediaID).Updates(map[string]interface{}{
+										"stash_image_id":  imgID,
+										"download_status": "COMPLETED",
+									})
+									if res.Error == nil {
+										boundCount++
+										matchedByFile = true
+									}
 								}
 							}
 						}
 					}
 				}
+				title := getString(m, "title")
 				if !matchedByFile && title != "" {
 					if matches := titleRegex.FindStringSubmatch(title); len(matches) == 5 {
 						postID := matches[4]
-						res := db.Exec("UPDATE media SET stash_image_id = ?, download_status = 'COMPLETED' WHERE media_id IN (SELECT media_id FROM media WHERE article_id = ? AND type = 'image' AND (stash_image_id IS NULL OR stash_image_id = '') LIMIT 1)", imgID, postID)
-						if res.Error == nil {
-							boundCount += int(res.RowsAffected)
+						articleID = postID
+						var med models.Media
+						if err := db.Where("article_id = ? AND type = 'image'", postID).First(&med).Error; err == nil {
+							db.Model(&models.Media{}).Where("media_id = ?", med.MediaID).Updates(map[string]interface{}{
+								"stash_image_id":  imgID,
+								"download_status": "COMPLETED",
+							})
+							boundCount++
 						}
+					}
+				}
+
+				// 親ツイートメタデータを Stash に完全同期
+				if articleID != "" {
+					var art models.Article
+					if err := db.Preload("Account").Where("id = ?", articleID).First(&art).Error; err == nil {
+						textToSync := art.FullText
+						if art.FullTextJA.Valid && art.FullTextJA.String != "" {
+							textToSync = art.FullTextJA.String + "\n\n" + art.FullText
+						}
+						dateStr := art.CreatedAt.Format("2006-01-02")
+						uname := art.Account.Username
+						dname := art.Account.DisplayName
+						sIDObj := a.findOrCreateStudio(uname)
+						pIDObj := a.findOrCreatePerformer(uname, dname)
+
+						urlsList := []string{fmt.Sprintf("https://twitter.com/%s/status/%s", uname, articleID)}
+						if art.WaybackURL != "" {
+							urlsList = append(urlsList, art.WaybackURL)
+						}
+						urlsList = append(urlsList, fmt.Sprintf("http://localhost:9999/plugin/x-timeline-middleware/index.html?view=x-timeline&performer=%s&jump_to_tweet=%s", uname, articleID))
+
+						cFieldsMap := map[string]interface{}{
+							"tweet_id":      articleID,
+							"original_name": dname,
+							"source_system": "X_Wayback",
+							"wayback_url":   "[]",
+							"dead_media":    "[]",
+						}
+						if art.WaybackURL != "" {
+							cFieldsMap["wayback_url"] = fmt.Sprintf("[\"%s\"]", art.WaybackURL)
+							tsRegex := regexp.MustCompile(`/web/(\d{14})`)
+							if match := tsRegex.FindStringSubmatch(art.WaybackURL); len(match) == 2 {
+								cFieldsMap["wayback_timestamp"] = match[1]
+							}
+						}
+
+						input := map[string]interface{}{
+							"id":            imgID,
+							"title":         fmt.Sprintf("X (@%s): Tweet %s", uname, articleID),
+							"details":       textToSync,
+							"urls":          urlsList,
+							"url":           urlsList[0],
+							"date":          dateStr,
+							"custom_fields": map[string]interface{}{"partial": cFieldsMap},
+						}
+						if sIDObj != "" {
+							input["studio_id"] = sIDObj
+						}
+						if pIDObj != "" {
+							input["performer_ids"] = []string{pIDObj}
+						}
+
+						mutation := `mutation ImageUpdate($input: ImageUpdateInput!) { imageUpdate(input: $input) { id } }`
+						_, _ = a.queryStashGraphQL(mutation, map[string]interface{}{"input": input})
 					}
 				}
 			}
@@ -321,4 +461,66 @@ func (a *App) ReconcileStashMedia() (int, error) {
 	}
 
 	return boundCount, nil
+}
+
+func (a *App) findOrCreateStudio(name string) string {
+	if name == "" {
+		return ""
+	}
+	q := `query FindStudios($q: String!) { findStudios(filter: { q: $q, per_page: 1 }) { studios { id name } } }`
+	data, err := a.queryStashGraphQL(q, map[string]interface{}{"q": name})
+	if err == nil && data != nil {
+		if fMap, ok := data["findStudios"].(map[string]interface{}); ok {
+			if sList, ok := fMap["studios"].([]interface{}); ok {
+				for _, sItem := range sList {
+					if sm, ok := sItem.(map[string]interface{}); ok {
+						if strings.EqualFold(getString(sm, "name"), name) {
+							return getString(sm, "id")
+						}
+					}
+				}
+			}
+		}
+	}
+	cMut := `mutation StudioCreate($input: StudioCreateInput!) { studioCreate(input: $input) { id } }`
+	cData, err := a.queryStashGraphQL(cMut, map[string]interface{}{"input": map[string]interface{}{"name": name}})
+	if err == nil && cData != nil {
+		if cMap, ok := cData["studioCreate"].(map[string]interface{}); ok {
+			return getString(cMap, "id")
+		}
+	}
+	return ""
+}
+
+func (a *App) findOrCreatePerformer(name, disambiguation string) string {
+	if name == "" {
+		return ""
+	}
+	q := `query FindPerformers($q: String!) { findPerformers(filter: { q: $q, per_page: 1 }) { performers { id name } } }`
+	data, err := a.queryStashGraphQL(q, map[string]interface{}{"q": name})
+	if err == nil && data != nil {
+		if fMap, ok := data["findPerformers"].(map[string]interface{}); ok {
+			if pList, ok := fMap["performers"].([]interface{}); ok {
+				for _, pItem := range pList {
+					if pm, ok := pItem.(map[string]interface{}); ok {
+						if strings.EqualFold(getString(pm, "name"), name) {
+							return getString(pm, "id")
+						}
+					}
+				}
+			}
+		}
+	}
+	cMut := `mutation PerformerCreate($input: PerformerCreateInput!) { performerCreate(input: $input) { id } }`
+	inp := map[string]interface{}{"name": name}
+	if disambiguation != "" {
+		inp["disambiguation"] = disambiguation
+	}
+	cData, err := a.queryStashGraphQL(cMut, map[string]interface{}{"input": inp})
+	if err == nil && cData != nil {
+		if cMap, ok := cData["performerCreate"].(map[string]interface{}); ok {
+			return getString(cMap, "id")
+		}
+	}
+	return ""
 }

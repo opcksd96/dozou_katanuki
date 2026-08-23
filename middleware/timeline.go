@@ -113,6 +113,8 @@ func (s *TimelineService) SearchMediaDetails(accountID, status, mediaType string
 		rm := models.BuildRenderMedia(item.Media)
 		hasStash := item.Media.StashSceneID.Valid && item.Media.StashSceneID.String != "" || item.Media.StashImageID.Valid && item.Media.StashImageID.String != ""
 		avatarURL := AuditAndResolveAvatar("twitter", item.CreatedAt, item.ProfileHistory)
+		title := fmt.Sprintf("X (@%s): Tweet %s", item.Username, item.ArticleID)
+		tweetDate := item.CreatedAt.Format("2006-01-02")
 
 		details = append(details, models.MediaItemDetail{
 			RenderMedia: rm,
@@ -125,6 +127,10 @@ func (s *TimelineService) SearchMediaDetails(accountID, status, mediaType string
 			RawStatus:   item.Media.DownloadStatus,
 			HasStash:    hasStash,
 			CreatedAt:   item.CreatedAt,
+			Title:       title,
+			FullText:    item.FullText,
+			FullTextJA:  item.FullTextJA,
+			TweetDate:   tweetDate,
 		})
 	}
 

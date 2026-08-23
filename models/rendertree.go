@@ -35,6 +35,8 @@ type RenderMedia struct {
 	Height         int             `json:"height,omitempty"`
 	StashSceneID   string          `json:"stash_scene_id,omitempty"`
 	StashImageID   string          `json:"stash_image_id,omitempty"`
+	IsBookmarked   bool            `json:"is_bookmarked"`
+	FilePath       string          `json:"file_path,omitempty"`
 }
 
 type RenderMetrics struct {

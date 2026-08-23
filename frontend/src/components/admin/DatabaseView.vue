@@ -106,27 +106,27 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="space-y-3 flex flex-col h-full">
+  <div class="space-y-1.5 flex flex-col h-full min-h-0">
     <!-- エラー通知バナー -->
-    <div v-if="admin.errorMessage.value" class="px-3 py-2 bg-rose-950/80 border border-rose-600/80 rounded-lg text-rose-200 text-xs flex items-center justify-between shadow">
+    <div v-if="admin.errorMessage.value" class="px-3 py-1.5 bg-rose-950/80 border border-rose-600/80 rounded-lg text-rose-200 text-xs flex items-center justify-between shadow">
       <div class="flex items-center gap-2"><span class="font-bold">⚠️ エラー:</span><span>{{ admin.errorMessage.value }}</span></div>
       <button @click="admin.clearError" class="text-rose-400 hover:text-rose-100 font-bold px-1.5 py-0.5 rounded">✕</button>
     </div>
 
-    <!-- サブタブナビゲーション -->
-    <div class="flex items-center justify-between border-b border-slate-800 pb-2 text-xs font-bold">
-      <div class="flex gap-2">
+    <!-- サブタブナビゲーション (薄型コンパクト) -->
+    <div class="flex items-center justify-between border-b border-slate-800 pb-1.5 text-xs font-bold shrink-0">
+      <div class="flex gap-1.5">
         <button v-for="tab in [
-          { id: 'accounts', label: '👤 アカウント管理 (accounts)' }, { id: 'posts', label: '📝 投稿・翻訳管理 (articles)' },
-          { id: 'media', label: '🖼️ メディア管理 (media / Stash)' }, { id: 'whitelist', label: '🛡️ ホワイトリスト (whitelists)' }
-        ]" :key="tab.id" @click="onTabChange(tab.id as any)" class="px-3 py-1.5 rounded-lg border transition-colors flex items-center gap-1.5" :class="admin.activeSubTab.value === tab.id ? 'bg-blue-600 border-blue-500 text-white shadow' : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200'">
+          { id: 'accounts', label: '👤 アカウント (accounts)' }, { id: 'posts', label: '📝 投稿・翻訳 (articles)' },
+          { id: 'media', label: '🖼️ メディア (media / Stash)' }, { id: 'whitelist', label: '🛡️ Whitelist' }
+        ]" :key="tab.id" @click="onTabChange(tab.id as any)" class="px-2.5 py-1 rounded-lg border transition-colors flex items-center gap-1.5 text-xs" :class="admin.activeSubTab.value === tab.id ? 'bg-blue-600 border-blue-500 text-white shadow' : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200'">
           {{ tab.label }}
         </button>
       </div>
     </div>
 
     <!-- 各ドメイン別ビュー -->
-    <div class="flex-1 min-h-[460px]">
+    <div class="flex-1 min-h-0 overflow-hidden flex flex-col">
       <AccountManagementView
         v-if="admin.activeSubTab.value === 'accounts'"
         :accounts="admin.accountsList.value"
@@ -151,19 +151,31 @@ onMounted(() => {
         :status-filter="admin.mediaStatusFilter?.value || 'all'"
         :type-filter="admin.mediaTypeFilter?.value || 'all'"
         :page="admin.page?.value || 1"
-        :limit="admin.limit?.value || 20"
+        :limit="admin.limit?.value || 24"
         :loading="admin.isMediaLoading?.value || false"
         :config="admin.configForm"
+        :active-job="admin.activeJob?.value"
         @fetch="admin.fetchMedia"
         @save-metadata="handleSaveMediaMetadata"
         @update:account-filter="(v) => { if (admin.searchAccount) admin.searchAccount.value = v; }"
         @update:status-filter="(v) => { if (admin.mediaStatusFilter) admin.mediaStatusFilter.value = v; }"
         @update:type-filter="(v) => { if (admin.mediaTypeFilter) admin.mediaTypeFilter.value = v; }"
         @update:page="(p) => { if (admin.page) admin.page.value = p; }"
+        @update:limit="(l) => { if (admin.limit) admin.limit.value = l; }"
         @retry-media="(id) => admin.retryMedia?.(id)"
         @purge-media="async (id) => { const ok = await admin.purgeMedia?.(id); if (ok) addToast(`🗑️ メディア [${id}] をDBからパージしました`, 'info', 3000); }"
         @purge-by-status="async (st) => { const cnt = await admin.purgeMediaByStatus?.(st); addToast(`🗑️ [${st}] のメディア ${cnt} 件をパージしました`, 'info', 4000); }"
         @view-post="(artId) => { if (admin.searchQuery) admin.searchQuery.value = artId; if (admin.page) admin.page.value = 1; admin.activeSubTab.value = 'posts'; admin.searchArticles?.(); }"
+        @start-download="async () => { await admin.startMediaDownload?.(); addToast('🚀 メディアダウンロードジョブを開始しました！', 'info', 3000); }"
+        @start-poll="async () => { await admin.startMediaPoll?.(); addToast('🔄 Aria2 委託回収ジョブを開始しました！', 'info', 3000); }"
+        @reconcile-stash="async () => { const cnt = await admin.reconcileStashMedia?.(); addToast(`🎛️ Stash連携同期完了: ${cnt} 件のメディアを自動紐付けしました！`, 'success', 4000); }"
+        @requeue-failed="async () => { const cnt = await admin.requeueMedia?.('DEAD_404'); addToast(`🔁 失敗メディア ${cnt} 件を QUEUED へ再キューイングしました`, 'success', 4000); }"
+        @merge-duplicates="async () => { const cnt = await admin.mergeDuplicates?.(); addToast(`🧬 重複メディア ${cnt} 件を統合・クレンジングしました`, 'success', 4000); }"
+        @purge-low-res="async () => { const cnt = await admin.purgeLowResDuplicates?.(); addToast(`🧹 低解像度メディア ${cnt} 件をごみ箱へ退避しました`, 'success', 4000); }"
+        @open-explorer="(id) => admin.openInExplorer?.(id)"
+        @open-default="(id) => admin.openWithDefaultApp?.(id)"
+        @toggle-bookmark="(id) => admin.toggleBookmark?.(id)"
+        @cancel-job="(id) => admin.cancelJob?.(id)"
       />
       <WhitelistManagementView v-else-if="admin.activeSubTab.value === 'whitelist'" :whitelist-list="admin.whitelists.value" :loading="admin.isWhitelistLoading.value" @fetch="admin.fetchWhitelists" @add="(t, v) => admin.addWhitelist(t, v)" @toggle="(id) => admin.toggleWhitelist(id)" @delete="(id) => admin.deleteWhitelist(id)" />
     </div>
