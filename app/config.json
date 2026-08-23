@@ -39,6 +39,6 @@
   "translation": {
     "provider": "google",
     "deepl_api_key": "",
-    "google_translate_api_key": "AIzaSyC3yHPAajnLd6nDP95uOo2NE5zyA_GpI1k"
+    "google_translate_api_key": ""
   }
 }
