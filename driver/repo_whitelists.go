@@ -13,19 +13,30 @@ func (r *Repository) GetWhitelists() ([]models.Whitelist, error) {
 }
 
 // AddWhitelist はホワイトリスト項目を追加します
-func (r *Repository) AddWhitelist(itemType, value string) (*models.Whitelist, error) {
-	item := models.Whitelist{Type: itemType, Value: value, IsActive: true}
+func (r *Repository) AddWhitelist(itemType, value, groupName, aliasOf string) (*models.Whitelist, error) {
+	item := models.Whitelist{Type: itemType, Value: value, GroupName: groupName, AliasOf: aliasOf, IsActive: true}
 	if err := r.db.Create(&item).Error; err != nil {
 		return nil, err
+	}
+	if itemType == "account" {
+		_ = r.db.Model(&models.Account{}).Where("username = ?", value).Updates(map[string]interface{}{
+			"group_name": groupName, "alias_of": aliasOf,
+		})
 	}
 	return &item, nil
 }
 
 // UpdateWhitelist はホワイトリスト項目の内容を更新します
-func (r *Repository) UpdateWhitelist(id uint, itemType, value string, isActive bool) error {
-	return r.db.Model(&models.Whitelist{}).Where("id = ?", id).Updates(map[string]interface{}{
-		"type": itemType, "value": value, "is_active": isActive,
+func (r *Repository) UpdateWhitelist(id uint, itemType, value, groupName, aliasOf string, isActive bool) error {
+	err := r.db.Model(&models.Whitelist{}).Where("id = ?", id).Updates(map[string]interface{}{
+		"type": itemType, "value": value, "group_name": groupName, "alias_of": aliasOf, "is_active": isActive,
 	}).Error
+	if err == nil && itemType == "account" {
+		_ = r.db.Model(&models.Account{}).Where("username = ?", value).Updates(map[string]interface{}{
+			"group_name": groupName, "alias_of": aliasOf,
+		})
+	}
+	return err
 }
 
 // DeleteWhitelist はホワイトリスト項目を削除します
@@ -42,3 +53,4 @@ func (r *Repository) ToggleWhitelist(id uint) error {
 	item.IsActive = !item.IsActive
 	return r.db.Save(&item).Error
 }
+

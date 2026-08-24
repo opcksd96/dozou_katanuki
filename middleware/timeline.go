@@ -27,10 +27,12 @@ func (s *TimelineService) GetAccounts(platform string) ([]models.RenderAuthor, e
 		authors = append(authors, models.RenderAuthor{
 			NumericID: acc.NumericID, Handle: acc.Username,
 			DisplayName: acc.DisplayName, AvatarURL: avatarURL, Bio: acc.Description,
+			GroupName: acc.GroupName, AliasOf: acc.AliasOf,
 		})
 	}
 	return authors, nil
 }
+
 
 // FetchTimeline はパラメータ検証を経て RenderTree 配列を一方向データフローで供給します
 func (s *TimelineService) FetchTimeline(platform, accountID, filter string, limit, offset int) ([]models.RenderTree, error) {

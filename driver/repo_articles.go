@@ -6,10 +6,19 @@ import (
 	"gorm.io/gorm"
 )
 
+func (r *Repository) applyAccountFilter(query *gorm.DB, accountID string) *gorm.DB {
+	if accountID == "" || accountID == "all" { return query }
+	if len(accountID) > 6 && accountID[:6] == "group:" {
+		grp := accountID[6:]
+		return query.Where("account_id IN (SELECT numeric_id FROM accounts WHERE group_name = ?)", grp)
+	}
+	return query.Where("account_id = ? OR account_id IN (SELECT numeric_id FROM accounts WHERE alias_of = (SELECT username FROM accounts WHERE numeric_id = ?) OR (alias_of != '' AND alias_of = (SELECT alias_of FROM accounts WHERE numeric_id = ?)))", accountID, accountID, accountID)
+}
+
 func (r *Repository) FetchArticles(accountID, filter string, limit, offset int) ([]models.Article, error) {
 	query := r.db.Model(&models.Article{}).Preload("Account").Preload("Account.ProfileHistory").Preload("Media").Preload("UrlRedirects").Order("created_at DESC")
 	query = query.Where("is_repost = ? OR reply_to_handle IN (SELECT value FROM whitelists WHERE is_active = ?)", false, true)
-	if accountID != "all" { query = query.Where("account_id = ?", accountID) }
+	query = r.applyAccountFilter(query, accountID)
 	switch filter {
 	case "reposts": query = query.Where("is_repost = ?", true)
 	case "media": query = query.Joins("JOIN media ON media.article_id = articles.id").Group("articles.id")
@@ -43,7 +52,7 @@ func (r *Repository) SearchArticles(searchQuery, accountID, filter string, limit
 		pat := "%" + searchQuery + "%"
 		query = query.Where("full_text LIKE ? OR full_text_ja LIKE ? OR full_text_en LIKE ? OR full_text_zh LIKE ? OR id LIKE ?", pat, pat, pat, pat, pat)
 	}
-	if accountID != "" && accountID != "all" { query = query.Where("account_id = ?", accountID) }
+	query = r.applyAccountFilter(query, accountID)
 	switch filter {
 	case "reposts": query = query.Where("is_repost = ?", true)
 	case "media": query = query.Joins("JOIN media ON media.article_id = articles.id").Group("articles.id")
@@ -55,6 +64,7 @@ func (r *Repository) SearchArticles(searchQuery, accountID, filter string, limit
 	if limit <= 0 { limit = 20 }
 	return articles, total, query.Order("created_at DESC").Limit(limit).Offset(offset).Find(&articles).Error
 }
+
 
 func (r *Repository) GetArticleByID(id string) (*models.Article, error) {
 	var a models.Article

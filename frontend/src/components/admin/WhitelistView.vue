@@ -4,7 +4,7 @@ import { ref, computed, onMounted } from 'vue';
 import WhitelistAddForm from './whitelist/WhitelistAddForm.vue';
 import WhitelistTable from './whitelist/WhitelistTable.vue';
 
-interface WhitelistItem { id: number; type: string; value: string; is_active: boolean; }
+interface WhitelistItem { id: number; type: string; value: string; group_name: string; alias_of: string; is_active: boolean; }
 
 const props = defineProps<{
   whitelistList: WhitelistItem[];
@@ -14,20 +14,27 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (e: 'fetch'): void;
-  (e: 'add', type: string, value: string): void;
-  (e: 'update', id: number, type: string, value: string, isActive: boolean): void;
+  (e: 'add', type: string, value: string, groupName: string, aliasOf: string): void;
+  (e: 'update', id: number, type: string, value: string, groupName: string, aliasOf: string, isActive: boolean): void;
   (e: 'delete', id: number): void;
   (e: 'toggle', id: number): void;
 }>();
 
 const filterType = ref<'all' | 'account' | 'keyword'>('all');
+const filterGroup = ref<string>('');
 const searchQuery = ref('');
+
+const uniqueGroups = computed(() => {
+  const groups = new Set(props.whitelistList.map(i => i.group_name).filter(Boolean));
+  return [...groups].sort();
+});
 
 const filteredList = computed(() => {
   return props.whitelistList.filter((item) => {
     const matchType = filterType.value === 'all' || item.type === filterType.value;
+    const matchGroup = !filterGroup.value || item.group_name === filterGroup.value;
     const matchQuery = !searchQuery.value.trim() || item.value.toLowerCase().includes(searchQuery.value.trim().toLowerCase());
-    return matchType && matchQuery;
+    return matchType && matchGroup && matchQuery;
   });
 });
 
@@ -53,7 +60,7 @@ onMounted(() => { emit('fetch'); });
       <span>{{ statusMessage.success ? '✅' : '⚠️' }}</span><span>{{ statusMessage.message }}</span>
     </div>
 
-    <WhitelistAddForm @add="(t, v) => emit('add', t, v)" />
+    <WhitelistAddForm @add="(t, v, g, a) => emit('add', t, v, g, a)" />
 
     <div class="flex flex-wrap items-center justify-between gap-3 pt-2">
       <div class="flex items-center gap-1 bg-slate-900/80 p-1 rounded-lg border border-slate-800 text-xs">
@@ -61,17 +68,24 @@ onMounted(() => { emit('fetch'); });
         <button @click="filterType = 'account'" class="px-3 py-1 rounded-md font-semibold" :class="filterType === 'account' ? 'bg-blue-600 text-white' : 'text-slate-400'">👤 アカウント ({{ whitelistList.filter((i) => i.type === 'account').length }})</button>
         <button @click="filterType = 'keyword'" class="px-3 py-1 rounded-md font-semibold" :class="filterType === 'keyword' ? 'bg-purple-600 text-white' : 'text-slate-400'">🔍 キーワード ({{ whitelistList.filter((i) => i.type === 'keyword').length }})</button>
       </div>
-      <div class="w-64">
-        <input v-model="searchQuery" type="text" placeholder="リスト内を検索..." class="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-200 placeholder-slate-500" />
+      <div class="flex items-center gap-2">
+        <select v-if="uniqueGroups.length > 0" v-model="filterGroup" class="bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-slate-300">
+          <option value="">全グループ</option>
+          <option v-for="g in uniqueGroups" :key="g" :value="g">🏷️ {{ g }}</option>
+        </select>
+        <div class="w-52">
+          <input v-model="searchQuery" type="text" placeholder="リスト内を検索..." class="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-200 placeholder-slate-500" />
+        </div>
       </div>
     </div>
 
     <WhitelistTable
       :items="filteredList"
       :loading="loading"
-      @update="(id, t, v, act) => emit('update', id, t, v, act)"
+      @update="(id, t, v, g, a, act) => emit('update', id, t, v, g, a, act)"
       @delete="(id) => emit('delete', id)"
       @toggle="(id) => emit('toggle', id)"
     />
   </div>
 </template>
+

@@ -16,30 +16,30 @@ func (a *App) GetWhitelists() ([]models.Whitelist, error) {
 }
 
 // AddWhitelist はホワイトリスト項目を追加する Wails バインドメソッドです
-func (a *App) AddWhitelist(itemType, value string) (*models.Whitelist, error) {
+func (a *App) AddWhitelist(itemType, value, groupName, aliasOf string) (*models.Whitelist, error) {
 	if err := a.WaitForReady(); err != nil {
 		return nil, err
 	}
-	item, err := a.Repo.AddWhitelist(itemType, value)
+	item, err := a.Repo.AddWhitelist(itemType, value, groupName, aliasOf)
 	if err != nil {
 		log.Printf("[Wails RPC] AddWhitelist error: %v", err)
 		return nil, err
 	}
-	log.Printf("[Wails RPC] AddWhitelist added: [%s] %s (id: %d)", item.Type, item.Value, item.ID)
+	log.Printf("[Wails RPC] AddWhitelist added: [%s] %s (group: %s, alias_of: %s, id: %d)", item.Type, item.Value, item.GroupName, item.AliasOf, item.ID)
 	return item, nil
 }
 
 // UpdateWhitelist はホワイトリスト項目を更新する Wails バインドメソッドです
-func (a *App) UpdateWhitelist(id uint, itemType, value string, isActive bool) error {
+func (a *App) UpdateWhitelist(id uint, itemType, value, groupName, aliasOf string, isActive bool) error {
 	if err := a.WaitForReady(); err != nil {
 		return err
 	}
-	err := a.Repo.UpdateWhitelist(id, itemType, value, isActive)
+	err := a.Repo.UpdateWhitelist(id, itemType, value, groupName, aliasOf, isActive)
 	if err != nil {
 		log.Printf("[Wails RPC] UpdateWhitelist error (id: %d): %v", id, err)
 		return err
 	}
-	log.Printf("[Wails RPC] UpdateWhitelist updated: (id: %d) [%s] %s (active: %v)", id, itemType, value, isActive)
+	log.Printf("[Wails RPC] UpdateWhitelist updated: (id: %d) [%s] %s (group: %s, alias: %s, active: %v)", id, itemType, value, groupName, aliasOf, isActive)
 	return nil
 }
 
@@ -70,3 +70,4 @@ func (a *App) ToggleWhitelist(id uint) error {
 	log.Printf("[Wails RPC] ToggleWhitelist toggled: (id: %d)", id)
 	return nil
 }
+

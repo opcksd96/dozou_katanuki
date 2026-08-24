@@ -1,4 +1,4 @@
-CREATE TABLE IF NOT EXISTS `accounts` (`numeric_id` text,`username` text NOT NULL,`display_name` text NOT NULL,`avatar_url` text NOT NULL,`updated_at` datetime NOT NULL,PRIMARY KEY (`numeric_id`));
+CREATE TABLE IF NOT EXISTS `accounts` (`numeric_id` text,`username` text NOT NULL,`display_name` text NOT NULL,`avatar_url` text NOT NULL,`avatar_base64` text,`description` text,`group_name` text DEFAULT '',`alias_of` text DEFAULT '',`updated_at` datetime NOT NULL,PRIMARY KEY (`numeric_id`));
 CREATE INDEX IF NOT EXISTS `idx_accounts_username` ON `accounts`(`username`);
 CREATE TABLE IF NOT EXISTS `account_profile_histories` (`id` integer PRIMARY KEY AUTOINCREMENT,`account_id` text NOT NULL,`display_name` text NOT NULL,`avatar_original_url` text NOT NULL,`avatar_seq` integer NOT NULL,`avatar_virtual_key` text NOT NULL,`observed_at` datetime NOT NULL,CONSTRAINT `fk_accounts_profile_history` FOREIGN KEY (`account_id`) REFERENCES `accounts`(`numeric_id`));
 CREATE INDEX IF NOT EXISTS `idx_history_lookup` ON `account_profile_histories`(`account_id`, `avatar_seq` DESC);
@@ -14,5 +14,6 @@ CREATE UNIQUE INDEX IF NOT EXISTS `idx_media_stash_scene` ON `media`(`stash_scen
 CREATE UNIQUE INDEX IF NOT EXISTS `idx_media_stash_image` ON `media`(`stash_image_id`) WHERE `stash_image_id` IS NOT NULL;
 CREATE TABLE IF NOT EXISTS `url_redirects` (`short_url` text,`expanded_url` text NOT NULL,`article_id` text NOT NULL,PRIMARY KEY (`short_url`));
 CREATE INDEX IF NOT EXISTS `idx_url_redirects_article_id` ON `url_redirects`(`article_id`);
-CREATE TABLE IF NOT EXISTS `whitelists` (`id` integer PRIMARY KEY AUTOINCREMENT,`type` text NOT NULL,`value` text NOT NULL,`is_active` boolean NOT NULL DEFAULT true);
+CREATE TABLE IF NOT EXISTS `whitelists` (`id` integer PRIMARY KEY AUTOINCREMENT,`type` text NOT NULL,`value` text NOT NULL,`group_name` text DEFAULT '',`alias_of` text DEFAULT '',`is_active` boolean NOT NULL DEFAULT true);
 CREATE UNIQUE INDEX IF NOT EXISTS `idx_whitelists_value` ON `whitelists`(`value`);
+

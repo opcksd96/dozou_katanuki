@@ -14,7 +14,10 @@ type RenderAuthor struct {
 	DisplayName string `json:"display_name"`
 	AvatarURL   string `json:"avatar_url"`
 	Bio         string `json:"bio,omitempty"`
+	GroupName   string `json:"group_name,omitempty"`
+	AliasOf     string `json:"alias_of,omitempty"`
 }
+
 
 type RenderMediaURLs struct {
 	Stream    string `json:"stream,omitempty"`

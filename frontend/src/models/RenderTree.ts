@@ -13,7 +13,10 @@ export interface RenderAuthor {
   display_name: string;
   avatar_url: string;
   bio: string;
+  group_name?: string;
+  alias_of?: string;
 }
+
 
 export interface RenderMedia {
   id: string;

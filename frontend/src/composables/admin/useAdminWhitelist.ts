@@ -14,10 +14,10 @@ export function useAdminWhitelist() {
     isWhitelistLoading.value = false;
   };
 
-  const addWhitelist = async (type: string, value: string) => {
+  const addWhitelist = async (type: string, value: string, groupName = '', aliasOf = '') => {
     const app = getApp();
     if (app?.AddWhitelist) {
-      await app.AddWhitelist(type, value);
+      await app.AddWhitelist(type, value, groupName, aliasOf);
       await fetchWhitelists();
     }
   };
@@ -38,10 +38,10 @@ export function useAdminWhitelist() {
     }
   };
 
-  const updateWhitelist = async (id: number, type: string, value: string, isActive: boolean) => {
+  const updateWhitelist = async (id: number, type: string, value: string, groupName = '', aliasOf = '', isActive = true) => {
     const app = getApp();
     if (app?.UpdateWhitelist) {
-      await app.UpdateWhitelist(id, type, value, isActive);
+      await app.UpdateWhitelist(id, type, value, groupName, aliasOf, isActive);
       await fetchWhitelists();
     }
   };
@@ -51,3 +51,4 @@ export function useAdminWhitelist() {
     fetchWhitelists, addWhitelist, toggleWhitelist, deleteWhitelist, updateWhitelist,
   };
 }
+

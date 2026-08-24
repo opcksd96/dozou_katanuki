@@ -61,8 +61,10 @@ func ToRenderTree(item models.Article, platform string) models.RenderTree {
 		Author: models.RenderAuthor{
 			NumericID: item.Account.NumericID, Handle: item.Account.Username,
 			DisplayName: item.Account.DisplayName, AvatarURL: avatarURL,
-			Bio: item.Account.Description,
+			Bio: item.Account.Description, GroupName: item.Account.GroupName,
+			AliasOf: item.Account.AliasOf,
 		},
+
 		Media: MapMediaToRenderMediaWithContext(item.Media, platform, item.Account.Username), Metrics: models.RenderMetrics{},
 		IsLiked: item.IsLiked, SourceURL: item.WaybackURL,
 		ParentID: item.ReplyToID.String, ReplyToHandle: item.ReplyToHandle.String,
