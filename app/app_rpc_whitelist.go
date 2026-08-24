@@ -71,3 +71,17 @@ func (a *App) ToggleWhitelist(id uint) error {
 	return nil
 }
 
+// SyncWhitelistGroups はwhitelistsテーブルのgroup_name/alias_ofをaccountsテーブルに一括同期します
+func (a *App) SyncWhitelistGroups() (int64, error) {
+	if err := a.WaitForReady(); err != nil {
+		return 0, err
+	}
+	synced, err := a.Repo.SyncAllWhitelistGroups()
+	if err != nil {
+		log.Printf("[Wails RPC] SyncWhitelistGroups error: %v", err)
+		return 0, err
+	}
+	log.Printf("[Wails RPC] SyncWhitelistGroups synced %d accounts", synced)
+	return synced, nil
+}
+

@@ -45,6 +45,11 @@ func (a *App) Startup(ctx context.Context) {
 		a.StashProber.Start(ctx)
 	}
 
+	// 起動時にwhitelist→accountsテーブルのgroup_name/alias_ofを一括同期
+	if synced, err := a.Repo.SyncAllWhitelistGroups(); err == nil && synced > 0 {
+		log.Printf("[Startup] Synced whitelist groups to %d accounts", synced)
+	}
+
 	a.ReadyOnce.Do(func() { close(a.Ready) })
 	runtime.EventsEmit(ctx, "app:ready", true)
 }

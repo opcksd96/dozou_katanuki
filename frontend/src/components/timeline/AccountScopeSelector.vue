@@ -1,20 +1,13 @@
+<!-- frontend/src/components/timeline/AccountScopeSelector.vue (100行以下) -->
 <script setup lang="ts">
 import { computed } from 'vue';
 import type { RenderAuthor } from '../../models/RenderTree';
+import AccountGroupSection from './AccountGroupSection.vue';
 
-const props = defineProps<{
-  accounts: RenderAuthor[];
-  selectedId: string;
-}>();
+const props = defineProps<{ accounts: RenderAuthor[]; selectedId: string; }>();
+const emit = defineEmits<{ (e: 'select', id: string): void; }>();
 
-const emit = defineEmits<{
-  (e: 'select', id: string): void;
-}>();
-
-interface AccountGroup {
-  name: string;
-  accounts: RenderAuthor[];
-}
+interface AccountGroup { name: string; accounts: RenderAuthor[]; }
 
 const groupedAccounts = computed(() => {
   const groups = new Map<string, RenderAuthor[]>();
@@ -34,89 +27,64 @@ const groupedAccounts = computed(() => {
   return result;
 });
 
-const hasGroups = computed(() => groupedAccounts.value.some(g => g.name !== ''));
+const definedGroups = computed(() => groupedAccounts.value.filter(g => g.name !== ''));
+const hasGroups = computed(() => definedGroups.value.length > 0);
+const isGroupSelected = (g: string) => props.selectedId === `group:${g}`;
 
-const pillClass = (id: string) => [
+const pillClass = (active: boolean, isGroup = false) => [
   'flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all border cursor-pointer shrink-0 shadow-sm',
-  props.selectedId === id
-    ? 'bg-blue-600 border-blue-500 text-white shadow-blue-500/20 font-bold'
-    : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-slate-200 hover:border-slate-700'
+  active
+    ? (isGroup ? 'bg-amber-600 border-amber-500 text-white shadow-amber-500/20 font-bold' : 'bg-blue-600 border-blue-500 text-white shadow-blue-500/20 font-bold')
+    : (isGroup ? 'bg-slate-950 border-amber-900/40 text-amber-300/80 hover:text-amber-200 hover:border-amber-700/60 hover:bg-amber-950/30' : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-slate-200 hover:border-slate-700')
 ];
 </script>
 
 <template>
-  <div class="bg-slate-900/40 border border-slate-800/80 rounded-xl p-3 mb-4 space-y-2">
-    <div class="flex items-center justify-between text-[11px] font-mono text-slate-400">
-      <span class="flex items-center gap-1.5 font-semibold text-slate-300">
-        <span>📁</span> アーカイブ対象アカウント (Scope):
-      </span>
-      <span class="text-slate-500">{{ accounts.length }} Accounts</span>
+  <div class="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-4 mb-4 space-y-3.5 shadow-xl backdrop-blur-sm">
+    <div class="flex items-center justify-between text-[11px] font-mono text-slate-400 border-b border-slate-800/60 pb-2">
+      <span class="flex items-center gap-1.5 font-semibold text-slate-200"><span>📁</span> アーカイブ対象スコープ (Scope):</span>
+      <div class="flex items-center gap-2 text-[10px]">
+        <span v-if="hasGroups" class="text-amber-400 font-semibold">{{ definedGroups.length }} Groups</span>
+        <span class="text-slate-600">•</span>
+        <span class="text-slate-400">{{ accounts.length }} Accounts</span>
+      </div>
     </div>
 
-    <!-- 全アカウントボタン -->
-    <div class="flex flex-wrap items-center gap-2 pt-1">
-      <button @click="emit('select', 'all')" :class="pillClass('all')">
-        <span>🌐 全てのアカウント</span>
-      </button>
+    <!-- 最上段：全アカウント ＆ グループ一括選択ピルボタン一覧 -->
+    <div class="space-y-1.5">
+      <div class="text-[10px] font-mono text-slate-400 flex items-center gap-1"><span>⚡ 一括スコープ切り替え:</span></div>
+      <div class="flex flex-wrap items-center gap-2">
+        <button @click="emit('select', 'all')" :class="pillClass(selectedId === 'all')">
+          <span>🌐 全てのアカウント</span>
+          <span class="text-[10px] opacity-75 font-mono">({{ accounts.length }})</span>
+        </button>
+
+        <button
+          v-for="group in definedGroups"
+          :key="`btn-grp-${group.name}`"
+          @click="emit('select', `group:${group.name}`)"
+          :class="pillClass(isGroupSelected(group.name), true)"
+          :title="`グループ「${group.name}」所属全${group.accounts.length}件を一括表示`"
+        >
+          <span>🏷️ {{ group.name }}</span>
+          <span class="text-[10px] opacity-75 font-mono">({{ group.accounts.length }})</span>
+        </button>
+      </div>
     </div>
 
-    <!-- グループ化されたアカウント -->
+    <!-- グループ別アカウント個別ピル一覧 -->
     <template v-if="hasGroups">
-      <div v-for="group in groupedAccounts" :key="group.name || '__ungrouped__'" class="space-y-1.5">
-        <div v-if="group.name" class="flex items-center gap-2 pt-2">
-          <span class="text-[10px] font-bold text-amber-400/80 uppercase tracking-wider flex items-center gap-1">
-            🏷️ {{ group.name }}
-          </span>
-          <div class="flex-1 border-t border-slate-800/60"></div>
-          <span class="text-[10px] text-slate-600">{{ group.accounts.length }}</span>
-        </div>
-        <div v-else-if="groupedAccounts.length > 1" class="flex items-center gap-2 pt-2">
-          <span class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">未分類</span>
-          <div class="flex-1 border-t border-slate-800/60"></div>
-          <span class="text-[10px] text-slate-600">{{ group.accounts.length }}</span>
-        </div>
-        <div class="flex flex-wrap items-center gap-2">
-          <button
-            v-for="acc in group.accounts"
-            :key="acc.numeric_id"
-            @click="emit('select', acc.numeric_id)"
-            :class="pillClass(acc.numeric_id)"
-            :title="acc.alias_of ? `裏垢 → 本垢: @${acc.alias_of}` : acc.display_name"
-          >
-            <img
-              v-if="acc.avatar_url"
-              :src="acc.avatar_url"
-              :alt="acc.handle"
-              class="w-4 h-4 rounded-full object-cover bg-slate-800"
-              @error="($event.target as HTMLElement).style.display = 'none'"
-            />
-            <span>@{{ acc.handle }}</span>
-            <span v-if="acc.alias_of" class="text-[9px] text-teal-400 opacity-80" title="裏垢">🔗</span>
-          </button>
-        </div>
+      <div class="border-t border-slate-800/60 pt-2.5 space-y-3">
+        <AccountGroupSection
+          v-for="group in groupedAccounts"
+          :key="group.name || '__ungrouped__'"
+          :group-name="group.name"
+          :accounts="group.accounts"
+          :selected-id="selectedId"
+          :is-group-selected="isGroupSelected(group.name)"
+          @select="(id) => emit('select', id)"
+        />
       </div>
     </template>
-
-    <!-- グループがない場合はフラット表示 -->
-    <div v-else class="flex flex-wrap items-center gap-2">
-      <button
-        v-for="acc in accounts"
-        :key="acc.numeric_id"
-        @click="emit('select', acc.numeric_id)"
-        :class="pillClass(acc.numeric_id)"
-        :title="acc.alias_of ? `裏垢 → 本垢: @${acc.alias_of}` : acc.display_name"
-      >
-        <img
-          v-if="acc.avatar_url"
-          :src="acc.avatar_url"
-          :alt="acc.handle"
-          class="w-4 h-4 rounded-full object-cover bg-slate-800"
-          @error="($event.target as HTMLElement).style.display = 'none'"
-        />
-        <span>@{{ acc.handle }}</span>
-        <span v-if="acc.alias_of" class="text-[9px] text-teal-400 opacity-80" title="裏垢">🔗</span>
-      </button>
-    </div>
   </div>
 </template>
-

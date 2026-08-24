@@ -19,7 +19,7 @@ func (r *Repository) AddWhitelist(itemType, value, groupName, aliasOf string) (*
 		return nil, err
 	}
 	if itemType == "account" {
-		_ = r.db.Model(&models.Account{}).Where("username = ?", value).Updates(map[string]interface{}{
+		_ = r.db.Model(&models.Account{}).Where("LOWER(username) = LOWER(?)", value).Updates(map[string]interface{}{
 			"group_name": groupName, "alias_of": aliasOf,
 		})
 	}
@@ -32,7 +32,7 @@ func (r *Repository) UpdateWhitelist(id uint, itemType, value, groupName, aliasO
 		"type": itemType, "value": value, "group_name": groupName, "alias_of": aliasOf, "is_active": isActive,
 	}).Error
 	if err == nil && itemType == "account" {
-		_ = r.db.Model(&models.Account{}).Where("username = ?", value).Updates(map[string]interface{}{
+		_ = r.db.Model(&models.Account{}).Where("LOWER(username) = LOWER(?)", value).Updates(map[string]interface{}{
 			"group_name": groupName, "alias_of": aliasOf,
 		})
 	}
@@ -52,5 +52,21 @@ func (r *Repository) ToggleWhitelist(id uint) error {
 	}
 	item.IsActive = !item.IsActive
 	return r.db.Save(&item).Error
+}
+
+// SyncAllWhitelistGroups はすべてのwhitelist(account型)のgroup_name/alias_ofをaccountsテーブルに一括同期します
+func (r *Repository) SyncAllWhitelistGroups() (int64, error) {
+	var whitelists []models.Whitelist
+	if err := r.db.Where("type = ?", "account").Find(&whitelists).Error; err != nil {
+		return 0, err
+	}
+	var synced int64
+	for _, wl := range whitelists {
+		res := r.db.Model(&models.Account{}).Where("LOWER(username) = LOWER(?)", wl.Value).Updates(map[string]interface{}{
+			"group_name": wl.GroupName, "alias_of": wl.AliasOf,
+		})
+		synced += res.RowsAffected
+	}
+	return synced, nil
 }
 
