@@ -106,3 +106,9 @@ cache/
 middleware/temp/
 middleware/non_existent_avatar_dir/
 
+# ==========================================
+# 10. 配布パッケージ・リリース
+# ==========================================
+release/
+*.zip
+
