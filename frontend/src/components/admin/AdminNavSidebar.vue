@@ -1,6 +1,6 @@
 <!-- frontend/src/components/admin/AdminNavSidebar.vue (100行以下) -->
 <script setup lang="ts">
-export type AdminTabId = 'jobs' | 'audit' | 'stash' | 'posts' | 'media' | 'accounts' | 'whitelist' | 'config' | 'skin';
+export type AdminTabId = 'plugins' | 'audit' | 'stash' | 'posts' | 'media' | 'accounts' | 'whitelist' | 'config';
 
 defineProps<{ activeTab: AdminTabId }>();
 const emit = defineEmits<{ (e: 'select', tab: AdminTabId): void }>();
@@ -9,7 +9,7 @@ const groups = [
   {
     title: '運用・実行',
     items: [
-      { id: 'jobs', icon: '🚀', label: 'ジョブ制御' },
+      { id: 'plugins', icon: '🧩', label: 'プラグイン＆ジョブ' },
       { id: 'audit', icon: '🩺', label: '整合性監査' },
       { id: 'stash', icon: '🎛️', label: 'Stash状態' },
     ],
@@ -24,10 +24,9 @@ const groups = [
     ],
   },
   {
-    title: '設定・カスタマイズ',
+    title: '設定・環境',
     items: [
       { id: 'config', icon: '⚙️', label: 'システム設定' },
-      { id: 'skin', icon: '🧩', label: 'プラグイン・スキン' },
     ],
   },
 ];

@@ -35,6 +35,7 @@ type JobRequest struct {
 	Type       JobType           `json:"type"`
 	Platform   string            `json:"platform,omitempty"`
 	Account    string            `json:"account,omitempty"`
+	Source     string            `json:"source,omitempty"`
 	Limit      int               `json:"limit,omitempty"`
 	WARCPath   string            `json:"warc_path,omitempty"`
 	Offline    bool              `json:"offline,omitempty"`

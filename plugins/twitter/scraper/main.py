@@ -4,7 +4,6 @@ CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_ROOT = os.path.abspath(os.path.join(CURRENT_DIR, "../../.."))
 for d in [PROJECT_ROOT, CURRENT_DIR]:
     if d not in sys.path: sys.path.insert(0, d)
-
 from core.downloader import Downloader; from core.mutator import Mutator; from core.restorer import Restorer
 from core.scraper import Scraper; from core.translator import Translator; from core.warc_importer import WarcImporter
 from parsers.twitter_parser import TwitterParser
@@ -33,19 +32,18 @@ def run_batch_translate(db_path: str, article_id: str = "", account: str = "", o
         emit_progress(total, total, f"[PHASE-5:TRANSLATE] Completed translation for {total} articles.")
 
 
-def run_auto_salvage(platform: str, account: str, limit: int, db_path: str, storage_dir: str, enable_trans: bool, max_workers: int = 3, chunk_size: int = 50) -> None:
+def run_auto_salvage(platform: str, account: str, limit: int, db_path: str, storage_dir: str, enable_trans: bool, source_filter: str = "all", max_workers: int = 3, chunk_size: int = 50) -> None:
     max_step = 100 if limit <= 0 else limit
-    emit_progress(0, max_step, f"[PHASE-1:CDX_SEARCH] Starting auto salvage for @{account} on {platform}...")
+    emit_progress(0, max_step, f"[PHASE-1:ORCHESTRATE] Starting multi-source salvage for @{account} on {platform} (filter={source_filter})...")
     scraper, parser, mutator, trans = Scraper(platform=platform), TwitterParser(), Mutator(db_path=db_path, enable_translation=False), (Translator() if enable_trans else None)
-    snapshots = scraper.search_cdx(account=account, limit=limit, log_fn=lambda m: emit_progress(0, max_step, f"[PHASE-1:CDX_SEARCH] {m}"))
-    if not snapshots: return emit_progress(100, 100, f"[PHASE-1:CDX_SEARCH] Finished: No snapshot records retrieved for @{account}.")
-    tot = len(snapshots); emit_progress(0, tot, f"[PHASE-1:CDX_SEARCH] Found {tot} snapshots. Fetching & parsing...")
-    def _fetch_and_parse(snap):
-        t0 = time.time(); orig, ts = snap.get("original", ""), snap.get("timestamp", "")
-        raw = scraper.fetch_snapshot(ts, orig, account=account)
-        if not raw: return None, {"status": "FETCH_FAILED", "url": orig, "ts": ts, "ms": int((time.time() - t0)*1000)}
-        p = parser.parse_record(raw, orig)
-        if not p: return None, {"status": "PARSE_FAILED", "url": orig, "ts": ts, "ms": int((time.time() - t0)*1000)}
+    raw_records = scraper.collect_multi_source(account=account, limit=limit, source_filter=source_filter, log_fn=lambda m: emit_progress(0, max_step, f"[PHASE-1:FETCH] {m}"))
+    if not raw_records: return emit_progress(100, 100, f"[PHASE-1:FETCH] Finished: No records retrieved for @{account}.")
+    tot = len(raw_records); emit_progress(0, tot, f"[PHASE-2:PARSE] Collected {tot} raw records. Parsing...")
+
+    def _parse_and_translate(rec):
+        t0 = time.time(); uri = rec.get("uri") or rec.get("original", ""); raw = rec.get("raw_data") or rec
+        p = parser.parse_record(raw, uri)
+        if not p: return None, {"status": "PARSE_FAILED", "url": uri, "ms": int((time.time() - t0)*1000)}
         post = p.get("post", {}); ftext = post.get("full_text", "")
         for u in post.get("urls", []):
             if u.get("short_url") and u.get("expanded_url") and u["short_url"] in ftext: ftext = ftext.replace(u["short_url"], u["expanded_url"])
@@ -53,36 +51,34 @@ def run_auto_salvage(platform: str, account: str, limit: int, db_path: str, stor
         if trans:
             t = trans.translate_article(ftext); post["lang"], post["full_text_ja"], post["full_text_en"], post["full_text_zh"] = t.get("lang", "ja"), t.get("ja"), t.get("en"), t.get("zh")
         else: post["lang"], post["full_text_ja"] = "ja", ftext
-        return p, {"status": "OK", "url": orig, "id": post.get("id"), "media": len(p.get("media", [])), "ms": int((time.time() - t0)*1000)}
+        return p, {"status": "OK", "url": uri, "id": post.get("id"), "media": len(p.get("media", [])), "ms": int((time.time() - t0)*1000)}
 
     buffer, journal, saved, done = [], [], 0, 0
     with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as ex:
-        futs = [ex.submit(_fetch_and_parse, s) for s in snapshots]
-        for fut in concurrent.futures.as_completed(futs):
+        for fut in concurrent.futures.as_completed([ex.submit(_parse_and_translate, r) for r in raw_records]):
             done += 1; parsed_json, log_info = fut.result(); journal.append(log_info)
             if parsed_json: buffer.append(parsed_json)
             if len(buffer) >= chunk_size or (done == tot and buffer):
                 t_db = time.time(); c_saved = mutator.upsert_batch(buffer); saved += c_saved
                 emit_progress(done, tot, f"[PHASE-6:DRIVER_COMMIT] Saved {c_saved} articles ({saved}/{tot}) in {int((time.time() - t_db)*1000)}ms"); buffer.clear()
-            elif done % 5 == 0 or done == tot:
-                emit_progress(done, tot, f"[PHASE-2_4:COLLECT] [{done}/{tot}] buffer={len(buffer)} status={log_info.get('status')}")
+            elif done % 5 == 0 or done == tot: emit_progress(done, tot, f"[PHASE-3:PROCESS] [{done}/{tot}] buffer={len(buffer)} status={log_info.get('status')}")
     s_ok = sum(1 for j in journal if j.get("status") == "OK")
     emit_progress(100, 100, f"[SALVAGE_SUMMARY] Completed. Target={tot} | Parsed={s_ok} | Errors={tot - s_ok} | DB_Saved={saved}")
 
 
 def main():
-    p = argparse.ArgumentParser(description="Twitter Scraper Sidecar")
+    p = argparse.ArgumentParser(description="Twitter Multi-Source Scraper Sidecar")
     p.add_argument("-m", "--mode", choices=["auto", "manual", "download", "escalate", "poll", "restore", "translate"], default="auto")
     p.add_argument("-p", "--platform", default="twitter"); p.add_argument("-a", "--account", default=""); p.add_argument("-l", "--limit", type=int, default=0)
+    p.add_argument("-s", "--source", default="all", choices=["all", "wayback", "sotwe", "twistalker", "nitter", "official"])
     p.add_argument("-w", "--warc-path", default=""); p.add_argument("--dumps-dir", default="backups/dumps"); p.add_argument("--avatar-dir", default="assets/avatars")
     p.add_argument("--media-id", default=""); p.add_argument("--article-id", default=""); p.add_argument("--offline", action="store_true")
     p.add_argument("--no-translate", action="store_true"); p.add_argument("--overwrite", action="store_true"); p.add_argument("--dry-run", action="store_true")
-    p.add_argument("--db-path", default="archive.db"); p.add_argument("--storage-dir", default=""); p.add_argument("-j", "--threads", type=int, default=3)
-    p.add_argument("--chunk-size", type=int, default=50)
+    p.add_argument("--db-path", default="archive.db"); p.add_argument("--storage-dir", default=""); p.add_argument("-j", "--threads", type=int, default=3); p.add_argument("--chunk-size", type=int, default=50)
     args = p.parse_args()
 
     if args.mode == "translate": run_batch_translate(args.db_path, article_id=args.article_id, account=args.account, overwrite=args.overwrite, limit=args.limit, dry_run=args.dry_run)
-    elif args.mode == "auto": run_auto_salvage(args.platform, args.account, args.limit, args.db_path, args.storage_dir, not args.no_translate and not args.offline, max_workers=args.threads, chunk_size=args.chunk_size)
+    elif args.mode == "auto": run_auto_salvage(args.platform, args.account, args.limit, args.db_path, args.storage_dir, not args.no_translate and not args.offline, source_filter=args.source, max_workers=args.threads, chunk_size=args.chunk_size)
     elif args.mode == "manual": WarcImporter(args.warc_path, db_path=args.db_path, storage_dir=args.storage_dir, offline=args.offline).run_import(emit_progress)
     elif args.mode == "download": Downloader(db_path=args.db_path, storage_dir=args.storage_dir).process_queued_media(args.article_id or None, args.media_id or None, log_fn=lambda c, t, m: emit_progress(c, t, f"[PHASE-DL] {m}"))
     elif args.mode == "escalate": Downloader(db_path=args.db_path, storage_dir=args.storage_dir).escalate_dead_media(log_fn=lambda c, t, m: emit_progress(c, t, f"[PHASE-ESCALATE] {m}"))
@@ -90,5 +86,4 @@ def main():
     elif args.mode == "restore": Restorer(dumps_dir=args.dumps_dir, db_path=args.db_path, storage_dir=args.storage_dir, avatar_dir=args.avatar_dir, max_workers=args.threads).run_restore(emit_progress)
 
 
-if __name__ == "__main__":
-    main()
+if __name__ == "__main__": main()

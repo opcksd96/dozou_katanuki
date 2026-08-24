@@ -9,7 +9,7 @@ defineProps<{
   activeJob: any;
   jobList: any[];
   logs: string[];
-  salvageForm: { platform: string; account: string; limit: number };
+  salvageForm: { platform: string; account: string; source?: string; limit: number };
   importForm: { warcPath: string; offline: boolean };
   actionLoading: boolean;
   loadingJobs: boolean;

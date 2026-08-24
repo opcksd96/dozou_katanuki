@@ -6,11 +6,11 @@ import (
 )
 
 // StartSalvageJob は自動サルベージジョブをキューに追加する Wails バインドメソッドです
-func (a *App) StartSalvageJob(platform, account string, limit int) (*models.JobProgress, error) {
+func (a *App) StartSalvageJob(platform, account, source string, limit int) (*models.JobProgress, error) {
 	if err := a.WaitForReady(); err != nil {
 		return nil, err
 	}
-	return a.JobOrchestrator.EnqueueSalvage(platform, account, limit, a.getTranslationEnv())
+	return a.JobOrchestrator.EnqueueSalvage(platform, account, source, limit, a.getTranslationEnv())
 }
 
 // StartManualImportJob は手動 WARC インポートジョブをキューに追加する Wails バインドメソッドです

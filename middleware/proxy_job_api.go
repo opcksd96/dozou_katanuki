@@ -17,9 +17,9 @@ func (h *UnifiedHandler) serveJobAPI(w http.ResponseWriter, r *http.Request) {
 	path := r.URL.Path
 	switch {
 	case path == "/api/jobs/salvage" && r.Method == http.MethodPost:
-		var b struct { Platform, Account string; Limit int }
+		var b struct { Platform, Account, Source string; Limit int }
 		if err := json.NewDecoder(r.Body).Decode(&b); err != nil { http.Error(w, `{"error":"Invalid payload"}`, http.StatusBadRequest); return }
-		p, err := h.jobOrch.EnqueueSalvage(b.Platform, b.Account, b.Limit)
+		p, err := h.jobOrch.EnqueueSalvage(b.Platform, b.Account, b.Source, b.Limit)
 		if err != nil { w.WriteHeader(http.StatusConflict); _ = json.NewEncoder(w).Encode(map[string]interface{}{"error": err.Error(), "job": p}); return }
 		w.WriteHeader(http.StatusAccepted); _ = json.NewEncoder(w).Encode(p)
 

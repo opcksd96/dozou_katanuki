@@ -21,12 +21,12 @@ export function useAdminJob() {
     if (app?.ListJobs) jobList.value = await app.ListJobs();
   };
 
-  const startSalvage = async (platform: string, account: string, limit: number) => {
+  const startSalvage = async (platform: string, account: string, limit: number, source: string = 'all') => {
     const app = getApp();
     if (app?.StartSalvageJob) {
-      activeJob.value = await app.StartSalvageJob(platform, account, limit);
+      activeJob.value = await app.StartSalvageJob(platform, account, source, limit);
       isJobRunning.value = true;
-      jobLogs.value = [`[Job] Enqueued salvage: ${account} (limit: ${limit})`];
+      jobLogs.value = [`[Job] Enqueued salvage: ${account} (source: ${source}, limit: ${limit})`];
     }
   };
 
