@@ -1,0 +1,97 @@
+/* plugins/base/skin/design.css (SPEC-PLUGIN-001 / Base Design Tokens / 100行以下) */
+:root {
+  --base-bg-card: rgba(30, 41, 59, 0.7);
+  --base-bg-hover: rgba(51, 65, 85, 0.6);
+  --base-border-color: rgba(255, 255, 255, 0.08);
+  --base-text-primary: #f8fafc;
+  --base-text-secondary: #94a3b8;
+  --base-accent-color: #38bdf8;
+  --base-accent-hover: #0ea5e9;
+  --base-link-color: #38bdf8;
+  --base-radius-card: 16px;
+  --base-radius-media: 12px;
+  --base-font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+}
+
+.base-timeline-card {
+  background: var(--base-bg-card);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--base-border-color);
+  border-radius: var(--base-radius-card);
+  padding: 1.25rem;
+  margin-bottom: 1rem;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  font-family: var(--base-font-sans);
+}
+
+.base-timeline-card:hover {
+  background: var(--base-bg-hover);
+  border-color: rgba(255, 255, 255, 0.15);
+  transform: translateY(-1px);
+}
+
+.base-timeline-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.base-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid rgba(255, 255, 255, 0.1);
+}
+
+.base-author-meta {
+  display: flex;
+  flex-direction: column;
+}
+
+.base-display-name {
+  font-weight: 700;
+  color: var(--base-text-primary);
+  font-size: 0.95rem;
+}
+
+.base-handle {
+  font-size: 0.825rem;
+  color: var(--base-text-secondary);
+}
+
+.base-timeline-content {
+  font-size: 0.95rem;
+  line-height: 1.6;
+  color: var(--base-text-primary);
+  word-break: break-word;
+}
+
+.base-timeline-content a {
+  color: var(--base-link-color);
+  text-decoration: none;
+}
+
+.base-timeline-content a:hover {
+  text-decoration: underline;
+}
+
+.base-media-container {
+  margin-top: 0.85rem;
+  border-radius: var(--base-radius-media);
+  overflow: hidden;
+  border: 1px solid var(--base-border-color);
+}
+
+.base-timeline-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 0.85rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--base-border-color);
+  color: var(--base-text-secondary);
+  font-size: 0.825rem;
+}

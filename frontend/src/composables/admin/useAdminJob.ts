@@ -61,7 +61,10 @@ export function useAdminJob() {
         if (data?.logs) jobLogs.value = [...data.logs];
       });
       EventsOn('job:finished', (data: any) => {
-        activeJob.value = data; isJobRunning.value = false; fetchJobList();
+        activeJob.value = data;
+        isJobRunning.value = false;
+        if (data?.logs) jobLogs.value = [...data.logs];
+        fetchJobList();
       });
     } catch (_) {}
   };

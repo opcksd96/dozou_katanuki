@@ -1,0 +1,33 @@
+# plugins/base/skin/layout.yaml (SPEC-PLUGIN-001 / Base Skeleton / 100行以下)
+version: "1.0"
+platform: "base"
+
+components:
+  header:
+    enabled: true
+    avatar: true
+    display_name: true
+    handle: true
+    date: true
+  content:
+    enabled: true
+    body_text: true
+    translation_panel: true
+    entities:
+      urls: true
+      hashtags: true
+      mentions: true
+  media:
+    enabled: true
+    grid_mode: "auto"
+    max_inline_display: 4
+    video_autoplay: false
+    video_controls: true
+  footer:
+    enabled: true
+    metrics:
+      likes: true
+      reposts: true
+      replies: true
+    source_link: true
+    stash_link: true

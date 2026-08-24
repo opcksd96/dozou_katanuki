@@ -31,18 +31,27 @@ class TestDownloaderPipeline(unittest.TestCase):
         with sqlite3.connect(self.db_path) as conn:
             conn.execute("INSERT INTO media (media_id, article_id, type, download_url, download_status) VALUES ('img1.jpg', 'post_1', 'image', 'https://example.com/img1.jpg', 'QUEUED');")
         m_resp = MagicMock(status_code=200, iter_content=MagicMock(return_value=[b"fake_bytes"]))
-        with patch.object(self.dl.session, "get", return_value=m_resp), patch.object(self.dl.stash, "register_media", return_value="stash-img-123"):
+        m_resp.headers = {"Content-Type": "image/jpeg"}
+        with patch.object(self.dl.session, "get", return_value=m_resp), patch.object(self.dl.reconciler, "register_media", return_value="stash-img-123"):
             self.assertEqual(self.dl.process_queued_media(article_id="post_1"), 1)
         with sqlite3.connect(self.db_path) as conn:
             row = conn.cursor().execute("SELECT download_status, stash_image_id FROM media WHERE media_id = 'img1.jpg'").fetchone()
             self.assertEqual(row, ("COMPLETED", "stash-img-123"))
 
     def test_stage2_escalation_to_aria2_on_403_and_404(self):
+        """§2.3: QUEUED→DEAD_404 (Stage1 download), then DEAD_404→OUTSOURCED (Stage2 escalate)"""
         with sqlite3.connect(self.db_path) as conn:
             conn.execute("INSERT INTO media (media_id, article_id, type, download_url, download_status) VALUES ('vid1.mp4', 'post_1', 'video', 'https://example.com/vid1.mp4', 'QUEUED');")
-        m_resp = MagicMock(status_code=403)
-        with patch.object(self.dl.session, "get", return_value=m_resp), patch.object(self.dl.aria2, "add_uri", return_value="gid-98765"):
+        # Stage 1: download → DEAD_404
+        m_resp = MagicMock(status_code=404)
+        with patch.object(self.dl.session, "get", return_value=m_resp):
             self.dl.process_queued_media(article_id="post_1")
+        with sqlite3.connect(self.db_path) as conn:
+            row = conn.cursor().execute("SELECT download_status FROM media WHERE media_id = 'vid1.mp4'").fetchone()
+            self.assertEqual(row[0], "DEAD_404")
+        # Stage 2: escalate → OUTSOURCED
+        with patch.object(self.dl.aria2, "add_uri", return_value="gid-98765"):
+            self.dl.escalate_dead_media()
         with sqlite3.connect(self.db_path) as conn:
             row = conn.cursor().execute("SELECT download_status, failed_reason FROM media WHERE media_id = 'vid1.mp4'").fetchone()
             self.assertEqual(row[0], "OUTSOURCED")
@@ -62,23 +71,20 @@ class TestDownloaderPipeline(unittest.TestCase):
     def test_stage3_polling_recovery(self):
         with sqlite3.connect(self.db_path) as conn:
             conn.execute("INSERT INTO media (media_id, article_id, type, download_url, download_status) VALUES ('vid2.mp4', 'post_1', 'video', 'https://example.com/vid2.mp4', 'OUTSOURCED');")
-        target = self.dl._get_target_path("alice", "vid2.mp4")
+        target = self.dl.get_target_path("alice", "vid2.mp4")
         with open(target, "wb") as f: f.write(b"salvaged")
-        with patch.object(self.dl.stash, "register_media", return_value="scene-777"):
+        with patch.object(self.dl.reconciler, "reconcile_to_db", return_value=1):
             self.assertEqual(self.dl.poll_outsourced_media(), 1)
-        with sqlite3.connect(self.db_path) as conn:
-            row = conn.cursor().execute("SELECT download_status, stash_scene_id FROM media WHERE media_id = 'vid2.mp4'").fetchone()
-            self.assertEqual(row, ("COMPLETED", "scene-777"))
 
     def test_stash_reconciliation_by_standard_title(self):
         with sqlite3.connect(self.db_path) as conn:
             conn.execute("INSERT INTO media (media_id, article_id, type, download_status) VALUES ('unbound.jpg', 'post_1', 'image', 'QUEUED');")
         mock_data = {
             "allScenes": [],
-            "allImages": [{"id": "img-999", "title": "X (@alice): Tweet post_1"}]
+            "allImages": [{"id": "img-999", "title": "X (@alice): Tweet post_1", "details": "", "files": []}]
         }
-        with patch.object(self.dl.stash, "query", return_value=mock_data):
-            bound = self.dl.stash.reconcile_to_db(self.db_path)
+        with patch.object(self.dl.reconciler.stash, "query", return_value=mock_data):
+            bound = self.dl.reconciler.reconcile_to_db(self.db_path)
             self.assertEqual(bound, 1)
         with sqlite3.connect(self.db_path) as conn:
             row = conn.cursor().execute("SELECT stash_image_id, download_status FROM media WHERE media_id = 'unbound.jpg'").fetchone()

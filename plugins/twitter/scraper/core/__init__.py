@@ -4,7 +4,8 @@ from .downloader import Downloader
 from .mutator import Mutator
 from .scraper import Scraper
 from .stash_client import StashClient
+from .translator import Translator
+from .restorer import Restorer
 from .warc_importer import WarcImporter
 
-__all__ = ["Aria2Client", "Downloader", "Mutator", "Scraper", "StashClient", "WarcImporter"]
-
+__all__ = ["Aria2Client", "Downloader", "Mutator", "Scraper", "StashClient", "Translator", "Restorer", "WarcImporter"]

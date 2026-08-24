@@ -36,7 +36,7 @@ func decorateText(text, platform string, redirects []models.UrlRedirect, hasMedi
 func ToRenderTree(item models.Article, platform string) models.RenderTree {
 	if platform == "" { platform = "twitter" }
 	hasMedia := len(item.Media) > 0
-	avatarURL := AuditAndResolveAvatar(platform, item.CreatedAt, item.Account.ProfileHistory)
+	avatarURL := ResolveAccountAvatar(platform, item.CreatedAt, item.Account)
 
 	orig := decorateText(item.FullText, platform, item.UrlRedirects, hasMedia)
 	ja := ""

@@ -1,17 +1,9 @@
-# plugins/twitter/scraper/parsers/base_parser.py (100行以下)
-from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Optional
+# plugins/twitter/scraper/parsers/base_parser.py (SPEC-PLUGIN-001 / 100行以下)
+import os, sys
 
+# プラグインベースのパスを解決
+_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../.."))
+if _ROOT not in sys.path: sys.path.insert(0, _ROOT)
+from plugins.base.scraper.core.base_parser import BaseParser
 
-class BaseParser(ABC):
-    """共通パーサー抽象基底クラス (SPEC-PLUGIN-001)"""
-
-    @abstractmethod
-    def parse_record(self, raw_data: Any, uri: str) -> Optional[Dict[str, Any]]:
-        """生データ（JSON辞書またはHTML）から共通中間表現辞書を抽出します。"""
-        pass
-
-    @abstractmethod
-    def detect_platform_and_account(self, uri: str) -> Optional[Dict[str, str]]:
-        """URLパターンからプラットフォームおよびアカウント名を自動検出します。"""
-        pass
+__all__ = ["BaseParser"]

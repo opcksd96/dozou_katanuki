@@ -23,7 +23,7 @@ func (s *TimelineService) GetAccounts(platform string) ([]models.RenderAuthor, e
 	if err != nil { return nil, err }
 	authors := make([]models.RenderAuthor, 0, len(accounts))
 	for _, acc := range accounts {
-		avatarURL := AuditAndResolveAvatar(platform, time.Now(), acc.ProfileHistory)
+		avatarURL := ResolveAccountAvatar(platform, time.Now(), acc)
 		authors = append(authors, models.RenderAuthor{
 			NumericID: acc.NumericID, Handle: acc.Username,
 			DisplayName: acc.DisplayName, AvatarURL: avatarURL, Bio: acc.Description,
