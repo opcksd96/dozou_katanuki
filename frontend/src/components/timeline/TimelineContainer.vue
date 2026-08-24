@@ -3,6 +3,7 @@
 import { ref, onMounted, onUnmounted } from 'vue';
 import type { RenderTree, RenderMedia } from '../../models/RenderTree';
 import type { LanguageCode, FilterType } from '../../composables/useTimeline';
+import { useTimelineThread } from '../../composables/useTimelineThread';
 import TimelineFilter from './TimelineFilter.vue';
 import ArticleCard from '../article/ArticleCard.vue';
 
@@ -28,8 +29,14 @@ const emit = defineEmits<{
   (e: 'clickMention', handle: string): void;
 }>();
 
+const { loadingMap, expandedMap, toggleExpand, getParentArticles } = useTimelineThread();
 const targetRef = ref<HTMLElement | null>(null);
 let observer: IntersectionObserver | null = null;
+
+const isConnected = (a?: RenderTree, b?: RenderTree) => {
+  if (!a || !b) return false;
+  return a.id === b.parent_id || b.id === a.parent_id || (!!a.conversation_id && a.conversation_id === b.conversation_id && a.author.handle === b.author.handle);
+};
 
 onMounted(() => {
   observer = new IntersectionObserver((entries) => {
@@ -60,11 +67,17 @@ onUnmounted(() => observer?.disconnect());
     </div>
     <div v-else class="divide-y divide-slate-800">
       <ArticleCard
-        v-for="art in articles"
+        v-for="(art, idx) in articles"
         :key="art.id"
         :article="art"
         :target-lang="systemLang"
         :is-focused="focusedArticleId === art.id"
+        :has-parent-line="idx > 0 && isConnected(art, articles[idx - 1])"
+        :has-child-line="idx < articles.length - 1 && isConnected(art, articles[idx + 1])"
+        :is-expanded="!!expandedMap[art.id]"
+        :parent-articles="getParentArticles(art)"
+        :loading-thread="!!loadingMap[art.id]"
+        @toggle-expand-thread="toggleExpand"
         @click-article="(id) => emit('openDetail', id)"
         @toggle-like="(id) => emit('toggleLike', id)"
         @retry-media="(id) => emit('retryMedia', id)"
@@ -80,3 +93,4 @@ onUnmounted(() => observer?.disconnect());
     </div>
   </div>
 </template>
+

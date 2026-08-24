@@ -25,24 +25,44 @@
 .twitter-thread-container {
   position: relative;
 }
-.twitter-thread-line-vertical {
+.twitter-thread-line-top {
   position: absolute;
-  top: 48px;
-  bottom: 0;
-  left: 36px;
+  top: 0;
+  height: 18px;
+  left: 35px;
   width: 2px;
   background-color: #334155;
   z-index: 1;
 }
-.twitter-thread-line-parent {
+.twitter-thread-line-bottom {
+  position: absolute;
+  top: 54px;
+  bottom: 0;
+  left: 35px;
+  width: 2px;
+  background-color: #334155;
+  z-index: 1;
+}
+.twitter-thread-line-vertical, .twitter-thread-line-parent {
   position: absolute;
   top: 0;
   bottom: 0;
-  left: 36px;
+  left: 35px;
   width: 2px;
   background-color: #334155;
   z-index: 1;
 }
+
+/* インライン親ツイートプレビュー */
+.twitter-inline-thread {
+  border-left: 2px solid #0284c7;
+  background-color: rgba(15, 23, 42, 0.6);
+  backdrop-filter: blur(4px);
+}
+.twitter-inline-thread:hover {
+  background-color: rgba(30, 41, 59, 0.8);
+}
+
 
 /* リプライバッジ */
 .twitter-reply-badge {
