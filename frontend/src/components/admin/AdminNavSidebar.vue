@@ -1,6 +1,15 @@
 <!-- frontend/src/components/admin/AdminNavSidebar.vue (100行以下) -->
 <script setup lang="ts">
-export type AdminTabId = 'plugins' | 'audit' | 'stash' | 'posts' | 'media' | 'accounts' | 'whitelist' | 'config';
+export type AdminTabId = 
+  | 'plugins' 
+  | 'explorer' 
+  | 'audit' 
+  | 'stash' 
+  | 'posts' 
+  | 'media' 
+  | 'accounts' 
+  | 'whitelist' 
+  | 'config';
 
 defineProps<{ activeTab: AdminTabId }>();
 const emit = defineEmits<{ (e: 'select', tab: AdminTabId): void }>();
@@ -10,6 +19,7 @@ const groups = [
     title: '運用・実行',
     items: [
       { id: 'plugins', icon: '🧩', label: 'プラグイン＆ジョブ' },
+      { id: 'explorer', icon: '🧭', label: 'リレーション探査' },
       { id: 'audit', icon: '🩺', label: '整合性監査' },
       { id: 'stash', icon: '🎛️', label: 'Stash状態' },
     ],

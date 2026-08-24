@@ -14,6 +14,8 @@ class TwitterParser(BaseParser):
         return {"platform": "twitter", "account": m.group(1), "status_id": m.group(2) or ""} if (m and m.group(1).lower() not in self.RESERVED) else None
 
     def parse_record(self, raw_data: Any, uri: str) -> Optional[Dict[str, Any]]:
+        if isinstance(raw_data, dict) and "post" in raw_data and "account" in raw_data:
+            return raw_data
         if isinstance(raw_data, (str, bytes)):
             try:
                 data = json.loads(raw_data)

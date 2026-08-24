@@ -6,6 +6,7 @@ import { WindowMinimise, WindowToggleMaximise, Quit } from '../../../wailsjs/run
 import { Minus, Square, X, ArrowLeft, Settings2 } from 'lucide-vue-next';
 import AdminNavSidebar, { AdminTabId } from './AdminNavSidebar.vue';
 import PluginHubView from './PluginHubView.vue';
+import RelationExplorerView from './RelationExplorerView.vue';
 import ConfigPortal from './ConfigPortal.vue';
 import StashStatusView from './StashStatusView.vue';
 import WhitelistView from './WhitelistView.vue';
@@ -69,6 +70,7 @@ onUnmounted(() => { window.removeEventListener('keydown', handleKey); document.b
       <AdminNavSidebar :active-tab="activeTab" @select="(t) => activeTab = t" />
       <main class="flex-1 min-h-0 overflow-hidden p-3 bg-slate-950 flex flex-col">
         <PluginHubView v-if="activeTab === 'plugins'" :admin="admin" :salvage-form="salvageForm" :import-form="importForm" v-model:selected-platform="selectedPlatform" @start-salvage="admin.startSalvage(salvageForm.platform, salvageForm.account, salvageForm.limit, salvageForm.source)" @start-import="admin.startManualImport(importForm.warcPath, importForm.offline)" />
+        <RelationExplorerView v-else-if="activeTab === 'explorer'" class="overflow-y-auto flex-1" />
         <AuditReportView v-else-if="activeTab === 'audit'" class="overflow-y-auto flex-1" :restoring="admin.isJobRunning?.value ?? admin.isJobRunning" @trigger-restore="(resetDB) => { admin.triggerRestore('', resetDB); activeTab = 'plugins'; }" />
         <StashStatusView v-else-if="activeTab === 'stash'" class="overflow-y-auto flex-1" :config="admin.configForm" />
         <DatabaseView v-else-if="activeTab === 'posts' || activeTab === 'media' || activeTab === 'accounts'" class="flex-1 min-h-0" :admin="admin" :view="activeTab" @navigate="(t) => activeTab = t" />

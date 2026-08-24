@@ -71,6 +71,7 @@ env/
 venv/
 .venv/
 pip-log.txt
+downloaded_files
 
 # ==========================================
 # 7. OS・エディタ固有ファイル
