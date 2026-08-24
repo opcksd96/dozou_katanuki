@@ -65,6 +65,8 @@ const emit = defineEmits<{
       <div class="space-y-1">
         <h2 class="text-lg font-bold text-white tracking-tight flex items-center gap-2">
           {{ account.display_name || account.handle }}
+          <span v-if="account.group_name" class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-950/50 text-amber-300 border border-amber-700/40">🏷️ {{ account.group_name }}</span>
+          <span v-if="account.alias_of" class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-teal-950/50 text-teal-300 border border-teal-700/40">🔗 裏垢 → @{{ account.alias_of }}</span>
         </h2>
         <p class="text-xs text-slate-400 font-mono">@{{ account.handle }}</p>
       </div>
@@ -83,6 +85,14 @@ const emit = defineEmits<{
         <div v-if="totalArticles !== undefined" class="flex items-center gap-1.5">
           <span class="text-slate-500">Posts:</span>
           <span class="text-blue-400 font-semibold">{{ totalArticles }} items</span>
+        </div>
+        <div v-if="account.group_name" class="flex items-center gap-1.5">
+          <span class="text-slate-500">Group:</span>
+          <span class="text-amber-400 font-semibold">{{ account.group_name }}</span>
+        </div>
+        <div v-if="account.alias_of" class="flex items-center gap-1.5">
+          <span class="text-slate-500">Alias of:</span>
+          <span class="text-teal-400 font-semibold">@{{ account.alias_of }}</span>
         </div>
       </div>
     </div>
