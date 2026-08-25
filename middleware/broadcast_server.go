@@ -56,6 +56,7 @@ func (s *BroadcastService) handleTimelineAPI(w http.ResponseWriter, r *http.Requ
 	q := r.URL.Query()
 	p, a, f := q.Get("platform"), q.Get("account_id"), q.Get("filter")
 	if p == "" { p = "twitter" }
+	if a == "" { a = "all" }
 	limit, _ := strconv.Atoi(q.Get("limit"))
 	offset, _ := strconv.Atoi(q.Get("offset"))
 

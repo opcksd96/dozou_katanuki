@@ -2,7 +2,6 @@
 package middleware
 
 import (
-	"fmt"
 	"time"
 
 	"dozou_katanuki/driver"
@@ -36,9 +35,8 @@ func (s *TimelineService) GetAccounts(platform string) ([]models.RenderAuthor, e
 
 // FetchTimeline はパラメータ検証を経て RenderTree 配列を一方向データフローで供給します
 func (s *TimelineService) FetchTimeline(platform, accountID, filter string, limit, offset int) ([]models.RenderTree, error) {
-	if platform == "" || accountID == "" {
-		return nil, fmt.Errorf("invalid parameters: platform and account_id are required")
-	}
+	if platform == "" { platform = "twitter" }
+	if accountID == "" { accountID = "all" }
 	if limit <= 0 { limit = 50 }
 	if offset < 0 { offset = 0 }
 
