@@ -91,6 +91,7 @@ desktop.ini
 *.sln
 *.sw?
 .gemini/
+.kilo/
 
 # ==========================================
 # 8. テスト・MCP・Playwright アーティファクト
