@@ -28,7 +28,7 @@ def parse_sotwe_html_tweets(html_str: str, default_account: str) -> List[Dict[st
     page_avatar_url = ""
     if header_avatar_el and header_avatar_el.get("src"):
         raw_av = header_avatar_el["src"]
-        page_avatar_url = raw_av.replace("_normal.", "_400x400.") if "_normal." in raw_av else raw_av
+        page_avatar_url = raw_av.replace("_normal.", "") if "_normal." in raw_av else raw_av
 
     cards = soup.select("div.tweet-card")
     results = []
@@ -56,7 +56,7 @@ def parse_sotwe_html_tweets(html_str: str, default_account: str) -> List[Dict[st
         avatar_url = ""
         if avatar_img and avatar_img.get("src"):
             raw_av = avatar_img["src"]
-            avatar_url = raw_av.replace("_normal.", "_400x400.") if "_normal." in raw_av else raw_av
+            avatar_url = raw_av.replace("_normal.", "") if "_normal." in raw_av else raw_av
         elif author_username == default_account:
             avatar_url = page_avatar_url
 
@@ -80,10 +80,15 @@ def parse_sotwe_html_tweets(html_str: str, default_account: str) -> List[Dict[st
             if src and "profile_images" not in src and not any(m["url"] == src for m in media_list):
                 media_list.append({"url": src, "type": "image", "width": 0, "height": 0})
 
-        for vid_src in card.select("video source[src]"):
+        for vid_src in card.select("video.video-player source[type='video/mp4']"):
             src = vid_src.get("src", "")
             if src and not any(m["url"] == src for m in media_list):
                 media_list.append({"url": src, "type": "video", "width": 0, "height": 0})
+
+        for vid_poster in card.select("video.video-player[poster]"):
+            poster = vid_poster.get("poster", "")
+            if poster and not any(m["url"] == poster for m in media_list):
+                media_list.append({"url": poster, "type": "image", "width": 0, "height": 0})
 
         # 7. ポストID
         post_id = ""

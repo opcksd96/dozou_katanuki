@@ -74,7 +74,7 @@ graph TD
 | 優先度 | ソース名 | 実装クラス | 特徴・役割 | 認証要否 |
 |---|---|---|---|---|
 | **1位 (最高)** | **Wayback Machine** | `WaybackSource` | 過去ログ・削除済みツイートの復元。最も網羅的。 | 不要 |
-| **2位** | **Sotwe** | `SotweSource` | 高速なJSON API (`api.sotwe.com/api/v2`)。最新〜中期のツイート。画像・動画直リンク取得可能。 | 不要 |
+| **2位** | **Sotwe** | `SotweSource` | SeleniumBase UC ModeによるWeb UI DOMスクレイピング。最新〜中期のツイート。画像・動画直リンク取得可能。 | 不要 |
 | **3位** | **Nitter (分散クローン)** | `NitterSource` | HTMLスクレイピング。複数インスタンス（`nitter.net`, `nitter.poast.org`等）への自動フェイルオーバー。 | 不要 |
 | **4位** | **Twistalker** | `TwistalkerSource` | HTMLスクレイピング。代替ミラー。Sotwe/Nitter全滅時のフェイルオーバー。 | 不要 |
 | **5位 (予備)** | **X Official / GraphQL** | `OfficialSource` | Guest TokenまたはCookieによる公式エンドポイント直接取得。 | 必要時Cookie |
@@ -93,16 +93,16 @@ class BaseSource:
 ### 3.3 ソース別スクレイピング・パース詳細仕様
 
 #### 1. SotweSource (`sotwe_source.py` / `sotwe_parser.py`)
-- **アカウント取得 URL**: `GET https://api.sotwe.com/api/v2/user/{username}`
-- **単一ポスト取得 URL**: `GET https://api.sotwe.com/api/v2/post/{post_id}`
-- **抽出フィールド**:
-  - `id`: `item['id']`
-  - `conversation_id`: `item.get('conversationId') or item['id']`
-  - `reply_to_id`: `item.get('inReplyToStatusId')`
-  - `reply_to_handle`: `item.get('inReplyToScreenName')`
-  - `created_at`: `item['createdAt']` (ミリ秒UNIX時間またはISO文字列)
-  - `full_text`: `item['text']`
-  - `media`: `item.get('mediaEntities', [])` から画像・動画URL、縦横サイズ抽出
+- **アクセスURL**: `https://www.sotwe.com/{username}` (Web UI)
+- **スクレイピング方式**: SeleniumBase UC Modeでブラウザを展開し、DOMツリーからBeautifulSoupで要素抽出
+- **抽出要素**:
+  - アカウント共通: `.profile-avatar img`, `.break-word .dynamic-link-content`, `.profile-name`
+  - ツイート本体: `.tweet-card`, `.tweet-text .dynamic-link-content`
+  - 投稿日時: `time[datetime]`
+  - メディア画像: `.media-carousel img[src]`, `.media-carousel-image img[src]`
+  - メディア動画: `.video-player video source[type="video/mp4"]`
+  - 動画サムネイル: `.video-player video[poster]`
+  - リツイート判定: `.v-card__title .fa-retweet`
 
 #### 2. NitterSource (`nitter_source.py` / `nitter_parser.py`)
 - **インスタンスプール管理**:

@@ -222,7 +222,7 @@ gantt
 - 実装計画書: [`PLAN_TASK3_TASK2_WHITELIST_EXTERNAL_AND_SCRAPERS.md`](file:///d:/Projects/10_tools/dozou_katanuki/dozou_katanuki.wiki/PLAN_TASK3_TASK2_WHITELIST_EXTERNAL_AND_SCRAPERS.md)
 
 1. **【課題②】マルチソース・スクレイパー群の実装**:
-   - **SotweSource / SotweParser**: 高速JSON API経由での最新投稿・メディア抽出。
+    - **SotweSource / SotweParser**: SeleniumBase UC ModeによるWeb UI DOMスクレイピング。最新〜中期のツイート・メディア抽出。
    - **NitterSource / NitterParser**: 分散インスタンスプール管理・ヘルスチェック付きHTMLスクレイピング。
    - **TwistalkerSource / TwistalkerParser**: 代替HTMLミラー。
    - **Priority Cascade**: Wayback ➔ Sotwe ➔ Nitter ➔ Twistalker ➔ X Official の自動フォールバック。
@@ -328,7 +328,7 @@ graph TD
 | 優先度 | ソース名 | 実装クラス | 特徴・役割 | 認証要否 |
 |---|---|---|---|---|
 | **1位 (最高)** | **Wayback Machine** | `WaybackSource` | 過去ログ・削除済みツイートの復元。最も網羅的。 | 不要 |
-| **2位** | **Sotwe** | `SotweSource` | 高速なJSON API (`api.sotwe.com/api/v2`)。最新〜中期のツイート。画像・動画直リンク取得可能。 | 不要 |
+| **2位** | **Sotwe** | `SotweSource` | SeleniumBase UC ModeによるWeb UI DOMスクレイピング。最新〜中期のツイート。画像・動画直リンク取得可能。 | 不要 |
 | **3位** | **Nitter (分散クローン)** | `NitterSource` | HTMLスクレイピング。複数インスタンス（`nitter.net`, `nitter.poast.org`等）への自動フェイルオーバー。 | 不要 |
 | **4位** | **Twistalker** | `TwistalkerSource` | HTMLスクレイピング。代替ミラー。Sotwe/Nitter全滅時のフェイルオーバー。 | 不要 |
 | **5位 (予備)** | **X Official / GraphQL** | `OfficialSource` | Guest TokenまたはCookieによる公式エンドポイント直接取得。 | 必要時Cookie |
@@ -347,16 +347,16 @@ class BaseSource:
 ### 3.3 ソース別スクレイピング・パース詳細仕様
 
 #### 1. SotweSource (`sotwe_source.py` / `sotwe_parser.py`)
-- **アカウント取得 URL**: `GET https://api.sotwe.com/api/v2/user/{username}`
-- **単一ポスト取得 URL**: `GET https://api.sotwe.com/api/v2/post/{post_id}`
-- **抽出フィールド**:
-  - `id`: `item['id']`
-  - `conversation_id`: `item.get('conversationId') or item['id']`
-  - `reply_to_id`: `item.get('inReplyToStatusId')`
-  - `reply_to_handle`: `item.get('inReplyToScreenName')`
-  - `created_at`: `item['createdAt']` (ミリ秒UNIX時間またはISO文字列)
-  - `full_text`: `item['text']`
-  - `media`: `item.get('mediaEntities', [])` から画像・動画URL、縦横サイズ抽出
+- **アクセスURL**: `https://www.sotwe.com/{username}` (Web UI)
+- **スクレイピング方式**: SeleniumBase UC Modeでブラウザを展開し、DOMツリーからBeautifulSoupで要素抽出
+- **抽出要素**:
+  - アカウント共通: `.profile-avatar img`, `.break-word .dynamic-link-content`, `.profile-name`
+  - ツイート本体: `.tweet-card`, `.tweet-text .dynamic-link-content`
+  - 投稿日時: `time[datetime]`
+  - メディア画像: `.media-carousel img[src]`, `.media-carousel-image img[src]`
+  - メディア動画: `.video-player video source[type="video/mp4"]`
+  - 動画サムネイル: `.video-player video[poster]`
+  - リツイート判定: `.v-card__title .fa-retweet`
 
 #### 2. NitterSource (`nitter_source.py` / `nitter_parser.py`)
 - **インスタンスプール管理**:
@@ -424,18 +424,17 @@ graph TD
 
 ### Phase 1: Sotwe ソース & パーサーの本格実装 (優先度: 高)
 
-SotweはJSON API形式でデータ構造が最も安定しており、高速かつ高精度のメタデータ・メディア取得が可能です。
+SotweはWeb UI DOMスクレイピング方式を正とする。SeleniumBase UC Modeでブラウザを展開し、BeautifulSoupによるDOM要素抽出でメタデータ・メディアを取得する。
 
 #### [NEW] / [MODIFY] ファイル一覧
 1. **[MODIFY] [`plugins/twitter/scraper/sources/sotwe_source.py`](file:///d:/Projects/10_tools/dozou_katanuki/dozou_katanuki/plugins/twitter/scraper/sources/sotwe_source.py)**
-   - ページネーション対応（`cursor` または `page` パラメータ）
-   - レスポンスのステータスコード判定（429 Rate Limit検知、Exponential Backoff）
-   - 100行以下ルール遵守
-2. **[NEW] `plugins/twitter/scraper/parsers/sotwe_parser.py`**
-   - Sotwe APIの生JSONを共通スキーマ（`Article`, `Media`, `Account`）に変換するパース関数
-   - `conversation_id`, `in_reply_to_status_id`, `media_entities` の正確な抽出
+    - SeleniumBase UC ModeによるWeb UI DOMスクレイピング実装
+    - 100行以下ルール遵守
+2. **[MODIFY] `plugins/twitter/scraper/parsers/sotwe_parser.py`**
+    - Sotwe HTMLのDOM要素を共通スキーマ（`Article`, `Media`, `Account`）に変換するパース関数
+    - アバターURL修正（`_normal.`削除）、動画＋ポスター抽出
 3. **[NEW] `plugins/twitter/scraper/test_sotwe_source.py`**
-   - モックJSONレスポンスを用いた単体テスト（ネットワーク接続なしで実行可能）
+    - `sotwe.html` を用いた単体テスト（ネットワーク接続なしで実行可能）
 
 ---
 

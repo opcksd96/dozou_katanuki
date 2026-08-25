@@ -24,18 +24,17 @@ graph TD
 
 ### Phase 1: Sotwe ソース & パーサーの本格実装 (優先度: 高)
 
-SotweはJSON API形式でデータ構造が最も安定しており、高速かつ高精度のメタデータ・メディア取得が可能です。
+SotweはWeb UI DOMスクレイピング方式を正とする。SeleniumBase UC Modeでブラウザを展開し、BeautifulSoupによるDOM要素抽出でメタデータ・メディアを取得する。
 
 #### [NEW] / [MODIFY] ファイル一覧
 1. **[MODIFY] [`plugins/twitter/scraper/sources/sotwe_source.py`](file:///d:/Projects/10_tools/dozou_katanuki/dozou_katanuki/plugins/twitter/scraper/sources/sotwe_source.py)**
-   - ページネーション対応（`cursor` または `page` パラメータ）
-   - レスポンスのステータスコード判定（429 Rate Limit検知、Exponential Backoff）
-   - 100行以下ルール遵守
-2. **[NEW] `plugins/twitter/scraper/parsers/sotwe_parser.py`**
-   - Sotwe APIの生JSONを共通スキーマ（`Article`, `Media`, `Account`）に変換するパース関数
-   - `conversation_id`, `in_reply_to_status_id`, `media_entities` の正確な抽出
+    - SeleniumBase UC ModeによるWeb UI DOMスクレイピング実装
+    - 100行以下ルール遵守
+2. **[MODIFY] `plugins/twitter/scraper/parsers/sotwe_parser.py`**
+    - Sotwe HTMLのDOM要素を共通スキーマ（`Article`, `Media`, `Account`）に変換するパース関数
+    - アバターURL修正（`_normal.`削除）、動画＋ポスター抽出
 3. **[NEW] `plugins/twitter/scraper/test_sotwe_source.py`**
-   - モックJSONレスポンスを用いた単体テスト（ネットワーク接続なしで実行可能）
+    - `sotwe.html` を用いた単体テスト（ネットワーク接続なしで実行可能）
 
 ---
 
