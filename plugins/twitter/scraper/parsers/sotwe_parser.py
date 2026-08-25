@@ -20,7 +20,7 @@ def parse_sotwe_html_tweets(html_str: str, default_account: str) -> List[Dict[st
     page_name = header_name_el.get_text(strip=True) if header_name_el else default_account
 
     header_av_el = soup.select_one(".profile-avatar img, .v-avatar img")
-    page_av = header_av_el["src"].replace("_normal.", "") if header_av_el and header_av_el.get("src") else ""
+    page_av = header_av_el["src"].replace("_normal.", ".") if header_av_el and header_av_el.get("src") else ""
 
     cards = soup.select("div.tweet-card")
     results = []
@@ -40,7 +40,7 @@ def parse_sotwe_html_tweets(html_str: str, default_account: str) -> List[Dict[st
 
         av_img = card.select_one(".v-avatar img, .tweet-profile img")
         raw_av = av_img["src"] if (av_img and av_img.get("src")) else (page_av if author_user == default_account else "")
-        avatar_url = raw_av.replace("_normal.", "") if "_normal." in raw_av else raw_av
+        avatar_url = raw_av.replace("_normal.", ".") if "_normal." in raw_av else raw_av
         author_bio = page_bio if author_user.lower() == default_account.lower() else ""
 
         # 4. 投稿日時（実際の投稿日時を確実に取得）

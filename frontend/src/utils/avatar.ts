@@ -7,14 +7,13 @@ export function getAvatarInitial(nameOrHandle?: string): string {
 
 export function resolveHistoryAvatarUrl(history?: any, platform = 'twitter'): string {
   if (!history) return '';
-  // ① DBに格納された Base64 イメージを最優先
-  if (history.avatar_base64) {
-    return history.avatar_base64;
+  if (history.avatar_base64 || history.avatarBase64) {
+    return history.avatar_base64 || history.avatarBase64;
   }
-  if (history.avatar_virtual_key) {
-    return `/avatars/${platform}/${history.avatar_virtual_key}.jpg`;
+  if (history.avatar_original_url || history.avatarOriginalUrl) {
+    return history.avatar_original_url || history.avatarOriginalUrl;
   }
-  return history.avatar_original_url || '';
+  return '';
 }
 
 export function resolveAvatarUrl(
@@ -24,35 +23,35 @@ export function resolveAvatarUrl(
 ): string {
   if (!accountOrAuthor) return '';
 
-  // ① アカウント自身に Base64 がある場合を最優先
+  // ① アカウント自身の Base64
   if (accountOrAuthor.avatar_base64 || accountOrAuthor.avatarBase64) {
     return accountOrAuthor.avatar_base64 || accountOrAuthor.avatarBase64;
   }
 
-  // ② 世代履歴の最新に Base64 がある場合
+  // ② 世代履歴の Base64 / 原本URL
   if (histories && histories.length > 0) {
     const latest = histories[histories.length - 1];
-    if (latest?.avatar_base64) {
-      return latest.avatar_base64;
+    if (latest?.avatar_base64 || latest?.avatarBase64) {
+      return latest.avatar_base64 || latest.avatarBase64;
     }
-    if (latest?.avatar_virtual_key) {
-      return `/avatars/${platform}/${latest.avatar_virtual_key}.jpg`;
+    if (latest?.avatar_original_url || latest?.avatarOriginalUrl) {
+      return latest.avatar_original_url || latest.avatarOriginalUrl;
     }
   }
 
-  // ③ 埋め込み履歴の最新に Base64 がある場合
+  // ③ 埋め込み履歴の Base64 / 原本URL
   const embeddedHistories = accountOrAuthor.profile_history || accountOrAuthor.ProfileHistory;
   if (Array.isArray(embeddedHistories) && embeddedHistories.length > 0) {
     const latest = embeddedHistories[embeddedHistories.length - 1];
-    if (latest?.avatar_base64) {
-      return latest.avatar_base64;
+    if (latest?.avatar_base64 || latest?.avatarBase64) {
+      return latest.avatar_base64 || latest.avatarBase64;
     }
-    if (latest?.avatar_virtual_key) {
-      return `/avatars/${platform}/${latest.avatar_virtual_key}.jpg`;
+    if (latest?.avatar_original_url || latest?.avatarOriginalUrl) {
+      return latest.avatar_original_url || latest.avatarOriginalUrl;
     }
   }
 
-  // ④ アカウントのアバターURL
+  // ④ アカウントの avatar_url
   const rawUrl = accountOrAuthor.avatar_url || accountOrAuthor.avatarUrl || '';
   if (rawUrl) {
     return rawUrl;
@@ -60,3 +59,4 @@ export function resolveAvatarUrl(
 
   return '';
 }
+

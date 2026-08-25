@@ -26,11 +26,12 @@ class BaseMutator:
             valid_count += 1
             acc_id, u_name = str(acc.get("numeric_id") or acc.get("username")), acc["username"]
             d_name = acc.get("display_name", u_name)
+            desc = acc.get("description", "")
             av_url = acc.get("avatar_url", "")
             av_orig = acc.get("avatar_original_url") or av_url
             post_id = str(post["id"])
             c_at = post.get("created_at") or now_ts
-            accounts.append((acc_id, u_name, d_name, av_url, now_ts))
+            accounts.append((acc_id, u_name, d_name, av_url, desc, now_ts))
             if av_orig:
                 hists.append((acc_id, d_name, av_orig, 1, f"{u_name}_avatar_001", c_at))
             ftext = post.get("full_text", "")
@@ -63,7 +64,7 @@ class BaseMutator:
             has_b64 = "avatar_base64" in cols
         except Exception: pass
 
-        for acc_id, u_name, _, _, _ in accs:
+        for acc_id, u_name, *_ in accs:
             if acc_id.isdigit():
                 temps = [r[0] for r in cur.execute("SELECT numeric_id FROM accounts WHERE lower(username) = lower(?) AND numeric_id != ?", (u_name, acc_id)).fetchall()]
                 for t_id in temps:
@@ -83,9 +84,11 @@ class BaseMutator:
             cur = conn.cursor()
             self._reconcile_temp_accounts(cur, accs)
             cur.executemany("""
-                INSERT INTO accounts (numeric_id, username, display_name, avatar_url, updated_at) VALUES (?, ?, ?, ?, ?)
+                INSERT INTO accounts (numeric_id, username, display_name, avatar_url, description, updated_at) VALUES (?, ?, ?, ?, ?, ?)
                 ON CONFLICT(numeric_id) DO UPDATE SET display_name=coalesce(excluded.display_name, accounts.display_name),
-                    avatar_url=coalesce(excluded.avatar_url, accounts.avatar_url), updated_at=excluded.updated_at
+                    avatar_url=coalesce(excluded.avatar_url, accounts.avatar_url),
+                    description=case when excluded.description != '' then excluded.description else accounts.description end,
+                    updated_at=excluded.updated_at
             """, accs)
             if cur.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='account_profile_histories'").fetchone():
                 cur.executemany("""
