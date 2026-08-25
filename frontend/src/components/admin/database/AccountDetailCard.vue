@@ -2,6 +2,7 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue';
 import Avatar from '../../article/Avatar.vue';
+import { resolveAvatarUrl } from '../../../utils/avatar';
 
 const props = defineProps<{
   account: any;
@@ -37,7 +38,7 @@ const save = () => emit('save', { ...editForm.value });
   <div v-if="account" class="p-4 bg-slate-900 border border-slate-800 rounded-xl space-y-4">
     <div class="flex items-center justify-between">
       <div class="flex items-center gap-3">
-        <Avatar :avatar-url="isEditing ? editForm.avatarUrl : (account?.avatar_url || '')" :handle="account?.username || ''" size-class="w-14 h-14" />
+        <Avatar :avatar-url="isEditing ? editForm.avatarUrl : resolveAvatarUrl(account)" :handle="account?.username || ''" size-class="w-14 h-14" />
         <div>
           <h3 class="text-base font-bold text-slate-100">{{ account?.display_name || '名称未設定' }}</h3>
           <p class="text-xs text-slate-400">@{{ account?.username || '' }} <span class="text-slate-500">({{ account?.numeric_id || '' }})</span></p>
