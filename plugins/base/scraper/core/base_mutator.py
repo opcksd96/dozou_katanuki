@@ -25,10 +25,15 @@ class BaseMutator:
             if not post.get("id") or not acc.get("username"): continue
             valid_count += 1
             acc_id, u_name = str(acc.get("numeric_id") or acc.get("username")), acc["username"]
-            d_name, av_url = acc.get("display_name", u_name), acc.get("avatar_url", "")
+            d_name = acc.get("display_name", u_name)
+            av_url = acc.get("avatar_url", "")
+            av_orig = acc.get("avatar_original_url") or av_url
+            post_id = str(post["id"])
+            c_at = post.get("created_at") or now_ts
             accounts.append((acc_id, u_name, d_name, av_url, now_ts))
-            hists.append((acc_id, d_name, av_url, 1, f"{u_name}_avatar_001", now_ts))
-            post_id, c_at, ftext = str(post["id"]), post.get("created_at") or now_ts, post.get("full_text", "")
+            if av_orig:
+                hists.append((acc_id, d_name, av_orig, 1, f"{u_name}_avatar_001", c_at))
+            ftext = post.get("full_text", "")
             for u in post.get("urls", []):
                 s_u, e_u = u.get("short_url"), u.get("expanded_url")
                 if s_u and e_u:
