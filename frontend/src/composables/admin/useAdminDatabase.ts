@@ -37,6 +37,7 @@ export function useAdminDatabase() {
 
   const startMediaDownload = async (mId = '') => { try { return await getApp()?.StartMediaDownloadJob?.('twitter', mId); } catch {} };
   const startMediaPoll = async () => { try { return await getApp()?.StartMediaPollJob?.('twitter'); } catch {} };
+  const startMediaEscalate = async () => { try { return await getApp()?.StartMediaEscalateJob?.('twitter'); } catch {} };
   const requeueMedia = async (status = 'DEAD_404') => { try { const count = await getApp()?.RequeueMediaByStatus?.(status, media.mediaAccount.value); await media.fetchMedia(); return count; } catch { return 0; } };
   const mergeDuplicates = async () => { try { const count = await getApp()?.MergeDuplicateMedia?.(); await media.fetchMedia(); return count; } catch { return 0; } };
   const purgeLowResDuplicates = async () => { try { const count = await getApp()?.PurgeLowerResolutionDuplicates?.(); await media.fetchMedia(); return count; } catch { return 0; } };
@@ -68,7 +69,7 @@ export function useAdminDatabase() {
     purgeMediaByStatus: (status: string) => media.purgeMediaByStatus(status, media.mediaAccount.value),
     toggleBookmark: media.toggleBookmark, openInExplorer: media.openInExplorer, openWithDefaultApp: media.openWithDefaultApp,
     retryMedia: media.retryMedia, showAccountPosts, showAccountMedia,
-    startMediaDownload, startMediaPoll, requeueMedia, mergeDuplicates, purgeLowResDuplicates, reconcileStashMedia,
+    startMediaDownload, startMediaPoll, startMediaEscalate, requeueMedia, mergeDuplicates, purgeLowResDuplicates, reconcileStashMedia,
     fetchStashMetadata, updateStashMetadata,
   };
 }

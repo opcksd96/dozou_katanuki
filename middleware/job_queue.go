@@ -10,8 +10,7 @@ import (
 )
 
 func (j *JobOrchestrator) EnqueueSalvage(platform, account, source string, limit int, env ...map[string]string) (*models.JobProgress, error) {
-	if limit < 0 { limit = 0 }
-	if source == "" { source = "all" }
+	if limit < 0 { limit = 0 }; if source == "" { source = "all" }
 	var envMap map[string]string
 	if len(env) > 0 { envMap = env[0] }
 	return j.EnqueueJob(&models.JobRequest{
@@ -26,8 +25,7 @@ func (j *JobOrchestrator) EnqueueManualImport(warcPath string, offline bool) (*m
 	if offline { args = append(args, "--offline") }
 	return j.EnqueueJob(&models.JobRequest{
 		ID: fmt.Sprintf("job_import_%d", time.Now().UnixNano()), Type: models.JobTypeImportManual,
-		WARCPath: warcPath, Offline: offline, ScriptPath: "plugins/twitter/scraper/main.py",
-		Args: args, CreatedAt: time.Now(),
+		WARCPath: warcPath, Offline: offline, ScriptPath: "plugins/twitter/scraper/main.py", Args: args, CreatedAt: time.Now(),
 	})
 }
 func (j *JobOrchestrator) EnqueueMediaDownload(platform, mediaID string) (*models.JobProgress, error) {
@@ -35,8 +33,7 @@ func (j *JobOrchestrator) EnqueueMediaDownload(platform, mediaID string) (*model
 	if mediaID != "" { args = append(args, "--media-id", mediaID) }
 	return j.EnqueueJob(&models.JobRequest{
 		ID: fmt.Sprintf("job_dl_%d", time.Now().UnixNano()), Type: models.JobTypeMediaDownload,
-		Platform: platform, ScriptPath: fmt.Sprintf("plugins/%s/scraper/main.py", platform),
-		Args: args, CreatedAt: time.Now(),
+		Platform: platform, ScriptPath: fmt.Sprintf("plugins/%s/scraper/main.py", platform), Args: args, CreatedAt: time.Now(),
 	})
 }
 func (j *JobOrchestrator) EnqueueMediaPoll(platform string) (*models.JobProgress, error) {
@@ -47,12 +44,19 @@ func (j *JobOrchestrator) EnqueueMediaPoll(platform string) (*models.JobProgress
 		Args: []string{"--mode", "poll", "--platform", platform}, CreatedAt: time.Now(),
 	})
 }
+func (j *JobOrchestrator) EnqueueMediaEscalate(platform string) (*models.JobProgress, error) {
+	if platform == "" { platform = "twitter" }
+	return j.EnqueueJob(&models.JobRequest{
+		ID: fmt.Sprintf("job_esc_%d", time.Now().UnixNano()), Type: models.JobTypeEscalate,
+		Platform: platform, ScriptPath: fmt.Sprintf("plugins/%s/scraper/main.py", platform),
+		Args: []string{"--mode", "escalate", "--platform", platform}, CreatedAt: time.Now(),
+	})
+}
 func (j *JobOrchestrator) EnqueueRestore(dumpsDir string) (*models.JobProgress, error) {
 	if dumpsDir == "" { dumpsDir = "backups/dumps" }
 	return j.EnqueueJob(&models.JobRequest{
 		ID: fmt.Sprintf("job_restore_%d", time.Now().UnixNano()), Type: models.JobTypeRestore,
-		ScriptPath: "plugins/twitter/scraper/main.py", Args: []string{"--mode", "restore", "--dumps-dir", dumpsDir},
-		CreatedAt: time.Now(),
+		ScriptPath: "plugins/twitter/scraper/main.py", Args: []string{"--mode", "restore", "--dumps-dir", dumpsDir}, CreatedAt: time.Now(),
 	})
 }
 func (j *JobOrchestrator) EnqueueTranslate(account string, overwrite bool, env ...map[string]string) (*models.JobProgress, error) {
@@ -63,8 +67,7 @@ func (j *JobOrchestrator) EnqueueTranslate(account string, overwrite bool, env .
 	if len(env) > 0 { envMap = env[0] }
 	return j.EnqueueJob(&models.JobRequest{
 		ID: fmt.Sprintf("job_trans_%d", time.Now().UnixNano()), Type: models.JobTypeTranslate,
-		Account: account, ScriptPath: "plugins/twitter/scraper/main.py", Args: args,
-		Env: envMap, CreatedAt: time.Now(),
+		Account: account, ScriptPath: "plugins/twitter/scraper/main.py", Args: args, Env: envMap, CreatedAt: time.Now(),
 	})
 }
 func (j *JobOrchestrator) EnqueueJob(req *models.JobRequest) (*models.JobProgress, error) {

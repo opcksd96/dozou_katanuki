@@ -37,6 +37,7 @@ const emit = defineEmits<{
   (e: 'saveMetadata', payload: any): void;
   (e: 'startDownload'): void;
   (e: 'startPoll'): void;
+  (e: 'startEscalate'): void;
   (e: 'requeueFailed'): void;
   (e: 'reconcileStash'): void;
   (e: 'openExplorer', id: string): void;
@@ -79,6 +80,7 @@ onMounted(() => { emit('fetch'); });
       @update:status-filter="emit('update:statusFilter', $event)"
       @update:type-filter="emit('update:typeFilter', $event)"
       @open-stash="openStash" @start-download="emit('startDownload')" @start-poll="emit('startPoll')"
+      @start-escalate="emit('startEscalate')"
       @requeue-failed="emit('requeueFailed')" @reconcile-stash="emit('reconcileStash')"
     />
     <div class="flex-1 overflow-y-auto min-h-0">

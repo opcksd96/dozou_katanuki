@@ -21,6 +21,7 @@ const emit = defineEmits<{
   (e: 'openStash'): void;
   (e: 'startDownload'): void;
   (e: 'startPoll'): void;
+  (e: 'startEscalate'): void;
   (e: 'requeueFailed'): void;
   (e: 'reconcileStash'): void;
 }>();
@@ -56,6 +57,7 @@ const emit = defineEmits<{
     <!-- アクションボタン群 -->
     <div class="flex items-center gap-1.5">
       <button @click="emit('startDownload')" class="px-2.5 py-1 bg-blue-600 hover:bg-blue-500 text-white rounded text-[11px] font-bold">📥 回収開始</button>
+      <button @click="emit('startEscalate')" class="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-500 text-white rounded text-[11px]" title="DEAD_404をMotrix/Aria2へ外注委託">🚀 Motrix外注</button>
       <button @click="emit('requeueFailed')" class="px-2.5 py-1 bg-amber-600 hover:bg-amber-500 text-white rounded text-[11px]">🔄 404再試行</button>
       <button @click="emit('reconcileStash')" class="px-2.5 py-1 bg-purple-600 hover:bg-purple-500 text-white rounded text-[11px]">📦 Stash同期</button>
       <button @click="emit('openStash')" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-purple-300 rounded text-[11px]">WebUI ↗</button>

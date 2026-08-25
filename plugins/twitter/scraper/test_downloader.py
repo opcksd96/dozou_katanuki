@@ -1,6 +1,11 @@
 # plugins/twitter/scraper/test_downloader.py (100行以下)
-import gc, os, sqlite3, tempfile, unittest
+import gc, os, sqlite3, sys, tempfile, unittest
 from unittest.mock import MagicMock, patch
+
+_CUR = os.path.dirname(os.path.abspath(__file__))
+_ROOT = os.path.abspath(os.path.join(_CUR, "../../.."))
+for d in [_CUR, _ROOT]:
+    if d not in sys.path: sys.path.insert(0, d)
 from core.downloader import Downloader
 
 
@@ -18,8 +23,7 @@ class TestDownloaderPipeline(unittest.TestCase):
             conn.execute("INSERT INTO accounts VALUES ('1001', 'alice', 'アリス'), ('1002', 'bob', 'ボブ');")
             conn.execute("INSERT INTO articles VALUES ('post_1', '1001', '', 'Hello world', 'こんにちは', '2025-01-22T10:00:00Z'), ('post_2', '1002', '', 'Secret', '', '2025-01-23T10:00:00Z');")
             conn.commit()
-        finally:
-            conn.close()
+        finally: conn.close()
         self.dl = Downloader(db_path=self.db_path, storage_dir=self.storage_dir)
 
     def tearDown(self):
@@ -39,17 +43,14 @@ class TestDownloaderPipeline(unittest.TestCase):
             self.assertEqual(row, ("COMPLETED", "stash-img-123"))
 
     def test_stage2_escalation_to_aria2_on_403_and_404(self):
-        """§2.3: QUEUED→DEAD_404 (Stage1 download), then DEAD_404→OUTSOURCED (Stage2 escalate)"""
         with sqlite3.connect(self.db_path) as conn:
             conn.execute("INSERT INTO media (media_id, article_id, type, download_url, download_status) VALUES ('vid1.mp4', 'post_1', 'video', 'https://example.com/vid1.mp4', 'QUEUED');")
-        # Stage 1: download → DEAD_404
         m_resp = MagicMock(status_code=404)
         with patch.object(self.dl.session, "get", return_value=m_resp):
             self.dl.process_queued_media(article_id="post_1")
         with sqlite3.connect(self.db_path) as conn:
             row = conn.cursor().execute("SELECT download_status FROM media WHERE media_id = 'vid1.mp4'").fetchone()
             self.assertEqual(row[0], "DEAD_404")
-        # Stage 2: escalate → OUTSOURCED
         with patch.object(self.dl.aria2, "add_uri", return_value="gid-98765"):
             self.dl.escalate_dead_media()
         with sqlite3.connect(self.db_path) as conn:
@@ -79,10 +80,7 @@ class TestDownloaderPipeline(unittest.TestCase):
     def test_stash_reconciliation_by_standard_title(self):
         with sqlite3.connect(self.db_path) as conn:
             conn.execute("INSERT INTO media (media_id, article_id, type, download_status) VALUES ('unbound.jpg', 'post_1', 'image', 'QUEUED');")
-        mock_data = {
-            "allScenes": [],
-            "allImages": [{"id": "img-999", "title": "X (@alice): Tweet post_1", "details": "", "files": []}]
-        }
+        mock_data = {"allScenes": [], "allImages": [{"id": "img-999", "title": "X (@alice): Tweet post_1", "details": "", "files": []}]}
         with patch.object(self.dl.reconciler.stash, "query", return_value=mock_data):
             bound = self.dl.reconciler.reconcile_to_db(self.db_path)
             self.assertEqual(bound, 1)

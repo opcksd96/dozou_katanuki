@@ -14,7 +14,9 @@ class Downloader(BaseDownloader):
 
     def resolve_media_url(self, media_id: str, download_url: str, media_type: str) -> str:
         u = download_url or (f"https://pbs.twimg.com/media/{media_id}" if media_type == "image" else f"https://video.twimg.com/ext_tw_video/{media_id}")
-        return u.rsplit(":", 1)[0] if any(u.endswith(s) for s in [":large", ":orig", ":small", ":medium"]) else u
+        for s in [":large", ":orig", ":small", ":medium"]:
+            if u.endswith(s): u = u[:-len(s)]; break
+        return u
 
     def build_metadata(self, article_id: str, username: str, display_name: str, created_at: str, wayback_url: str, full_text: str, full_text_ja: str) -> Tuple[str, str, List[str], Dict[str, Any]]:
         t_title = f"X (@{username}): Tweet {article_id}" if username and article_id else ""

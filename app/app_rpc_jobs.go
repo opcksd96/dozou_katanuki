@@ -75,6 +75,17 @@ func (a *App) StartMediaPollJob(platform string) (*models.JobProgress, error) {
 	return a.JobOrchestrator.EnqueueMediaPoll(platform)
 }
 
+// StartMediaEscalateJob は DEAD_404 メディアの Motrix/Aria2 外注ジョブをキューに追加する Wails バインドメソッドです
+func (a *App) StartMediaEscalateJob(platform string) (*models.JobProgress, error) {
+	if err := a.WaitForReady(); err != nil {
+		return nil, err
+	}
+	if platform == "" {
+		platform = "twitter"
+	}
+	return a.JobOrchestrator.EnqueueMediaEscalate(platform)
+}
+
 // CancelJob はジョブの実行を中断する Wails バインドメソッドです
 func (a *App) CancelJob(jobID string) error {
 	if err := a.WaitForReady(); err != nil {

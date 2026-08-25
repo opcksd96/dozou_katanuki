@@ -11,9 +11,8 @@ class BaseDownloader:
     DEFAULT_STORAGE = "G:/Media_Storage/Influencers" if os.path.exists("G:/Media_Storage/Influencers") else "blobs"
 
     def __init__(self, db_path: str = "archive.db", storage_dir: Optional[str] = None, platform: str = "base"):
-        self.db_path = db_path
+        self.db_path, self.platform = db_path, platform
         self.storage_dir = storage_dir or self.DEFAULT_STORAGE
-        self.platform = platform
         os.makedirs(self.storage_dir, exist_ok=True)
         self.session = requests.Session()
         self.session.headers.update({"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"})
@@ -66,7 +65,6 @@ class BaseDownloader:
     def _try_download_and_escalate(self, media_id: str, url: str, m_type: str, dest: str, is_wl: bool = True,
                                    article_id: str = "", username: str = "", display_name: str = "", created_at: str = "",
                                    wayback_url: str = "", full_text: str = "", full_text_ja: str = "") -> Tuple[str, Optional[str], Optional[str], Optional[str]]:
-        """【第1段階】requests直接取得。成功→COMPLETED、404/例外→DEAD_404。OUTSOURCEDには遷移しない。"""
         if not is_wl: return "EXCLUDED", "Whitelist外", None, None
         u = self.resolve_media_url(media_id, url, m_type)
         t_title, txt, urls_list, c_fields = self.build_metadata(article_id, username, display_name, created_at, wayback_url, full_text, full_text_ja)
@@ -74,50 +72,39 @@ class BaseDownloader:
             reg_id = self.reconciler.register_media(dest, m_type, title=t_title, details=txt, urls=urls_list, date=created_at[:10], username=username, display_name=display_name, custom_fields=c_fields)
             return ("COMPLETED", None, reg_id if m_type == "image" else None, reg_id if m_type != "image" else None) if reg_id else ("RETAINED", "Saved to disk", None, None)
         try:
-            resp = self.session.get(u, stream=True, timeout=8, allow_redirects=True)
+            to = 10 if m_type == "image" else 30
+            resp = self.session.get(u, stream=True, timeout=to, allow_redirects=True)
             if resp.status_code == 200 and not ("html" in resp.headers.get("Content-Type", "") and "text" in resp.headers.get("Content-Type", "")):
                 with open(dest, "wb") as f:
                     for chunk in resp.iter_content(65536): f.write(chunk) if chunk else None
                 if os.path.exists(dest) and os.path.getsize(dest) > 0:
                     reg_id = self.reconciler.register_media(dest, m_type, title=t_title, details=txt, urls=urls_list, date=created_at[:10], username=username, display_name=display_name, custom_fields=c_fields)
                     return ("COMPLETED", None, reg_id if m_type == "image" else None, reg_id if m_type != "image" else None) if reg_id else ("RETAINED", "Saved to disk", None, None)
-            elif resp.status_code in (403, 404):
-                return ("DEAD_404", f"原本消失 ({resp.status_code})", None, None)
-            elif resp.status_code in (429, 500, 502, 503, 504):
-                return ("QUEUED", f"一時障害リトライ待機 ({resp.status_code})", None, None)
-        except Exception as e:
-            return ("DEAD_404", f"取得例外: {e}", None, None)
+            elif resp.status_code in (403, 404): return ("DEAD_404", f"原本消失 ({resp.status_code})", None, None)
+            elif resp.status_code in (408, 429, 500, 502, 503, 504): return ("QUEUED", f"一時障害リトライ待機 ({resp.status_code})", None, None)
+        except Exception as e: return ("DEAD_404", f"取得例外: {e}", None, None)
         return ("QUEUED", "リトライ待機", None, None)
 
     def escalate_dead_media(self, log_fn: Optional[Callable[[int, int, str], None]] = None) -> int:
-        """【第2段階】DEAD_404 → Aria2/Motrix外注委託 → OUTSOURCED。仕様 §2.3 準拠。
-        原本URL + Waybackメディア raw URLの2本立てで、Thunder/BT P2Pネットワーク深淵探査に委託。"""
         def _log(c: int, t: int, m: str) -> None:
             if log_fn: log_fn(c, t, m)
             print(f"[ESCALATE] [{c}/{t}] {m}", flush=True)
 
         with self._get_conn() as conn:
-            records = conn.cursor().execute(
-                "SELECT m.media_id, m.download_url, m.type, a.wayback_url "
-                "FROM media m JOIN articles a ON m.article_id = a.id "
-                "WHERE m.download_status = 'DEAD_404'"
-            ).fetchall()
+            records = conn.cursor().execute("SELECT m.media_id, m.download_url, m.type, a.wayback_url FROM media m JOIN articles a ON m.article_id = a.id WHERE m.download_status = 'DEAD_404'").fetchall()
 
         total = len(records); _log(0, max(total, 1), f"Found {total} DEAD_404 media awaiting escalation.")
         outsourced = 0
-        for idx, (m_id, url, m_type, _article_wb_url) in enumerate(records, start=1):
+        for idx, (m_id, url, m_type, _wb) in enumerate(records, start=1):
             u = self.resolve_media_url(m_id, url, m_type)
             dest_dir = os.path.dirname(self.get_target_path("_escalate", m_id, m_type))
-            # 原本URL + Wayback raw メディアURL (2id_ = バイナリ直返し) の2本立て
             wb_media_url = f"https://web.archive.org/web/2id_/{u}" if u else ""
             fallback_urls = [x for x in [u, wb_media_url] if x]
             gid = self.aria2.add_uri(fallback_urls, dest_dir, m_id) if fallback_urls else None
             if gid:
-                self._update_status(m_id, "OUTSOURCED", f"Motrix外注 (GID: {gid})")
-                outsourced += 1
+                self._update_status(m_id, "OUTSOURCED", f"Motrix外注 (GID: {gid})"); outsourced += 1
                 _log(idx, total, f"{m_id} -> OUTSOURCED (GID: {gid})")
-            else:
-                _log(idx, total, f"{m_id} -> Aria2 offline, DEAD_404 維持")
+            else: _log(idx, total, f"{m_id} -> Aria2 offline, DEAD_404 維持")
         _log(total, total, f"Escalation completed: {outsourced}/{total} outsourced to Motrix.")
         return outsourced
 
@@ -128,4 +115,3 @@ class BaseDownloader:
 
     def poll_outsourced_media(self, log_fn: Optional[Callable[[str], None]] = None) -> int:
         return self.reconciler.reconcile_to_db(self.db_path, log_fn=log_fn)
-
