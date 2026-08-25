@@ -3,6 +3,8 @@ import sqlite3, time
 from typing import Any, Dict, List, Optional, Tuple
 from .translator import Translator
 
+DEFAULT_AVATAR_SVG = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%2364748b'><path d='M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z'/></svg>"
+
 
 class BaseMutator:
     """クリティカルセクション極小化・アカウント名寄せ(Reconciliation)・一括コミットミューテーター"""
@@ -28,12 +30,13 @@ class BaseMutator:
             d_name = acc.get("display_name", u_name)
             desc = acc.get("description", "")
             av_url = acc.get("avatar_url", "")
+            av_b64 = acc.get("avatar_base64") or DEFAULT_AVATAR_SVG
             av_orig = acc.get("avatar_original_url") or av_url
             post_id = str(post["id"])
             c_at = post.get("created_at") or now_ts
-            accounts.append((acc_id, u_name, d_name, av_url, desc, now_ts))
+            accounts.append((acc_id, u_name, d_name, av_url, desc, av_b64, now_ts))
             if av_orig:
-                hists.append((acc_id, d_name, av_orig, 1, f"{u_name}_avatar_001", c_at))
+                hists.append((acc_id, d_name, av_orig, 1, f"{u_name}_avatar_001", av_b64, c_at))
             ftext = post.get("full_text", "")
             for u in post.get("urls", []):
                 s_u, e_u = u.get("short_url"), u.get("expanded_url")
@@ -58,15 +61,10 @@ class BaseMutator:
 
     def _reconcile_temp_accounts(self, cur: sqlite3.Cursor, accs: List[tuple]) -> None:
         """仮アカウント(UUID等)から真の数値IDへの自動名寄せ・リレーション付け替え"""
-        has_b64 = False
-        try:
-            cols = [c[1] for c in cur.execute("PRAGMA table_info(accounts)").fetchall()]
-            has_b64 = "avatar_base64" in cols
-        except Exception: pass
-
+        temps = [r[0] for r in cur.execute("SELECT numeric_id FROM accounts WHERE numeric_id LIKE '%-%' OR numeric_id LIKE 'ext_%'").fetchall()]
+        has_b64 = bool(cur.execute("PRAGMA table_info(accounts)").fetchall())
         for acc_id, u_name, *_ in accs:
-            if acc_id.isdigit():
-                temps = [r[0] for r in cur.execute("SELECT numeric_id FROM accounts WHERE lower(username) = lower(?) AND numeric_id != ?", (u_name, acc_id)).fetchall()]
+            if acc_id not in temps and not acc_id.startswith("ext_"):
                 for t_id in temps:
                     cur.execute("UPDATE articles SET account_id = ? WHERE account_id = ?", (acc_id, t_id))
                     if cur.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='account_profile_histories'").fetchone():
@@ -84,17 +82,19 @@ class BaseMutator:
             cur = conn.cursor()
             self._reconcile_temp_accounts(cur, accs)
             cur.executemany("""
-                INSERT INTO accounts (numeric_id, username, display_name, avatar_url, description, updated_at) VALUES (?, ?, ?, ?, ?, ?)
+                INSERT INTO accounts (numeric_id, username, display_name, avatar_url, description, avatar_base64, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(numeric_id) DO UPDATE SET display_name=coalesce(excluded.display_name, accounts.display_name),
                     avatar_url=coalesce(excluded.avatar_url, accounts.avatar_url),
                     description=case when excluded.description != '' then excluded.description else accounts.description end,
+                    avatar_base64=coalesce(accounts.avatar_base64, excluded.avatar_base64),
                     updated_at=excluded.updated_at
             """, accs)
             if cur.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='account_profile_histories'").fetchone():
                 cur.executemany("""
-                    INSERT INTO account_profile_histories (account_id, display_name, avatar_original_url, avatar_seq, avatar_virtual_key, observed_at)
-                    SELECT ?, ?, ?, ?, ?, ? WHERE NOT EXISTS (SELECT 1 FROM account_profile_histories WHERE account_id = ?)
-                """, [(h[0], h[1], h[2], h[3], h[4], h[5], h[0]) for h in hists])
+                    INSERT INTO account_profile_histories (account_id, display_name, avatar_original_url, avatar_seq, avatar_virtual_key, avatar_base64, observed_at)
+                    SELECT ?, ?, ?, ?, ?, ?, ? WHERE NOT EXISTS (SELECT 1 FROM account_profile_histories WHERE account_id = ?)
+                """, [(h[0], h[1], h[2], h[3], h[4], h[5], h[6], h[0]) for h in hists])
             cur.executemany("""
                 INSERT INTO articles (id, account_id, conversation_id, reply_to_id, reply_to_handle, created_at, full_text,
                     lang, full_text_ja, full_text_en, full_text_zh, via, is_repost, is_liked, wayback_url)

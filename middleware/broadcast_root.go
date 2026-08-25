@@ -77,12 +77,22 @@ func (s *BroadcastService) serveFromFS(w http.ResponseWriter, r *http.Request, c
 
 func (s *BroadcastService) handleRoot(w http.ResponseWriter, r *http.Request) {
 	path := r.URL.Path
-	cleanRel := strings.TrimPrefix(strings.TrimPrefix(filepath.Clean(path), string(filepath.Separator)), "/")
+	if strings.HasPrefix(path, "/plugins/") {
+		http.StripPrefix("/plugins/", http.FileServer(http.Dir("plugins"))).ServeHTTP(w, r)
+		return
+	}
 	distDir := findDistDir()
-	if cleanRel != "" { if serveDistFile(w, r, filepath.Join(distDir, cleanRel)) || s.serveFromFS(w, r, cleanRel) { return } }
+	cleanRel := strings.TrimPrefix(strings.TrimPrefix(filepath.Clean(path), string(filepath.Separator)), "/")
+	if cleanRel != "" {
+		if serveDistFile(w, r, filepath.Join(distDir, cleanRel)) || s.serveFromFS(w, r, cleanRel) {
+			return
+		}
+	}
 	ext := strings.ToLower(filepath.Ext(path))
-	if ext == ".js" || ext == ".mjs" || ext == ".css" || ext == ".woff2" || ext == ".wasm" || ext == ".map" { http.NotFound(w, r); return }
-	if strings.HasPrefix(path, "/plugins/") { http.StripPrefix("/plugins/", http.FileServer(http.Dir("plugins"))).ServeHTTP(w, r); return }
+	if ext == ".js" || ext == ".mjs" || ext == ".css" || ext == ".woff2" || ext == ".wasm" || ext == ".map" {
+		http.NotFound(w, r)
+		return
+	}
 	if strings.HasPrefix(path, "/stash-proxy/") || strings.HasPrefix(path, "/avatars/") || strings.HasPrefix(path, "/assets/") || strings.HasPrefix(path, "/media/") || strings.HasPrefix(path, "/media-local/") || strings.HasPrefix(path, "/api/jobs/") {
 		if s.unifiedHandler != nil { s.unifiedHandler.ServeHTTP(w, r); return }
 	}
