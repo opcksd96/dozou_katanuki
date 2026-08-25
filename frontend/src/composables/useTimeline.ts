@@ -13,15 +13,25 @@ export function useTimeline(platform = 'twitter') {
   const systemLang = ref<LanguageCode>('ja'), loading = ref(false), hasMore = ref(true);
   const renderKey = ref(0), isStashReady = ref(false);
 
+  const isWails = () => typeof window !== 'undefined' && !!((window as any)?.go?.app?.App || (window as any)?.go?.main?.App);
+
   const fetchSystemLang = async () => {
-    try { if (typeof GetSystemLanguage === 'function') { const l = await GetSystemLanguage(); if (l) systemLang.value = l as LanguageCode; } } catch {}
+    try {
+      if (isWails()) {
+        const getApp = (window as any)?.go?.app?.App || (window as any)?.go?.main?.App;
+        if (getApp?.GetSystemLanguage) { const l = await getApp.GetSystemLanguage(); if (l) systemLang.value = l as LanguageCode; }
+      }
+    } catch {}
   };
 
   const fetchAccounts = async (retry = 2): Promise<void> => {
     try {
-      const getApp = (window as any)?.go?.app?.App || (window as any)?.go?.main?.App;
-      if (getApp?.GetAccounts) accounts.value = (await getApp.GetAccounts(platform)) || [];
-      else { const res = await fetch(`/api/accounts?platform=${encodeURIComponent(platform)}`); accounts.value = (await res.json()) || []; }
+      if (isWails()) {
+        const getApp = (window as any)?.go?.app?.App || (window as any)?.go?.main?.App;
+        if (getApp?.GetAccounts) { accounts.value = (await getApp.GetAccounts(platform)) || []; return; }
+      }
+      const res = await fetch(`/api/accounts?platform=${encodeURIComponent(platform)}`);
+      accounts.value = (await res.json()) || [];
     } catch { if (retry > 0) { await new Promise((r) => setTimeout(r, 300)); return fetchAccounts(retry - 1); } }
   };
 
@@ -31,13 +41,21 @@ export function useTimeline(platform = 'twitter') {
     const offset = reset ? 0 : articles.value.length;
     try {
       let items: RenderTree[] = [];
-      const getApp = (window as any)?.go?.app?.App || (window as any)?.go?.main?.App;
-      if (getApp) {
-        if (searchQuery.value.trim()) { const res = await SearchArticles(searchQuery.value.trim(), selectedAccount.value, currentFilter.value, 50, offset); items = res?.items || []; }
-        else items = (await GetTimeline(platform, selectedAccount.value, currentFilter.value, 50, offset)) || [];
+      if (isWails()) {
+        const getApp = (window as any)?.go?.app?.App || (window as any)?.go?.main?.App;
+        if (searchQuery.value.trim() && getApp?.SearchArticles) {
+          const res = await getApp.SearchArticles(searchQuery.value.trim(), selectedAccount.value, currentFilter.value, 50, offset);
+          items = res?.items || [];
+        } else if (getApp?.GetTimeline) {
+          items = (await getApp.GetTimeline(platform, selectedAccount.value, currentFilter.value, 50, offset)) || [];
+        }
       } else {
-        const url = searchQuery.value.trim() ? `/api/search?q=${encodeURIComponent(searchQuery.value.trim())}&account_id=${encodeURIComponent(selectedAccount.value)}&filter=${encodeURIComponent(currentFilter.value)}&limit=50&offset=${offset}` : `/api/timeline?platform=${encodeURIComponent(platform)}&account_id=${encodeURIComponent(selectedAccount.value)}&filter=${encodeURIComponent(currentFilter.value)}&limit=50&offset=${offset}`;
-        const res = await fetch(url); const data = await res.json(); items = Array.isArray(data) ? data : data?.items || [];
+        const url = searchQuery.value.trim()
+          ? `/api/search?q=${encodeURIComponent(searchQuery.value.trim())}&account_id=${encodeURIComponent(selectedAccount.value)}&filter=${encodeURIComponent(currentFilter.value)}&limit=50&offset=${offset}`
+          : `/api/timeline?platform=${encodeURIComponent(platform)}&account_id=${encodeURIComponent(selectedAccount.value)}&filter=${encodeURIComponent(currentFilter.value)}&limit=50&offset=${offset}`;
+        const res = await fetch(url);
+        const data = await res.json();
+        items = Array.isArray(data) ? data : data?.items || [];
       }
       if (reset) articles.value = items; else articles.value.push(...items);
       hasMore.value = items.length === 50;
@@ -48,8 +66,10 @@ export function useTimeline(platform = 'twitter') {
   const reloadAll = async () => { loading.value = false; hasMore.value = true; renderKey.value++; await Promise.all([fetchAccounts(), fetchTimeline(true)]); };
   const checkInitialStashState = async () => {
     try {
-      const getApp = (window as any)?.go?.app?.App || (window as any)?.go?.main?.App;
-      if (getApp?.IsStashReady && (await getApp.IsStashReady())) { isStashReady.value = true; return; }
+      if (isWails()) {
+        const getApp = (window as any)?.go?.app?.App || (window as any)?.go?.main?.App;
+        if (getApp?.IsStashReady && (await getApp.IsStashReady())) { isStashReady.value = true; return; }
+      }
       const res = await fetch('/stash-proxy/', { method: 'HEAD' });
       if (res.ok || res.status === 401 || res.status === 404) isStashReady.value = true;
     } catch {}
