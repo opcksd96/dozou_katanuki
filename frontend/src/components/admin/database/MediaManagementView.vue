@@ -1,17 +1,18 @@
 <!-- frontend/src/components/admin/database/MediaManagementView.vue (100行以下) -->
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
+import { ref, onMounted } from 'vue';
 import { BrowserOpenURL } from '../../../../wailsjs/runtime/runtime';
 import MediaCockpitHeader from './MediaCockpitHeader.vue';
 import MediaToolbar from './MediaToolbar.vue';
 import MediaPaginationBar from './MediaPaginationBar.vue';
-import MediaCard from './MediaCard.vue';
-import MediaPreviewModal from './MediaPreviewModal.vue';
+import MediaQueueStatus from './MediaQueueStatus.vue';
+import MediaGrid from './MediaGrid.vue';
 
 const props = defineProps<{
   mediaItems: any[];
   total: number;
   stats?: { total_count: number; image_count: number; video_count: number };
+  queueStats?: { queued: number; completed: number; dead_404: number; outsourced: number; failed: number; total: number };
   accounts: any[];
   accountFilter: string;
   statusFilter: string;
@@ -49,17 +50,6 @@ const emit = defineEmits<{
 const viewMode = ref<'large' | 'compact' | 'table'>('large');
 const searchQuery = ref('');
 const onlyBookmarked = ref(false);
-const selectedIndex = ref<number | null>(null);
-
-const filteredItems = computed(() => {
-  let list = props.mediaItems || [];
-  if (onlyBookmarked.value) list = list.filter(m => m.is_bookmarked);
-  if (searchQuery.value.trim()) {
-    const q = searchQuery.value.trim().toLowerCase();
-    list = list.filter(m => (m.media_id || m.id || '').toLowerCase().includes(q) || (m.username || '').toLowerCase().includes(q) || (m.full_text || '').toLowerCase().includes(q));
-  }
-  return list;
-});
 
 const openStash = () => {
   const url = `http://127.0.0.1:${props.config?.network?.stash_port || 9999}`;
@@ -83,19 +73,8 @@ onMounted(() => { emit('fetch'); });
       @start-escalate="emit('startEscalate')"
       @requeue-failed="emit('requeueFailed')" @reconcile-stash="emit('reconcileStash')"
     />
-    <div class="flex-1 overflow-y-auto min-h-0">
-      <div v-if="loading" class="py-12 text-center text-xs text-slate-500">メディアを読み込み中...</div>
-      <div v-else-if="!filteredItems.length" class="py-12 text-center text-xs text-slate-500">該当するメディアが見つかりません</div>
-      <div v-else class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
-        <MediaCard
-          v-for="(item, idx) in filteredItems" :key="item.media_id || item.id" :media="item"
-          @click="selectedIndex = idx" @retry="emit('retryMedia', item.media_id || item.id)"
-          @purge="emit('purgeMedia', item.media_id || item.id)" @toggle-bookmark="emit('toggleBookmark', item.media_id || item.id)"
-        />
-      </div>
-    </div>
+    <MediaQueueStatus :stats="queueStats" :active-job="activeJob" :status-filter="statusFilter" @update:status-filter="emit('update:statusFilter', $event)" />
+    <MediaGrid :media-items="mediaItems" :loading="loading" :search-query="searchQuery" :only-bookmarked="onlyBookmarked" @retry-media="emit('retryMedia', $event)" @purge-media="emit('purgeMedia', $event)" @toggle-bookmark="emit('toggleBookmark', $event)" />
     <MediaPaginationBar :page="page" :limit="limit" :total="total" @update:page="emit('update:page', $event)" @update:limit="emit('update:limit', $event)" />
-    <MediaPreviewModal v-if="selectedIndex !== null" :media="filteredItems[selectedIndex]" :has-prev="selectedIndex > 0" :has-next="selectedIndex < filteredItems.length - 1" @close="selectedIndex = null" @prev="selectedIndex--" @next="selectedIndex++" />
   </div>
 </template>
-

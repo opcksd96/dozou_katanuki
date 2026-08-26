@@ -62,7 +62,7 @@ export function useAdminDatabase() {
     // Media
     mediaResults: media.mediaResults, mediaTotal: media.mediaTotal, isMediaLoading: media.isMediaLoading,
     mediaAccount: media.mediaAccount, mediaPage: media.mediaPage, mediaLimit: media.mediaLimit,
-    mediaStatusFilter: media.mediaStatusFilter, mediaTypeFilter: media.mediaTypeFilter, mediaStats: media.mediaStats,
+    mediaStatusFilter: media.mediaStatusFilter, mediaTypeFilter: media.mediaTypeFilter, mediaStats: media.mediaStats, downloadStatusStats: media.downloadStatusStats,
     fetchMedia: media.fetchMedia, setMediaPage: media.setMediaPage, setMediaLimit: media.setMediaLimit,
     setMediaAccount: media.setMediaAccount, setMediaStatusFilter: media.setMediaStatusFilter, setMediaTypeFilter: media.setMediaTypeFilter,
     updateMediaMetadata: media.updateMediaMetadata, purgeMedia: media.purgeMedia,

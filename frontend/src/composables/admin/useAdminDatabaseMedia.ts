@@ -7,6 +7,7 @@ export function useAdminDatabaseMedia() {
   const mediaResults = ref<any[]>([]), mediaTotal = ref(0), isMediaLoading = ref(false), errorMessage = ref<string | null>(null);
   const mediaAccount = ref('all'), mediaPage = ref(1), mediaLimit = ref(24), mediaStatusFilter = ref('all'), mediaTypeFilter = ref<'all' | 'image' | 'video'>('all');
   const mediaStats = ref({ total_count: 0, image_count: 0, video_count: 0 });
+  const downloadStatusStats = ref({ queued: 0, completed: 0, dead_404: 0, outsourced: 0, failed: 0, total: 0 });
 
   const fetchMedia = async (opts?: { account?: string; page?: number; limit?: number; status?: string; type?: 'all' | 'image' | 'video' }) => {
     if (opts?.account !== undefined) mediaAccount.value = opts.account;
@@ -23,6 +24,10 @@ export function useAdminDatabaseMedia() {
         mediaResults.value = res?.items || res?.Items || [];
         mediaTotal.value = res?.total || res?.Total || 0;
         if (res?.stats) mediaStats.value = res.stats;
+      }
+      if (app?.GetMediaDownloadStatusStats) {
+        const ds = await app.GetMediaDownloadStatusStats(mediaAccount.value);
+        if (ds) downloadStatusStats.value = ds;
       }
     } catch (e: any) { errorMessage.value = `メディア一覧の取得に失敗: ${e?.message || e}`; }
     finally { isMediaLoading.value = false; }
@@ -69,7 +74,7 @@ export function useAdminDatabaseMedia() {
   const retryMedia = async (mId: string) => { try { await getApp()?.RetryMediaDownload?.(mId); } catch {} };
 
   return {
-    mediaResults, mediaTotal, isMediaLoading, mediaAccount, mediaPage, mediaLimit, mediaStatusFilter, mediaTypeFilter, mediaStats, errorMessage,
+    mediaResults, mediaTotal, isMediaLoading, mediaAccount, mediaPage, mediaLimit, mediaStatusFilter, mediaTypeFilter, mediaStats, downloadStatusStats, errorMessage,
     fetchMedia, setMediaPage, setMediaLimit, setMediaAccount, setMediaStatusFilter, setMediaTypeFilter,
     updateMediaMetadata, purgeMedia, purgeMediaByStatus, toggleBookmark, openInExplorer, openWithDefaultApp, retryMedia,
   };

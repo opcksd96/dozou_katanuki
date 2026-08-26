@@ -30,6 +30,17 @@ func (a *App) GetMediaList(accountID, status, mediaType string, limit, offset in
 	return res, nil
 }
 
+// GetMediaDownloadStatusStats はダウンロードキュー全体のステータス別集計を取得する Wails バインドメソッドです
+func (a *App) GetMediaDownloadStatusStats(accountID string) (*models.DownloadStatusStats, error) {
+	if err := a.WaitForReady(); err != nil { return nil, err }
+	stats, err := a.Repo.FetchDownloadStatusStats(accountID)
+	if err != nil {
+		log.Printf("[Wails RPC] GetMediaDownloadStatusStats error: %v", err)
+		return nil, err
+	}
+	return stats, nil
+}
+
 // PurgeMedia は指定された単一メディアレコードをデータベースから物理削除する Wails バインドメソッドです
 func (a *App) PurgeMedia(mediaID string) error {
 	if err := a.WaitForReady(); err != nil { return err }
