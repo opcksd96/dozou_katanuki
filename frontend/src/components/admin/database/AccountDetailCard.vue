@@ -14,12 +14,12 @@ const props = defineProps<{
 const emit = defineEmits<{
   (e: 'startEdit'): void;
   (e: 'cancelEdit'): void;
-  (e: 'save', payload: { displayName: string; username: string; avatarUrl: string; description: string }): void;
+  (e: 'save', payload: { displayName: string; username: string; avatarUrl: string; description: string; aliasOf: string; groupName: string }): void;
   (e: 'viewPosts'): void;
   (e: 'viewMedia'): void;
 }>();
 
-const editForm = ref({ displayName: '', username: '', avatarUrl: '', description: '' });
+const editForm = ref({ displayName: '', username: '', avatarUrl: '', description: '', aliasOf: '', groupName: '' });
 const showPicker = ref(false);
 
 watch(() => props.account, (acc) => {
@@ -27,6 +27,7 @@ watch(() => props.account, (acc) => {
     editForm.value = {
       displayName: acc.display_name || '', username: acc.username || '',
       avatarUrl: acc.avatar_url || '', description: acc.description || '',
+      aliasOf: acc.alias_of || '', groupName: acc.group_name || '',
     };
   }
 }, { immediate: true });
@@ -53,6 +54,12 @@ const save = () => emit('save', { ...editForm.value });
       </div>
     </div>
 
+    <div v-if="!isEditing" class="flex flex-wrap gap-1.5 pt-1 border-t border-slate-800">
+      <span v-if="account?.group_name" class="px-2 py-0.5 bg-indigo-900/50 text-indigo-300 rounded text-[10px] font-mono">グループ: {{ account.group_name }}</span>
+      <span v-if="account?.alias_of" class="px-2 py-0.5 bg-amber-900/50 text-amber-300 rounded text-[10px] font-mono">エイリアス: {{ account.alias_of }}</span>
+      <span v-if="!account?.group_name && !account?.alias_of" class="text-[10px] text-slate-500">（グループ・エイリアス未設定）</span>
+    </div>
+
     <!-- 編集フォーム -->
     <div v-if="isEditing" class="space-y-3 pt-2 border-t border-slate-800 text-xs">
       <div><label class="text-slate-400 block mb-1">表示名</label><input v-model="editForm.displayName" class="w-full bg-slate-950 border border-slate-700 rounded px-2.5 py-1.5 text-slate-100" /></div>
@@ -65,6 +72,8 @@ const save = () => emit('save', { ...editForm.value });
         <img v-for="av in availableAvatars" :key="av" :src="av" @click="editForm.avatarUrl = av; showPicker = false" class="w-8 h-8 rounded-full border border-slate-700 cursor-pointer hover:scale-110" />
       </div>
       <div><label class="text-slate-400 block mb-1">自己紹介</label><textarea v-model="editForm.description" rows="2" class="w-full bg-slate-950 border border-slate-700 rounded px-2.5 py-1.5 text-slate-100"></textarea></div>
+      <div><label class="text-slate-400 block mb-1">名寄せ先（代表アカウントID/ユーザー名）</label><input v-model="editForm.aliasOf" placeholder="空欄 = 独立アカウント" class="w-full bg-slate-950 border border-slate-700 rounded px-2.5 py-1.5 text-slate-100" /></div>
+      <div><label class="text-slate-400 block mb-1">グループ名</label><input v-model="editForm.groupName" placeholder="空欄 = 個人アカウント" class="w-full bg-slate-950 border border-slate-700 rounded px-2.5 py-1.5 text-slate-100" /></div>
     </div>
     <div v-else class="text-xs text-slate-300 whitespace-pre-wrap">{{ account?.description || '（自己紹介未設定）' }}</div>
 

@@ -24,7 +24,6 @@ const copyToClipboard = (text: string, field: string) => {
 
 <template>
   <div class="space-y-3">
-    <!-- アカウント情報 -->
     <div class="p-3 bg-slate-950/80 rounded-xl border border-slate-800 space-y-2">
       <div class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">👤 投稿者アカウント</div>
       <div class="flex items-center gap-2.5">
@@ -39,7 +38,42 @@ const copyToClipboard = (text: string, field: string) => {
       </div>
     </div>
 
-    <!-- 親ツイート本文 -->
+    <div class="p-3 bg-slate-950/80 rounded-xl border border-slate-800 space-y-2">
+      <div class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">📷 メディア情報</div>
+      <div class="space-y-1.5 text-[11px] font-mono">
+        <div class="flex items-center justify-between">
+          <span class="text-slate-400">メディアID</span>
+          <span class="text-slate-200">{{ media.media_id || media.id || '-' }}</span>
+        </div>
+        <div class="flex items-center justify-between">
+          <span class="text-slate-400">種別</span>
+          <span class="text-slate-200 uppercase">{{ media.type || '-' }}</span>
+        </div>
+        <div v-if="media.width && media.height" class="flex items-center justify-between">
+          <span class="text-slate-400">解像度</span>
+          <span class="text-slate-200">{{ media.width }} x {{ media.height }}</span>
+        </div>
+        <div v-if="media.download_url" class="space-y-1">
+          <div class="flex items-center justify-between">
+            <span class="text-slate-400">原本URL</span>
+            <button @click="copyToClipboard(media.download_url, 'dl')" class="text-blue-400 hover:text-blue-300">
+              {{ copiedField === 'dl' ? '✓ コピー済' : '📋 コピー' }}
+            </button>
+          </div>
+          <div class="text-slate-200 break-all leading-relaxed">{{ media.download_url }}</div>
+        </div>
+        <div v-if="media.wayback_url" class="space-y-1">
+          <div class="flex items-center justify-between">
+            <span class="text-slate-400">Wayback原本URL</span>
+            <button @click="copyToClipboard(media.wayback_url, 'wb')" class="text-blue-400 hover:text-blue-300">
+              {{ copiedField === 'wb' ? '✓ コピー済' : '📋 コピー' }}
+            </button>
+          </div>
+          <div class="text-slate-200 break-all leading-relaxed">{{ media.wayback_url }}</div>
+        </div>
+      </div>
+    </div>
+
     <div v-if="media.full_text || media.full_text_ja" class="p-3 bg-slate-950/80 rounded-xl border border-slate-800 space-y-2">
       <div class="flex items-center justify-between text-[10px]">
         <span class="text-slate-400 font-bold uppercase tracking-wider">📝 親ツイート本文</span>

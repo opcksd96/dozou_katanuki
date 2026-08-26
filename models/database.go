@@ -34,6 +34,7 @@ type MediaItemDetail struct {
 	FullText    string    `json:"full_text"`
 	FullTextJA  string    `json:"full_text_ja,omitempty"`
 	TweetDate   string    `json:"tweet_date"`
+	WaybackURL  string    `json:"wayback_url,omitempty"`
 }
 
 // MediaScanItem はリポジトリ層からサービス層へ引き渡す中間スキャンモデルです
@@ -47,6 +48,7 @@ type MediaScanItem struct {
 	FullText       string
 	FullTextJA     string
 	ProfileHistory []AccountProfileHistory
+	WaybackURL     string
 }
 
 // MediaSearchStats はメディア種別の統計カウントです

@@ -64,3 +64,13 @@ func (a *App) ListAllAccounts() ([]models.Account, error) {
 	if err := a.WaitForReady(); err != nil { return nil, err }
 	return a.Repo.ListAccounts()
 }
+
+// MergeAccounts は source アカウントの全記事を target へ移動し、source の alias_of に target を設定する Wails バインドメソッドです
+func (a *App) MergeAccounts(sourceNumericID, targetNumericID string) error {
+	if err := a.WaitForReady(); err != nil { return err }
+	if err := a.Repo.MergeAccounts(sourceNumericID, targetNumericID); err != nil {
+		log.Printf("[Wails RPC] MergeAccounts error: %v", err)
+		return err
+	}
+	return nil
+}

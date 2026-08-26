@@ -57,7 +57,7 @@ export function useAdminDatabase() {
     saveTranslation: articles.saveTranslation, autoTranslate: articles.autoTranslate, startBatchTranslate: articles.startBatchTranslate,
     // Accounts
     accountsList: accounts.accountsList, selectedAccountDetail: accounts.selectedAccountDetail, isAccountLoading: accounts.isAccountLoading,
-    fetchAccounts: accounts.fetchAccounts, selectAccount: accounts.selectAccount, updateAccount: accounts.updateAccount,
+    fetchAccounts: accounts.fetchAccounts, selectAccount: accounts.selectAccount, updateAccount: accounts.updateAccount, mergeAccounts: accounts.mergeAccounts,
     saveAvatarImage: accounts.saveAvatarImage, fetchAvailableAvatars: accounts.fetchAvailableAvatars,
     // Media
     mediaResults: media.mediaResults, mediaTotal: media.mediaTotal, isMediaLoading: media.isMediaLoading,

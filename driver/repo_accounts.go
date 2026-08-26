@@ -19,12 +19,14 @@ func (r *Repository) GetAccountHistories(accountID string) ([]models.AccountProf
 	return histories, err
 }
 
-func (r *Repository) UpdateAccount(numericID, displayName, username, avatarURL, description string) error {
+func (r *Repository) UpdateAccount(numericID, displayName, username, avatarURL, description, aliasOf, groupName string) error {
 	return r.db.Model(&models.Account{}).Where("numeric_id = ?", numericID).Updates(map[string]interface{}{
 		"display_name": displayName,
 		"username":     username,
 		"avatar_url":   avatarURL,
 		"description":  description,
+		"alias_of":     aliasOf,
+		"group_name":   groupName,
 		"updated_at":   time.Now(),
 	}).Error
 }

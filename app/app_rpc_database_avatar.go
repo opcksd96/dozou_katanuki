@@ -10,13 +10,13 @@ import (
 	"strings"
 )
 
-// UpdateAccount はアカウント情報（表示名・ユーザー名・アバターURL・一言コメント）を更新する Wails バインドメソッドです
-func (a *App) UpdateAccount(numericID, displayName, username, avatarURL, description string) error {
+// UpdateAccount はアカウント情報（表示名・ユーザー名・アバターURL・一言コメント・名寄せ先・グループ名）を更新する Wails バインドメソッドです
+func (a *App) UpdateAccount(numericID, displayName, username, avatarURL, description, aliasOf, groupName string) error {
 	if err := a.WaitForReady(); err != nil { return err }
 	if strings.Contains(avatarURL, "..") || strings.Contains(avatarURL, "\\") || strings.Contains(avatarURL, "\x00") {
 		return fmt.Errorf("invalid avatar_url: path traversal characters are forbidden")
 	}
-	err := a.Repo.UpdateAccount(numericID, displayName, username, avatarURL, description)
+	err := a.Repo.UpdateAccount(numericID, displayName, username, avatarURL, description, aliasOf, groupName)
 	if err != nil {
 		log.Printf("[Wails RPC] UpdateAccount error: %v", err)
 		return err

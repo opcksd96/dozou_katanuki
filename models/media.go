@@ -58,7 +58,7 @@ func BuildRenderMediaWithContext(m Media, platform, username string) RenderMedia
 		ID: m.MediaID, Type: m.Type, DownloadStatus: effectiveStatus,
 		FailedReason: m.FailedReason.String, URLs: mediaURLs, Width: m.Width, Height: m.Height,
 		StashSceneID: m.StashSceneID.String, StashImageID: m.StashImageID.String,
-		IsBookmarked: m.IsBookmarked,
+		IsBookmarked: m.IsBookmarked, DownloadURL: m.DownloadURL,
 	}
 }
 

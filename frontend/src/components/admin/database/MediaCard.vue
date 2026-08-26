@@ -35,7 +35,13 @@ const openStash = () => {
       <div v-else class="text-slate-500 text-xs font-mono font-bold">{{ isVideo ? '🎬 VIDEO' : '🖼️ IMAGE' }}</div>
 
       <button @click.stop="emit('toggleBookmark', media.media_id || media.id)" class="absolute top-2 left-2 p-1 rounded bg-black/80 text-xs">{{ media.is_bookmarked ? '⭐' : '☆' }}</button>
-      <span class="absolute top-2 right-2 px-2 py-0.5 rounded text-[10px] font-mono font-bold" :class="media.download_status === 'COMPLETED' ? 'bg-emerald-950 text-emerald-300' : 'bg-slate-800 text-slate-300'">{{ media.download_status }}</span>
+      <span class="absolute top-2 right-2 px-2 py-0.5 rounded text-[10px] font-mono font-bold" :class="{
+        'bg-emerald-950 text-emerald-300': media.download_status === 'COMPLETED',
+        'bg-purple-950 text-purple-300': media.download_status === 'OUTSOURCED',
+        'bg-rose-950 text-rose-300': media.download_status === 'DEAD_404',
+        'bg-slate-800 text-slate-300': media.download_status === 'QUEUED'
+      }">{{ media.download_status }}</span>
+      <span v-if="media.width && media.height" class="absolute bottom-2 right-2 px-2 py-0.5 rounded bg-black/80 text-slate-200 text-[10px] font-mono font-bold">{{ media.width }}x{{ media.height }}</span>
       <span v-if="isVideo" class="absolute bottom-2 left-2 px-2 py-0.5 rounded bg-black/80 text-slate-200 text-[10px] font-mono font-bold">▶ VIDEO</span>
     </div>
 

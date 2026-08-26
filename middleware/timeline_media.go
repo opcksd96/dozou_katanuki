@@ -37,6 +37,7 @@ func (s *TimelineService) SearchMediaDetails(accountID, status, mediaType string
 			FullText:    item.FullText,
 			FullTextJA:  item.FullTextJA,
 			TweetDate:   tweetDate,
+			WaybackURL:  item.WaybackURL,
 		})
 	}
 

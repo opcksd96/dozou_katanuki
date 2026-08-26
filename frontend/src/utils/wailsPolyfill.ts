@@ -57,9 +57,13 @@ export function initWailsPolyfill() {
           RetryMediaDownload: async () => {},
           ToggleBroadcast: async () => {},
           SaveConfig: async () => {},
-          UpdateAccount: async (numericId: string, displayName: string, username: string, avatarUrl: string, description: string) => {
-            console.log('[Polyfill] UpdateAccount:', { numericId, displayName, username, avatarUrl, description });
-          },
+           UpdateAccount: async (numericId: string, displayName: string, username: string, avatarUrl: string, description: string, aliasOf: string, groupName: string) => {
+             console.log('[Polyfill] UpdateAccount:', { numericId, displayName, username, avatarUrl, description, aliasOf, groupName });
+           },
+           MergeAccounts: async (sourceId: string, targetId: string) => {
+             console.log('[Polyfill] MergeAccounts:', { sourceId, targetId });
+             return null;
+           },
           SaveAvatarImage: async (platform: string, virtualKey: string, base64Data: string) => {
             console.log('[Polyfill] SaveAvatarImage:', { platform, virtualKey, dataLen: base64Data?.length });
             return `/avatars/${platform || 'twitter'}/${virtualKey}.jpg`;

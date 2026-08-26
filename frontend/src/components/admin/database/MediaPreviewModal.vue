@@ -11,6 +11,7 @@ const emit = defineEmits<{
   (e: 'retry', mediaId: string): void;
   (e: 'purge', mediaId: string): void;
   (e: 'viewPost', articleId: string): void;
+  (e: 'fullscreenChange', active: boolean): void;
 }>();
 
 const isVideo = computed(() => {
@@ -20,6 +21,10 @@ const isVideo = computed(() => {
 
 const handleKeyDown = (e: KeyboardEvent) => {
   if (e.key === 'Escape') { e.preventDefault(); emit('close'); }
+};
+
+const handleFullscreenChange = (active: boolean) => {
+  if (!active) emit('close');
 };
 
 onMounted(() => window.addEventListener('keydown', handleKeyDown));
@@ -45,7 +50,7 @@ onUnmounted(() => window.removeEventListener('keydown', handleKeyDown));
         <!-- 左ペイン: メディア本体 (アスペクト比維持 & 最大化表示) -->
         <div class="flex-1 h-full bg-black/90 flex items-center justify-center p-3 relative overflow-hidden" @click.self="emit('close')">
           <div v-if="isVideo && media.urls?.stream" class="w-full h-full flex items-center justify-center">
-            <StashPlayer :src="media.urls.stream" :poster="media.urls.thumbnail" :stashSceneId="media.stash_scene_id" :autoplay="true" :show-expand-button="false" class="max-w-full max-h-full" />
+            <StashPlayer :src="media.urls.stream" :poster="media.urls.thumbnail" :stashSceneId="media.stash_scene_id" :autoplay="true" :show-expand-button="false" class="max-w-full max-h-full" @fullscreen-change="handleFullscreenChange" />
           </div>
           <img v-else-if="media.urls?.image || media.urls?.thumbnail" :src="media.urls.image || media.urls.thumbnail" :alt="media.media_id || media.id" class="max-w-full max-h-full object-contain rounded shadow-2xl select-none mx-auto" />
           <div v-else class="text-slate-500 font-mono text-xs">メディア実体を表示できません</div>

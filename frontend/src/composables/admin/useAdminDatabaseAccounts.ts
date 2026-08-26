@@ -39,13 +39,13 @@ export function useAdminDatabaseAccounts() {
     }
   };
 
-  const updateAccount = async (numericId: string, displayName: string, username: string, avatarUrl: string, description: string) => {
+  const updateAccount = async (numericId: string, displayName: string, username: string, avatarUrl: string, description: string, aliasOf: string, groupName: string) => {
     isAccountLoading.value = true;
     errorMessage.value = null;
     try {
       const app = getApp();
       if (app?.UpdateAccount) {
-        await app.UpdateAccount(numericId, displayName, username, avatarUrl, description);
+        await app.UpdateAccount(numericId, displayName, username, avatarUrl, description, aliasOf, groupName);
         await fetchAccounts();
         await selectAccount(numericId);
         return true;
@@ -59,6 +59,22 @@ export function useAdminDatabaseAccounts() {
     }
   };
 
+  const mergeAccounts = async (sourceNumericId: string, targetNumericId: string): Promise<boolean> => {
+    errorMessage.value = null;
+    try {
+      const app = getApp();
+      if (app?.MergeAccounts) {
+        await app.MergeAccounts(sourceNumericId, targetNumericId);
+        await fetchAccounts();
+        if (selectedAccountDetail.value?.account?.numeric_id === sourceNumericId) await selectAccount(sourceNumericId);
+        return true;
+      }
+      return false;
+    } catch (e: any) {
+      errorMessage.value = `アカウントの合併に失敗: ${e?.message || e}`;
+      return false;
+    }
+  };
   const saveAvatarImage = async (platform: string, virtualKey: string, base64Data: string) => {
     errorMessage.value = null;
     try {
@@ -72,7 +88,6 @@ export function useAdminDatabaseAccounts() {
       return null;
     }
   };
-
   const fetchAvailableAvatars = async (platform = 'twitter'): Promise<string[]> => {
     try {
       const app = getApp();
@@ -84,6 +99,6 @@ export function useAdminDatabaseAccounts() {
 
   return {
     accountsList, selectedAccountDetail, isAccountLoading, errorMessage,
-    fetchAccounts, selectAccount, updateAccount, saveAvatarImage, fetchAvailableAvatars,
+    fetchAccounts, selectAccount, updateAccount, mergeAccounts, saveAvatarImage, fetchAvailableAvatars,
   };
 }

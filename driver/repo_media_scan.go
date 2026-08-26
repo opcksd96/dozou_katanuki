@@ -17,6 +17,7 @@ type mediaScanRow struct {
 	CreatedAt   time.Time `gorm:"column:created_at"`
 	FullText    string    `gorm:"column:full_text"`
 	FullTextJA  string    `gorm:"column:full_text_ja"`
+	WaybackURL  string    `gorm:"column:wayback_url"`
 }
 
 func (r *Repository) FetchRawMediaItems(accountID, status, mediaType string, limit, offset int) ([]models.MediaScanItem, int64, models.MediaSearchStats, error) {
@@ -48,7 +49,7 @@ func (r *Repository) FetchRawMediaItems(accountID, status, mediaType string, lim
 	if limit <= 0 { limit = 24 }
 
 	var rows []mediaScanRow
-	err := q.Select("media.*, articles.created_at as created_at, articles.full_text as full_text, articles.full_text_ja as full_text_ja, accounts.username as username, accounts.display_name as display_name, accounts.numeric_id as account_id").
+	err := q.Select("media.*, articles.created_at as created_at, articles.full_text as full_text, articles.full_text_ja as full_text_ja, accounts.username as username, accounts.display_name as display_name, accounts.numeric_id as account_id, articles.wayback_url as wayback_url").
 		Order("articles.created_at DESC").Limit(limit).Offset(offset).Scan(&rows).Error
 	if err != nil { return nil, 0, stats, err }
 
@@ -76,6 +77,7 @@ func (r *Repository) FetchRawMediaItems(accountID, status, mediaType string, lim
 			Media: row.Media, ArticleID: row.ArticleID, AccountID: row.AccountID,
 			Username: row.Username, DisplayName: row.DisplayName, CreatedAt: row.CreatedAt,
 			FullText: row.FullText, FullTextJA: row.FullTextJA, ProfileHistory: historyByAccount[row.AccountID],
+			WaybackURL: row.WaybackURL,
 		})
 	}
 	return rawItems, total, stats, nil
@@ -93,6 +95,7 @@ func (r *Repository) SearchMediaDetails(accountID, status, mediaType string, lim
 			Username: item.Username, DisplayName: item.DisplayName, RawStatus: item.Media.DownloadStatus,
 			HasStash: hasStash, CreatedAt: item.CreatedAt, Title: fmt.Sprintf("X (@%s): Tweet %s", item.Username, item.ArticleID),
 			FullText: item.FullText, FullTextJA: item.FullTextJA, TweetDate: item.CreatedAt.Format("2006-01-02"),
+			WaybackURL: item.WaybackURL,
 		})
 	}
 	return &models.MediaSearchResult{Items: items, Total: total, Stats: stats}, nil

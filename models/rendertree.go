@@ -39,6 +39,7 @@ type RenderMedia struct {
 	StashSceneID   string          `json:"stash_scene_id,omitempty"`
 	StashImageID   string          `json:"stash_image_id,omitempty"`
 	IsBookmarked   bool            `json:"is_bookmarked"`
+	DownloadURL    string          `json:"download_url,omitempty"`
 	FilePath       string          `json:"file_path,omitempty"`
 }
 

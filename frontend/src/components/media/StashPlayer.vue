@@ -6,7 +6,7 @@ import Hls from 'hls.js';
 import { EventsOn } from '../../../wailsjs/runtime/runtime';
 
 const props = withDefaults(defineProps<{ src: string; poster?: string; autoplay?: boolean; controls?: boolean; stashSceneId?: string; showExpandButton?: boolean }>(), { autoplay: false, controls: true, showExpandButton: true });
-const emit = defineEmits<{ (e: 'expand'): void }>();
+const emit = defineEmits<{ (e: 'expand'): void; (e: 'fullscreenChange', active: boolean): void }>();
 
 const videoRef = ref<HTMLVideoElement | null>(null), playerRef = shallowRef<Plyr | null>(null), hlsRef = shallowRef<Hls | null>(null);
 const isError = ref(false), retryCount = ref(0);
@@ -33,6 +33,8 @@ const initPlayer = () => {
     controls: ['play-large', 'play', 'rewind', 'fast-forward', 'progress', 'current-time', 'duration', 'mute', 'volume', 'settings', 'pip', 'fullscreen'],
     seekTime: 10, settings: ['speed'], keyboard: { focused: false, global: false }, autoplay: props.autoplay, muted: props.autoplay, clickToPlay: true
   });
+  playerRef.value.on('enterfullscreen', () => emit('fullscreenChange', true));
+  playerRef.value.on('exitfullscreen', () => emit('fullscreenChange', false));
 };
 
 const handleRetry = () => { isError.value = false; retryCount.value++; initPlayer(); };

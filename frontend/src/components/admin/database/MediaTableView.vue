@@ -69,6 +69,7 @@ const emit = defineEmits<{
           <td class="p-2.5">
             <span class="px-2 py-0.5 rounded text-[10px] font-bold" :class="{
               'bg-emerald-950 text-emerald-300 border border-emerald-700': m.download_status === 'COMPLETED',
+              'bg-purple-950 text-purple-300 border border-purple-700': m.download_status === 'OUTSOURCED',
               'bg-amber-950 text-amber-300 border border-amber-700': m.download_status === 'QUEUED',
               'bg-rose-950 text-rose-300 border border-rose-700': m.download_status === 'DEAD_404',
               'bg-slate-800 text-slate-300': m.download_status === 'EXCLUDED'
