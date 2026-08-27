@@ -28,9 +28,9 @@ const groups = [
   {
     title: 'データ管理',
     items: [
-      { id: 'posts', icon: '📝', label: '投稿・翻訳' },
-      { id: 'media', icon: '🖼️', label: 'メディア' },
-      { id: 'accounts', icon: '👤', label: 'アカウント' },
+{ id: 'accounts', icon: '👤', label: 'アカウント' },
+    { id: 'posts', icon: '📝', label: '投稿・翻訳' },
+    { id: 'media', icon: '🖼️', label: 'メディア' },
     ],
   },
   {

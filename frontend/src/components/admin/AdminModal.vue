@@ -20,7 +20,7 @@ const emit = defineEmits<{
   (e: 'jumpToTimelinePost', articleId: string): void;
 }>();
 
-const activeTab = ref<AdminTabId>('plugins');
+const activeTab = ref<AdminTabId>('accounts');
 const salvageForm = reactive({ platform: 'twitter', account: '', source: 'all', limit: 0 }), importForm = reactive({ warcPath: '', offline: true }), selectedPlatform = ref('twitter');
 const admin = useAdmin();
 const close = () => emit('close');
