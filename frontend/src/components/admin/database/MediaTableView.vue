@@ -65,14 +65,21 @@ const emit = defineEmits<{
             </div>
           </td>
           <td class="p-2.5 text-slate-400 uppercase text-[10px]">{{ m.type }}</td>
-          <td class="p-2.5 text-slate-400 text-[10px]">{{ m.width && m.height ? `${m.width}x${m.height}` : '-' }}</td>
+          <td class="p-2.5 text-slate-400 text-[10px]">
+            <div class="flex items-center gap-1">
+              <span v-if="m.media_quality" class="px-1 py-0.2 rounded bg-blue-950 text-blue-300 font-bold border border-blue-700/50 uppercase text-[9px]">{{ m.media_quality }}</span>
+              <span>{{ m.width && m.height ? `${m.width}x${m.height}` : '-' }}</span>
+            </div>
+          </td>
           <td class="p-2.5">
             <span class="px-2 py-0.5 rounded text-[10px] font-bold" :class="{
               'bg-emerald-950 text-emerald-300 border border-emerald-700': m.download_status === 'COMPLETED',
               'bg-purple-950 text-purple-300 border border-purple-700': m.download_status === 'OUTSOURCED',
-              'bg-amber-950 text-amber-300 border border-amber-700': m.download_status === 'QUEUED',
+              'bg-amber-950 text-amber-300 border border-amber-600': m.download_status === 'RETAINED',
+              'bg-slate-800 text-slate-300 border border-slate-700': m.download_status === 'QUEUED',
               'bg-rose-950 text-rose-300 border border-rose-700': m.download_status === 'DEAD_404',
-              'bg-slate-800 text-slate-300': m.download_status === 'EXCLUDED'
+              'bg-red-950 text-red-300 border border-red-700': m.download_status === 'FAILED',
+              'bg-zinc-800 text-zinc-400': m.download_status === 'EXCLUDED'
             }">{{ m.download_status }}</span>
           </td>
           <td class="p-2.5 text-[11px] text-purple-400 font-bold">

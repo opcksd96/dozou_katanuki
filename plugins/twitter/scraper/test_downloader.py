@@ -18,7 +18,7 @@ class TestDownloaderPipeline(unittest.TestCase):
             conn.execute("CREATE TABLE whitelists (id INTEGER PRIMARY KEY, type TEXT, value TEXT, is_active INTEGER);")
             conn.execute("CREATE TABLE accounts (numeric_id TEXT PRIMARY KEY, username TEXT, display_name TEXT);")
             conn.execute("CREATE TABLE articles (id TEXT PRIMARY KEY, account_id TEXT, wayback_url TEXT, full_text TEXT, full_text_ja TEXT, created_at TEXT);")
-            conn.execute("CREATE TABLE media (media_id TEXT PRIMARY KEY, article_id TEXT, type TEXT, download_url TEXT, download_status TEXT DEFAULT 'QUEUED', failed_reason TEXT, stash_scene_id TEXT, stash_image_id TEXT);")
+            conn.execute("CREATE TABLE media (media_id TEXT PRIMARY KEY, article_id TEXT, type TEXT, download_url TEXT, download_status TEXT DEFAULT 'QUEUED', failed_reason TEXT, stash_scene_id TEXT, stash_image_id TEXT, media_quality TEXT DEFAULT '');")
             conn.execute("INSERT INTO whitelists VALUES (1, 'account', 'alice', 1);")
             conn.execute("INSERT INTO accounts VALUES ('1001', 'alice', 'アリス'), ('1002', 'bob', 'ボブ');")
             conn.execute("INSERT INTO articles VALUES ('post_1', '1001', '', 'Hello world', 'こんにちは', '2025-01-22T10:00:00Z'), ('post_2', '1002', '', 'Secret', '', '2025-01-23T10:00:00Z');")
@@ -46,16 +46,11 @@ class TestDownloaderPipeline(unittest.TestCase):
         with sqlite3.connect(self.db_path) as conn:
             conn.execute("INSERT INTO media (media_id, article_id, type, download_url, download_status) VALUES ('vid1.mp4', 'post_1', 'video', 'https://example.com/vid1.mp4', 'QUEUED');")
         m_resp = MagicMock(status_code=404)
-        with patch.object(self.dl.session, "get", return_value=m_resp):
+        with patch.object(self.dl.session, "get", return_value=m_resp), patch.object(self.dl.aria2, "add_uri", return_value="gid-98765"):
             self.dl.process_queued_media(article_id="post_1")
         with sqlite3.connect(self.db_path) as conn:
-            row = conn.cursor().execute("SELECT download_status FROM media WHERE media_id = 'vid1.mp4'").fetchone()
-            self.assertEqual(row[0], "DEAD_404")
-        with patch.object(self.dl.aria2, "add_uri", return_value="gid-98765"):
-            self.dl.escalate_dead_media()
-        with sqlite3.connect(self.db_path) as conn:
             row = conn.cursor().execute("SELECT download_status, failed_reason FROM media WHERE media_id = 'vid1.mp4'").fetchone()
-            self.assertEqual(row[0], "OUTSOURCED")
+            self.assertEqual(row, ("OUTSOURCED", "Motrix外注 (GID: gid-98765)"))
 
     def test_non_whitelist_liveness_only_marked_dead404(self):
         with sqlite3.connect(self.db_path) as conn:

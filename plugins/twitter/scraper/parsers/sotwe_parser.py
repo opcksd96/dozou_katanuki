@@ -4,9 +4,14 @@ Sotwe HTMLからアカウントBio、アバター、リツイート、全メデ�
 """
 from typing import Any, Dict, List
 from bs4 import BeautifulSoup
-from parsers.sotwe_extractors import (
-    parse_iso_datetime, extract_metrics, extract_card_media, extract_status_id_from_media
-)
+try:
+    from plugins.twitter.scraper.parsers.sotwe_extractors import (
+        parse_iso_datetime, extract_metrics, extract_card_media, extract_status_id_from_media
+    )
+except ImportError:
+    from parsers.sotwe_extractors import (
+        parse_iso_datetime, extract_metrics, extract_card_media, extract_status_id_from_media
+    )
 
 def parse_sotwe_html_tweets(html_str: str, default_account: str) -> List[Dict[str, Any]]:
     """SotweのHTMLからアカウントBioおよびツイート一覧を抽出して標準スキーマ化"""

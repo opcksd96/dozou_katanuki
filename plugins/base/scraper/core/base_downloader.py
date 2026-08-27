@@ -4,13 +4,14 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 from .aria2_client import Aria2Client
 from .stash_client import StashClient
 from .stash_reconciler import StashReconciler
+from .downloader_pipeline import DownloaderPipelineHelper
 
 
 class BaseDownloader:
-    """メディア原本ストリーム取得 & Stash登録 & Motrix委託 3段階確保共通パイプライン"""
+    """メディア原本取得 & Stash登録 & Motrix委託 & 品質(quality: orig~thumb)追跡パイプライン (100行以下)"""
     DEFAULT_STORAGE = "G:/Media_Storage/Influencers" if os.path.exists("G:/Media_Storage/Influencers") else "blobs"
 
-    def __init__(self, db_path: str = "archive.db", storage_dir: Optional[str] = None, platform: str = "base"):
+    def __init__(self, db_path: str = "archive.db", storage_dir: Optional[str] = None, platform: str = "twitter"):
         self.db_path, self.platform = db_path, platform
         self.storage_dir = storage_dir or self.DEFAULT_STORAGE
         os.makedirs(self.storage_dir, exist_ok=True)
@@ -18,6 +19,7 @@ class BaseDownloader:
         self.session.headers.update({"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"})
         self.stash, self.aria2 = StashClient(), Aria2Client()
         self.reconciler = StashReconciler(self.stash)
+        self.pipeline_helper = DownloaderPipelineHelper(self)
 
     def _get_conn(self) -> sqlite3.Connection:
         conn = sqlite3.connect(self.db_path, timeout=60.0)
@@ -26,10 +28,10 @@ class BaseDownloader:
         return conn
 
     def get_target_path(self, username: str, media_id: str, media_type: str = "image") -> str:
-        if "Influencers" in self.storage_dir: td = os.path.join(self.storage_dir, username, self.platform.capitalize(), "_assets")
-        elif os.path.basename(os.path.normpath(self.storage_dir)) == "blobs": td = self.storage_dir
-        else: td = os.path.join(self.storage_dir, "scenes" if media_type == "video" or media_id.endswith((".mp4", ".webm", ".m3u8")) else "images", self.platform, username)
-        os.makedirs(td, exist_ok=True); return os.path.join(td, media_id)
+        plat = "X(Twitter)" if self.platform.lower() in ("twitter", "base", "x") else self.platform.capitalize()
+        base_name = media_id.split(":")[0]
+        td = os.path.join(self.storage_dir, username, plat, "_assets") if "Influencers" in self.storage_dir else (self.storage_dir if os.path.basename(os.path.normpath(self.storage_dir)) == "blobs" else os.path.join(self.storage_dir, "scenes" if media_type == "video" or media_id.endswith((".mp4", ".webm", ".m3u8")) else "images", plat, username))
+        os.makedirs(td, exist_ok=True); return os.path.join(td, base_name)
 
     def resolve_media_url(self, media_id: str, download_url: str, media_type: str) -> str: return download_url
 
@@ -39,79 +41,82 @@ class BaseDownloader:
         urls = [wayback_url] if wayback_url else []
         return t_title, txt, urls, {"post_id": article_id, "original_name": display_name or username, "source_system": self.platform, "wayback_url": urls, "dead_media": []}
 
-    def process_queued_media(self, article_id: Optional[str] = None, media_id: Optional[str] = None, log_fn: Optional[Callable[[int, int, str], None]] = None) -> int:
-        def _log(c: int, t: int, m: str) -> None:
-            if log_fn: log_fn(c, t, m)
-            print(f"[DOWNLOAD] [{c}/{t}] {m}", flush=True)
+    def _build_fallback_urls(self, u: str) -> List[Tuple[str, str]]:
+        if not u: return []
+        base_u = u.split(":")[0].split("?")[0]
+        cands = [(u, "standard"), (f"https://web.archive.org/web/2id_/{base_u}:orig", "orig"), (f"https://web.archive.org/web/2id_/{base_u}:large", "large"), (f"https://web.archive.org/web/2id_/{base_u}:medium", "medium"), (f"https://web.archive.org/web/2id_/{base_u}:small", "small"), (f"https://web.archive.org/web/2id_/{base_u}:thumb", "thumb"), (f"https://web.archive.org/web/2id_/{base_u}:tiny", "tiny"), (f"https://web.archive.org/web/2id_/{base_u}?format=jpg&name=orig", "orig"), (f"https://web.archive.org/web/2id_/{base_u}?format=jpg&name=large", "large"), (f"https://web.archive.org/web/2id_/{base_u}?format=jpg&name=medium", "medium"), (f"https://web.archive.org/web/2id_/{base_u}?format=jpg&name=small", "small"), (f"https://web.archive.org/web/2id_/{base_u}?format=jpg&name=thumb", "thumb"), (f"https://web.archive.org/web/2id_/{base_u}", "standard"), (f"https://web.archive.org/web/2id_/{u}", "standard")]
+        seen, res = set(), []
+        for c, q in cands: (c not in seen and not seen.add(c) and res.append((c, q)))
+        return res
 
+    def process_queued_media(self, article_id: Optional[str] = None, media_id: Optional[str] = None, log_fn: Optional[Callable[[int, int, str], None]] = None) -> int:
         with self._get_conn() as conn:
             wl = {r[0].lower() for r in conn.cursor().execute("SELECT value FROM whitelists WHERE is_active = 1").fetchall() if r[0]}
             p, where = [], "WHERE m.download_status = 'QUEUED'"
             if media_id: where += " AND m.media_id = ?"; p.append(media_id)
             elif article_id: where += " AND m.article_id = ?"; p.append(article_id)
             records = conn.cursor().execute(f"SELECT m.media_id, m.download_url, m.type, ac.username, ac.display_name, a.wayback_url, a.id, a.full_text, a.full_text_ja, a.created_at FROM media m JOIN articles a ON m.article_id = a.id JOIN accounts ac ON a.account_id = ac.numeric_id {where}", p).fetchall()
-
-        total = len(records); _log(0, max(total, 1), f"Found {total} queued media items awaiting download.")
-        success = 0
+        total, success = len(records), 0
+        if log_fn: log_fn(0, max(total, 1), f"Found {total} queued media items.")
         for idx, (m_id, url, m_type, user, dname, wb_url, art_id, f_text, f_text_ja, cr_at) in enumerate(records, start=1):
             dest = self.get_target_path(user or "unknown", m_id, m_type)
-            st, reason, img, scn = self._try_download_and_escalate(m_id, url, m_type, dest, not wl or (user and user.lower() in wl), art_id or "", user or "", dname or "", str(cr_at or ""), wb_url or "", f_text or "", f_text_ja or "")
-            self._update_status(m_id, st, reason, img, scn)
-            if st == "COMPLETED": success += 1
-            _log(idx, total, f"Media {m_id} -> {st} ({reason or 'OK' if st != 'COMPLETED' else 'Injected to Stash'})")
-        _log(total, total, f"Download batch completed: {success}/{total} successfully salvaged.")
+            st, reason, img, scn, q = self._try_download_and_escalate(m_id, url, m_type, dest, not wl or (user and user.lower() in wl), art_id or "", user or "", dname or "", str(cr_at or ""), wb_url or "", f_text or "", f_text_ja or "")
+            self._update_status(m_id, st, reason, img, scn, q); success += (1 if st == "COMPLETED" else 0)
+            if log_fn: log_fn(idx, total, f"Media {m_id} -> {st} ({q or 'none'})")
         return success
 
-    def _try_download_and_escalate(self, media_id: str, url: str, m_type: str, dest: str, is_wl: bool = True,
-                                   article_id: str = "", username: str = "", display_name: str = "", created_at: str = "",
-                                   wayback_url: str = "", full_text: str = "", full_text_ja: str = "") -> Tuple[str, Optional[str], Optional[str], Optional[str]]:
-        if not is_wl: return "EXCLUDED", "Whitelist外", None, None
+    def _try_download_and_escalate(self, media_id: str, url: str, m_type: str, dest: str, is_wl: bool = True, article_id: str = "", username: str = "", display_name: str = "", created_at: str = "", wayback_url: str = "", full_text: str = "", full_text_ja: str = "") -> Tuple[str, Optional[str], Optional[str], Optional[str], Optional[str]]:
+        if not is_wl: return "EXCLUDED", "Whitelist外", None, None, None
         u = self.resolve_media_url(media_id, url, m_type)
         t_title, txt, urls_list, c_fields = self.build_metadata(article_id, username, display_name, created_at, wayback_url, full_text, full_text_ja)
         if os.path.exists(dest) and os.path.getsize(dest) > 0:
             reg_id = self.reconciler.register_media(dest, m_type, title=t_title, details=txt, urls=urls_list, date=created_at[:10], username=username, display_name=display_name, custom_fields=c_fields)
-            return ("COMPLETED", None, reg_id if m_type == "image" else None, reg_id if m_type != "image" else None) if reg_id else ("RETAINED", "Saved to disk", None, None)
-        try:
-            to = 10 if m_type == "image" else 30
-            resp = self.session.get(u, stream=True, timeout=to, allow_redirects=True)
-            if resp.status_code == 200 and not ("html" in resp.headers.get("Content-Type", "") and "text" in resp.headers.get("Content-Type", "")):
-                with open(dest, "wb") as f:
-                    for chunk in resp.iter_content(65536): f.write(chunk) if chunk else None
-                if os.path.exists(dest) and os.path.getsize(dest) > 0:
-                    reg_id = self.reconciler.register_media(dest, m_type, title=t_title, details=txt, urls=urls_list, date=created_at[:10], username=username, display_name=display_name, custom_fields=c_fields)
-                    return ("COMPLETED", None, reg_id if m_type == "image" else None, reg_id if m_type != "image" else None) if reg_id else ("RETAINED", "Saved to disk", None, None)
-            elif resp.status_code in (403, 404): return ("DEAD_404", f"原本消失 ({resp.status_code})", None, None)
-            elif resp.status_code in (408, 429, 500, 502, 503, 504): return ("QUEUED", f"一時障害リトライ待機 ({resp.status_code})", None, None)
-        except Exception as e: return ("DEAD_404", f"取得例外: {e}", None, None)
-        return ("QUEUED", "リトライ待機", None, None)
+            return ("COMPLETED", None, reg_id if m_type == "image" else None, reg_id if m_type != "image" else None, "local") if reg_id else ("RETAINED", "Saved to disk", None, None, "local")
+        for cand_url, q_name in self._build_fallback_urls(u):
+            try:
+                resp = self.session.get(cand_url, stream=True, timeout=8 if m_type == "image" else 20, allow_redirects=True)
+                if resp.status_code == 200 and not ("html" in resp.headers.get("Content-Type", "") and "text" in resp.headers.get("Content-Type", "")):
+                    with open(dest, "wb") as f:
+                        for chunk in resp.iter_content(65536): f.write(chunk) if chunk else None
+                    if os.path.exists(dest) and os.path.getsize(dest) > 0:
+                        reg_id = self.reconciler.register_media(dest, m_type, title=t_title, details=txt, urls=urls_list, date=created_at[:10], username=username, display_name=display_name, custom_fields=c_fields)
+                        return ("COMPLETED", None, reg_id if m_type == "image" else None, reg_id if m_type != "image" else None, q_name) if reg_id else ("RETAINED", "Saved to disk", None, None, q_name)
+            except Exception: pass
+        esc_st, esc_r, esc_img, esc_scn = self._escalate_single(media_id, u, m_type, username=username)
+        return esc_st, esc_r, esc_img, esc_scn, None
+
+    def _escalate_single(self, media_id: str, u: str, m_type: str, username: str = "unknown") -> Tuple[str, Optional[str], Optional[str], Optional[str]]:
+        dest_dir = os.path.dirname(self.get_target_path(username or "unknown", media_id, m_type))
+        base_name = media_id.split(":")[0]
+        fallback_urls = [cand for cand, _ in self._build_fallback_urls(u)]
+        gid = self.aria2.add_uri(fallback_urls, dest_dir, base_name) if fallback_urls else None
+        return ("OUTSOURCED", f"Motrix外注 (GID: {gid})", None, None) if gid else ("RETAINED", "原本消失・外注待機 (404)", None, None)
 
     def escalate_dead_media(self, log_fn: Optional[Callable[[int, int, str], None]] = None) -> int:
-        def _log(c: int, t: int, m: str) -> None:
-            if log_fn: log_fn(c, t, m)
-            print(f"[ESCALATE] [{c}/{t}] {m}", flush=True)
-
         with self._get_conn() as conn:
-            records = conn.cursor().execute("SELECT m.media_id, m.download_url, m.type, a.wayback_url FROM media m JOIN articles a ON m.article_id = a.id WHERE m.download_status = 'DEAD_404'").fetchall()
-
-        total = len(records); _log(0, max(total, 1), f"Found {total} DEAD_404 media awaiting escalation.")
-        outsourced = 0
-        for idx, (m_id, url, m_type, _wb) in enumerate(records, start=1):
+            records = conn.cursor().execute("SELECT m.media_id, m.download_url, m.type, a.wayback_url, ac.username FROM media m JOIN articles a ON m.article_id = a.id JOIN accounts ac ON a.account_id = ac.numeric_id WHERE m.download_status IN ('DEAD_404', 'RETAINED')").fetchall()
+        total, outsourced, existing = len(records), 0, self.aria2.get_queued_filenames()
+        if log_fn: log_fn(0, max(total, 1), f"Found {total} dead/retained media. Motrix cached: {len(existing)} items.")
+        for idx, (m_id, url, m_type, _wb, user) in enumerate(records, start=1):
+            base_name = m_id.split(":")[0]
+            if base_name in existing or m_id in existing:
+                self._update_status(m_id, "OUTSOURCED", "Motrix既存キュー確認 (送信スキップ)")
+                if log_fn: log_fn(idx, total, f"{m_id} -> OUTSOURCED (Guard: Skip duplicate)"); continue
             u = self.resolve_media_url(m_id, url, m_type)
-            dest_dir = os.path.dirname(self.get_target_path("_escalate", m_id, m_type))
-            wb_media_url = f"https://web.archive.org/web/2id_/{u}" if u else ""
-            fallback_urls = [x for x in [u, wb_media_url] if x]
-            gid = self.aria2.add_uri(fallback_urls, dest_dir, m_id) if fallback_urls else None
-            if gid:
-                self._update_status(m_id, "OUTSOURCED", f"Motrix外注 (GID: {gid})"); outsourced += 1
-                _log(idx, total, f"{m_id} -> OUTSOURCED (GID: {gid})")
-            else: _log(idx, total, f"{m_id} -> Aria2 offline, DEAD_404 維持")
-        _log(total, total, f"Escalation completed: {outsourced}/{total} outsourced to Motrix.")
+            dest_dir = os.path.dirname(self.get_target_path(user or "unknown", m_id, m_type))
+            fallback_urls = [cand for cand, _ in self._build_fallback_urls(u)]
+            gid = self.aria2.add_uri(fallback_urls, dest_dir, base_name) if fallback_urls else None
+            self._update_status(m_id, "OUTSOURCED" if gid else "RETAINED", f"Motrix外注 (GID: {gid})" if gid else "Aria2 offline")
+            outsourced += (1 if gid else 0)
+            if log_fn: log_fn(idx, total, f"{m_id} -> {'OUTSOURCED' if gid else 'RETAINED'}")
         return outsourced
 
-    def _update_status(self, media_id: str, status: str, reason: Optional[str] = None, img_id: Optional[str] = None, scn_id: Optional[str] = None) -> None:
+    def _update_status(self, media_id: str, status: str, reason: Optional[str] = None, img_id: Optional[str] = None, scn_id: Optional[str] = None, quality: Optional[str] = None) -> None:
         with self._get_conn() as conn:
-            conn.cursor().execute("UPDATE media SET download_status = ?, failed_reason = coalesce(?, failed_reason), stash_image_id = coalesce(?, stash_image_id), stash_scene_id = coalesce(?, stash_scene_id) WHERE media_id = ?", (status, reason, img_id, scn_id, media_id))
+            conn.cursor().execute("UPDATE media SET download_status = ?, failed_reason = coalesce(?, failed_reason), stash_image_id = coalesce(?, stash_image_id), stash_scene_id = coalesce(?, stash_scene_id), media_quality = coalesce(?, media_quality) WHERE media_id = ?", (status, reason, img_id, scn_id, quality, media_id))
             conn.commit()
 
-    def poll_outsourced_media(self, log_fn: Optional[Callable[[str], None]] = None) -> int:
-        return self.reconciler.reconcile_to_db(self.db_path, log_fn=log_fn)
+    def poll_outsourced_media(self, log_fn: Optional[Callable[[str], None]] = None) -> int: return self.reconciler.reconcile_to_db(self.db_path, log_fn=log_fn)
+    def smart_recovery_pipeline(self, log_fn: Optional[Callable[[int, int, str], None]] = None) -> dict: return self.pipeline_helper.run_smart_recovery(log_fn=log_fn)
+    def escalate_to_thunder(self, log_fn: Optional[Callable[[int, int, str], None]] = None) -> int: return self.pipeline_helper.escalate_to_thunder(log_fn=log_fn)
+    def clean_failed_outsourced(self, log_fn: Optional[Callable[[str], None]] = None) -> int: return self.pipeline_helper.clean_failed_outsourced(log_fn=log_fn)

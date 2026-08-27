@@ -16,6 +16,8 @@ const (
 	JobTypeRestore       JobType = "restore"
 	JobTypeScrape        JobType = "scrape"
 	JobTypeTranslate     JobType = "translate"
+	JobTypeSmartRecovery JobType = "smart-recovery"
+	JobTypeThunder       JobType = "thunder"
 	JobTypeCustom        JobType = "custom"
 )
 

@@ -16,6 +16,7 @@ type Media struct {
 	StashSceneID   sql.NullString `gorm:"index;column:stash_scene_id;type:text" json:"stash_scene_id"`
 	StashImageID   sql.NullString `gorm:"index;column:stash_image_id;type:text" json:"stash_image_id"`
 	IsBookmarked   bool           `gorm:"column:is_bookmarked;type:boolean;default:false" json:"is_bookmarked"`
+	MediaQuality   string         `gorm:"column:media_quality;type:text;default:''" json:"media_quality"`
 }
 
 // BuildRenderMedia converts a DB Media record to frontend RenderMedia with normalized URLs and status
@@ -58,7 +59,7 @@ func BuildRenderMediaWithContext(m Media, platform, username string) RenderMedia
 		ID: m.MediaID, Type: m.Type, DownloadStatus: effectiveStatus,
 		FailedReason: m.FailedReason.String, URLs: mediaURLs, Width: m.Width, Height: m.Height,
 		StashSceneID: m.StashSceneID.String, StashImageID: m.StashImageID.String,
-		IsBookmarked: m.IsBookmarked, DownloadURL: m.DownloadURL,
+		IsBookmarked: m.IsBookmarked, DownloadURL: m.DownloadURL, MediaQuality: m.MediaQuality,
 	}
 }
 
@@ -75,4 +76,3 @@ func MapMediaToRenderMediaWithContext(mediaList []Media, platform, username stri
 	}
 	return result
 }
-

@@ -9,8 +9,7 @@ import (
 
 func (h *UnifiedHandler) serveMediaLocal(w http.ResponseWriter, r *http.Request, relPath string) {
 	relPath = filepath.Clean(relPath)
-	foundPath := h.resolveMediaLocalPath(relPath)
-	if foundPath != "" {
+	if foundPath := h.resolveMediaLocalPath(relPath); foundPath != "" {
 		h.serveFileContent(w, r, foundPath); return
 	}
 	h.serveMediaPlaceholder(w)
@@ -18,8 +17,7 @@ func (h *UnifiedHandler) serveMediaLocal(w http.ResponseWriter, r *http.Request,
 
 func (h *UnifiedHandler) serveMedia(w http.ResponseWriter, r *http.Request, mID string) {
 	mID = filepath.Clean(mID)
-	foundPath := h.resolveMediaPath(mID)
-	if foundPath != "" {
+	if foundPath := h.resolveMediaPath(mID); foundPath != "" {
 		h.serveFileContent(w, r, foundPath); return
 	}
 	h.serveMediaPlaceholder(w)
@@ -40,8 +38,7 @@ func (h *UnifiedHandler) resolveMediaLocalPath(rel string) string {
 	if h.mediaDir == "" || rel == "" { return "" }
 	p := filepath.Join(h.mediaDir, rel)
 	if info, err := os.Stat(p); err == nil && !info.IsDir() { return p }
-	exts := []string{".jpg", ".jpeg", ".png", ".webp", ".mp4", ".gif"}
-	for _, ext := range exts {
+	for _, ext := range []string{".jpg", ".jpeg", ".png", ".webp", ".mp4", ".gif"} {
 		pExt := p + ext
 		if info, err := os.Stat(pExt); err == nil && !info.IsDir() { return pExt }
 	}
@@ -50,6 +47,7 @@ func (h *UnifiedHandler) resolveMediaLocalPath(rel string) string {
 
 func (h *UnifiedHandler) resolveMediaPath(mID string) string {
 	dirs := []string{h.mediaDir, `G:\Media_Storage\Influencers`, "blobs", "stash", "media_local"}
+	subFolders := []string{"X(Twitter)/_assets", "Twitter/_assets", "Base/_assets", ""}
 	for _, base := range dirs {
 		if base == "" { continue }
 		if hit := checkFileCandidates(base, mID); hit != "" { return hit }
@@ -57,10 +55,10 @@ func (h *UnifiedHandler) resolveMediaPath(mID string) string {
 		if err != nil { continue }
 		for _, e := range entries {
 			if e.IsDir() {
-				candDir := filepath.Join(base, e.Name(), "X(Twitter)", "_assets")
-				if hit := checkFileCandidates(candDir, mID); hit != "" { return hit }
-				candDir2 := filepath.Join(base, e.Name())
-				if hit := checkFileCandidates(candDir2, mID); hit != "" { return hit }
+				for _, sub := range subFolders {
+					candDir := filepath.Join(base, e.Name(), sub)
+					if hit := checkFileCandidates(candDir, mID); hit != "" { return hit }
+				}
 			}
 		}
 	}
@@ -71,8 +69,7 @@ func checkFileCandidates(dir, name string) string {
 	if dir == "" || name == "" { return "" }
 	p := filepath.Join(dir, name)
 	if info, err := os.Stat(p); err == nil && !info.IsDir() { return p }
-	exts := []string{".jpg", ".jpeg", ".png", ".webp", ".mp4", ".gif"}
-	for _, ext := range exts {
+	for _, ext := range []string{".jpg", ".jpeg", ".png", ".webp", ".mp4", ".gif"} {
 		pExt := filepath.Join(dir, name+ext)
 		if info, err := os.Stat(pExt); err == nil && !info.IsDir() { return pExt }
 	}

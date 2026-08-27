@@ -1,5 +1,5 @@
 # plugins/base/scraper/core/base_mutator.py (SPEC-PLUGIN-001 / 100行以下)
-import sqlite3, time
+import sqlite3, time, uuid
 from typing import Any, Dict, List, Optional, Tuple
 from .translator import Translator
 
@@ -25,8 +25,8 @@ class BaseMutator:
         for data in records:
             acc, post, m_list = data.get("account", {}), data.get("post", {}), data.get("media", [])
             if not post.get("id") or not acc.get("username"): continue
-            valid_count += 1
-            acc_id, u_name = str(acc.get("numeric_id") or acc.get("username")), acc["username"]
+            raw_id, u_name = str(acc.get("numeric_id") or "").strip(), acc["username"]
+            acc_id = raw_id if (raw_id and (raw_id.isdigit() or (len(raw_id) == 36 and "-" in raw_id))) else str(uuid.uuid5(uuid.NAMESPACE_DNS, f"{self.platform}_{u_name.lower()}"))
             d_name = acc.get("display_name", u_name)
             desc = acc.get("description", "")
             av_url = acc.get("avatar_url", "")
@@ -52,11 +52,13 @@ class BaseMutator:
                              post.get("reply_to_handle"), c_at, ftext, lang, ja, en, zh, post.get("via") or self.platform, 0, 0, post.get("wayback_url", "")))
             for m in m_list:
                 m_url = m.get("download_url") or m.get("url")
-                if not m_url: continue
                 fn = m_url.split("?")[0].split("/")[-1]
+                for sfx in [":large", ":orig", ":small", ":medium", ":thumb"]: fn = fn[:-len(sfx)] if fn.endswith(sfx) else fn
                 ext = fn.split(".")[-1].lower() if "." in fn else ("jpg" if "format=jpg" in m_url or m.get("type") == "image" else "mp4")
-                m_id = m.get("media_id") or (fn if "." in fn else f"{fn}.{ext}")
-                media.append((m_id, post_id, m.get("type", "image"), m_url, m.get("width", 0), m.get("height", 0)))
+                clean_mid = (m.get("media_id") or fn).split("?")[0]
+                for sfx in [":large", ":orig", ":small", ":medium", ":thumb"]: clean_mid = clean_mid[:-len(sfx)] if clean_mid.endswith(sfx) else clean_mid
+                if "." not in clean_mid: clean_mid = f"{clean_mid}.{ext}"
+                media.append((clean_mid, post_id, m.get("type", "image"), m_url, m.get("width", 0), m.get("height", 0)))
         return accounts, hists, redirects, articles, media, valid_count
 
     def _reconcile_temp_accounts(self, cur: sqlite3.Cursor, accs: List[tuple]) -> None:

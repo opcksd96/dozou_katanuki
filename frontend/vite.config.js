@@ -73,21 +73,17 @@ export default defineConfig({
               }
               try {
                 const subdirs = fs.readdirSync(base);
+                const subAssetDirs = ['X(Twitter)/_assets', 'Twitter/_assets', 'Base/_assets', ''];
                 for (const sub of subdirs) {
-                  for (const ext of exts) {
-                    const cand = path.join(base, sub, 'X(Twitter)', '_assets', mID + ext);
-                    if (fs.existsSync(cand) && !fs.statSync(cand).isDirectory()) {
-                      const targetExt = path.extname(cand).toLowerCase();
-                      res.setHeader('Content-Type', targetExt === '.png' ? 'image/png' : targetExt === '.webp' ? 'image/webp' : targetExt === '.mp4' ? 'video/mp4' : targetExt === '.gif' ? 'image/gif' : 'image/jpeg');
-                      fs.createReadStream(cand).pipe(res);
-                      return;
-                    }
-                    const cand2 = path.join(base, sub, mID + ext);
-                    if (fs.existsSync(cand2) && !fs.statSync(cand2).isDirectory()) {
-                      const targetExt = path.extname(cand2).toLowerCase();
-                      res.setHeader('Content-Type', targetExt === '.png' ? 'image/png' : targetExt === '.webp' ? 'image/webp' : targetExt === '.mp4' ? 'video/mp4' : targetExt === '.gif' ? 'image/gif' : 'image/jpeg');
-                      fs.createReadStream(cand2).pipe(res);
-                      return;
+                  for (const subAsset of subAssetDirs) {
+                    for (const ext of exts) {
+                      const cand = path.join(base, sub, subAsset, mID + ext);
+                      if (fs.existsSync(cand) && !fs.statSync(cand).isDirectory()) {
+                        const targetExt = path.extname(cand).toLowerCase();
+                        res.setHeader('Content-Type', targetExt === '.png' ? 'image/png' : targetExt === '.webp' ? 'image/webp' : targetExt === '.mp4' ? 'video/mp4' : targetExt === '.gif' ? 'image/gif' : 'image/jpeg');
+                        fs.createReadStream(cand).pipe(res);
+                        return;
+                      }
                     }
                   }
                 }
@@ -104,6 +100,8 @@ export default defineConfig({
     },
   ],
   server: {
+    host: '0.0.0.0',
+    port: 5173,
     proxy: {
       '/stash-proxy': {
         target: 'http://127.0.0.1:9999',

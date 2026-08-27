@@ -39,6 +39,7 @@ onUnmounted(() => window.removeEventListener('keydown', handleKeyDown));
       <div class="px-4 py-2.5 border-b border-slate-800 flex items-center justify-between bg-slate-900/80 shrink-0">
         <div class="flex items-center gap-2 font-mono text-xs text-slate-200 min-w-0">
           <span class="px-2 py-0.5 rounded bg-blue-950 text-blue-300 font-bold border border-blue-800 shrink-0">{{ media.type?.toUpperCase() || 'MEDIA' }}</span>
+          <span v-if="media.media_quality" class="px-1.5 py-0.5 rounded bg-indigo-950 text-indigo-300 font-bold border border-indigo-700/60 text-[10px] uppercase shrink-0">⭐ {{ media.media_quality }}</span>
           <span class="font-bold truncate max-w-md">{{ media.media_id || media.id }}</span>
           <span v-if="media.width && media.height" class="text-slate-400 text-[11px] shrink-0">({{ media.width }}x{{ media.height }})</span>
         </div>

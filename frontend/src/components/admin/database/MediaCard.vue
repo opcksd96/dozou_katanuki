@@ -36,12 +36,17 @@ const openStash = () => {
 
       <button @click.stop="emit('toggleBookmark', media.media_id || media.id)" class="absolute top-2 left-2 p-1 rounded bg-black/80 text-xs">{{ media.is_bookmarked ? '⭐' : '☆' }}</button>
       <span class="absolute top-2 right-2 px-2 py-0.5 rounded text-[10px] font-mono font-bold" :class="{
-        'bg-emerald-950 text-emerald-300': media.download_status === 'COMPLETED',
-        'bg-purple-950 text-purple-300': media.download_status === 'OUTSOURCED',
-        'bg-rose-950 text-rose-300': media.download_status === 'DEAD_404',
+        'bg-emerald-950 text-emerald-300 border border-emerald-700/50': media.download_status === 'COMPLETED',
+        'bg-purple-950 text-purple-300 border border-purple-700/50': media.download_status === 'OUTSOURCED',
+        'bg-amber-950 text-amber-300 border border-amber-600/60': media.download_status === 'RETAINED',
+        'bg-rose-950 text-rose-300 border border-rose-700/50': media.download_status === 'DEAD_404',
+        'bg-red-950 text-red-300 border border-red-700/50': media.download_status === 'FAILED',
         'bg-slate-800 text-slate-300': media.download_status === 'QUEUED'
       }">{{ media.download_status }}</span>
-      <span v-if="media.width && media.height" class="absolute bottom-2 right-2 px-2 py-0.5 rounded bg-black/80 text-slate-200 text-[10px] font-mono font-bold">{{ media.width }}x{{ media.height }}</span>
+      <div class="absolute bottom-2 right-2 flex items-center gap-1">
+        <span v-if="media.media_quality" class="px-1.5 py-0.5 rounded bg-blue-950/90 text-blue-300 border border-blue-600/50 text-[9px] font-mono font-bold uppercase">{{ media.media_quality }}</span>
+        <span v-if="media.width && media.height" class="px-2 py-0.5 rounded bg-black/80 text-slate-200 text-[10px] font-mono font-bold">{{ media.width }}x{{ media.height }}</span>
+      </div>
       <span v-if="isVideo" class="absolute bottom-2 left-2 px-2 py-0.5 rounded bg-black/80 text-slate-200 text-[10px] font-mono font-bold">▶ VIDEO</span>
     </div>
 

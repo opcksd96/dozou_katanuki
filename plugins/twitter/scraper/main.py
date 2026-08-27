@@ -68,7 +68,7 @@ def run_auto_salvage(platform: str, account: str, limit: int, db_path: str, stor
 
 def main():
     p = argparse.ArgumentParser(description="Twitter Multi-Source Scraper Sidecar")
-    p.add_argument("-m", "--mode", choices=["auto", "manual", "download", "escalate", "poll", "restore", "translate"], default="auto")
+    p.add_argument("-m", "--mode", choices=["auto", "manual", "download", "escalate", "poll", "restore", "translate", "smart_recovery", "thunder"], default="auto")
     p.add_argument("-p", "--platform", default="twitter"); p.add_argument("-a", "--account", default=""); p.add_argument("-l", "--limit", type=int, default=0)
     p.add_argument("-s", "--source", default="all", choices=["all", "wayback", "sotwe", "twistalker", "nitter", "official"])
     p.add_argument("-w", "--warc-path", default=""); p.add_argument("--dumps-dir", default="backups/dumps"); p.add_argument("--avatar-dir", default="assets/avatars")
@@ -83,6 +83,8 @@ def main():
     elif args.mode == "download": Downloader(db_path=args.db_path, storage_dir=args.storage_dir).process_queued_media(args.article_id or None, args.media_id or None, log_fn=lambda c, t, m: emit_progress(c, t, f"[PHASE-DL] {m}"))
     elif args.mode == "escalate": Downloader(db_path=args.db_path, storage_dir=args.storage_dir).escalate_dead_media(log_fn=lambda c, t, m: emit_progress(c, t, f"[PHASE-ESCALATE] {m}"))
     elif args.mode == "poll": Downloader(db_path=args.db_path, storage_dir=args.storage_dir).poll_outsourced_media(log_fn=lambda m: emit_progress(1, 1, f"[PHASE-POLL] {m}"))
+    elif args.mode == "smart_recovery": Downloader(db_path=args.db_path, storage_dir=args.storage_dir).smart_recovery_pipeline(log_fn=lambda c, t, m: emit_progress(c, t, f"[SMART-RECOVERY] {m}"))
+    elif args.mode == "thunder": Downloader(db_path=args.db_path, storage_dir=args.storage_dir).escalate_to_thunder(log_fn=lambda c, t, m: emit_progress(c, t, f"[THUNDER] {m}"))
     elif args.mode == "restore": Restorer(dumps_dir=args.dumps_dir, db_path=args.db_path, storage_dir=args.storage_dir, avatar_dir=args.avatar_dir, max_workers=args.threads).run_restore(emit_progress)
 
 

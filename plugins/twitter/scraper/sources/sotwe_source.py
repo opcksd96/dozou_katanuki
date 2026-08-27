@@ -5,7 +5,10 @@ SeleniumBase UC ModeでSotwe Web UIを展開し、DOMツリーから全ツイー
 import time
 from typing import Any, Callable, Dict, List, Optional
 from seleniumbase import SB
-from parsers.sotwe_parser import parse_sotwe_html_tweets
+try:
+    from plugins.twitter.scraper.parsers.sotwe_parser import parse_sotwe_html_tweets
+except ImportError:
+    from parsers.sotwe_parser import parse_sotwe_html_tweets
 
 
 class SotweSource:

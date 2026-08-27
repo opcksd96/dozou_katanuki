@@ -39,6 +39,8 @@ const emit = defineEmits<{
   (e: 'startDownload'): void;
   (e: 'startPoll'): void;
   (e: 'startEscalate'): void;
+  (e: 'startSmartRecovery'): void;
+  (e: 'startThunder'): void;
   (e: 'requeueFailed'): void;
   (e: 'reconcileStash'): void;
   (e: 'openExplorer', id: string): void;
@@ -68,10 +70,8 @@ onMounted(() => { emit('fetch'); });
       :accounts="accounts" :stats="stats"
       @update:account-filter="emit('update:accountFilter', $event)"
       @update:status-filter="emit('update:statusFilter', $event)"
-      @update:type-filter="emit('update:typeFilter', $event)"
-      @open-stash="openStash" @start-download="emit('startDownload')" @start-poll="emit('startPoll')"
-      @start-escalate="emit('startEscalate')"
-      @requeue-failed="emit('requeueFailed')" @reconcile-stash="emit('reconcileStash')"
+      @open-stash="openStash" @start-smart-recovery="emit('startSmartRecovery')" @start-thunder="emit('startThunder')"
+      @reconcile-stash="emit('reconcileStash')"
     />
     <MediaQueueStatus :stats="queueStats" :active-job="activeJob" :status-filter="statusFilter" @update:status-filter="emit('update:statusFilter', $event)" />
     <MediaGrid :media-items="mediaItems" :loading="loading" :search-query="searchQuery" :only-bookmarked="onlyBookmarked" @retry-media="emit('retryMedia', $event)" @purge-media="emit('purgeMedia', $event)" @toggle-bookmark="emit('toggleBookmark', $event)" />

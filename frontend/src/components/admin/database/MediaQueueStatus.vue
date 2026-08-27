@@ -3,21 +3,22 @@
 import { computed } from 'vue';
 
 interface DownloadQueueStats {
-  queued: number; completed: number; dead_404: number; outsourced: number; failed: number; total: number;
+  queued?: number; completed?: number; dead_404?: number; outsourced?: number; retained?: number; failed?: number; total?: number;
 }
 
-const props = defineProps<{ stats?: DownloadQueueStats; activeJob?: any; statusFilter?: string; }>();
+const props = defineProps<{ stats?: DownloadQueueStats | any; activeJob?: any; statusFilter?: string; }>();
 const emit = defineEmits<{ (e: 'update:statusFilter', v: string): void; }>();
 
 const segments = computed(() => [
-  { label: 'QUEUED', value: props.stats?.queued || 0, color: 'bg-slate-500', status: 'QUEUED' },
-  { label: 'COMPLETED', value: props.stats?.completed || 0, color: 'bg-emerald-500', status: 'COMPLETED' },
-  { label: 'DEAD_404', value: props.stats?.dead_404 || 0, color: 'bg-rose-500', status: 'DEAD_404' },
-  { label: 'OUTSOURCED', value: props.stats?.outsourced || 0, color: 'bg-purple-500', status: 'OUTSOURCED' },
-  { label: 'FAILED', value: props.stats?.failed || 0, color: 'bg-amber-500', status: 'FAILED' },
+  { label: 'QUEUED', value: props.stats?.queued ?? props.stats?.Queued ?? 0, color: 'bg-slate-500', status: 'QUEUED' },
+  { label: 'COMPLETED', value: props.stats?.completed ?? props.stats?.Completed ?? 0, color: 'bg-emerald-500', status: 'COMPLETED' },
+  { label: 'OUTSOURCED', value: props.stats?.outsourced ?? props.stats?.Outsourced ?? 0, color: 'bg-purple-500', status: 'OUTSOURCED' },
+  { label: 'RETAINED', value: props.stats?.retained ?? props.stats?.Retained ?? 0, color: 'bg-amber-500', status: 'RETAINED' },
+  { label: 'DEAD_404', value: props.stats?.dead_404 ?? props.stats?.Dead404 ?? props.stats?.dead404 ?? 0, color: 'bg-rose-500', status: 'DEAD_404' },
+  { label: 'FAILED', value: props.stats?.failed ?? props.stats?.Failed ?? 0, color: 'bg-red-600', status: 'FAILED' },
 ]);
 
-const total = computed(() => props.stats?.total || segments.value.reduce((s, x) => s + x.value, 0) || 0);
+const total = computed(() => (props.stats?.total ?? props.stats?.Total ?? segments.value.reduce((s, x) => s + x.value, 0)) || 0);
 const pct = (v: number) => (total.value > 0 ? (v / total.value) * 100 : 0);
 const isJobActive = computed(() => props.activeJob && props.activeJob.status === 'RUNNING');
 </script>
@@ -31,7 +32,7 @@ const isJobActive = computed(() => props.activeJob && props.activeJob.status ===
       <div class="mt-1.5 flex flex-wrap gap-2">
         <button v-for="s in segments" :key="s.status" @click="emit('update:statusFilter', s.status)"
           :class="statusFilter === s.status ? 'ring-2 ring-slate-300' : 'opacity-80 hover:opacity-100'"
-          class="flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-mono bg-slate-800 text-slate-200">
+          class="flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-mono bg-slate-800 text-slate-200 cursor-pointer">
           <span class="w-2 h-2 rounded-full" :class="s.color" />
           <span class="font-bold">{{ s.value }}</span>
           <span class="text-slate-400">{{ s.label }}</span>

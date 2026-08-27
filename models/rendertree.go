@@ -41,6 +41,7 @@ type RenderMedia struct {
 	IsBookmarked   bool            `json:"is_bookmarked"`
 	DownloadURL    string          `json:"download_url,omitempty"`
 	FilePath       string          `json:"file_path,omitempty"`
+	MediaQuality   string          `json:"media_quality,omitempty"`
 }
 
 type RenderMetrics struct {
