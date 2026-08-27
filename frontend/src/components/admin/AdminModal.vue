@@ -9,12 +9,16 @@ import PluginHubView from './PluginHubView.vue';
 import RelationExplorerView from './RelationExplorerView.vue';
 import ConfigPortal from './ConfigPortal.vue';
 import StashStatusView from './StashStatusView.vue';
-import WhitelistView from './WhitelistView.vue';
+import DownloaderConsoleView from './DownloaderConsoleView.vue';
 import DatabaseView from './DatabaseView.vue';
 import AuditReportView from './AuditReportView.vue';
 
 const props = defineProps<{ isOpen: boolean }>();
-const emit = defineEmits<{ (e: 'close'): void; (e: 'whitelistUpdated'): void }>();
+const emit = defineEmits<{
+  (e: 'close'): void;
+  (e: 'whitelistUpdated'): void;
+  (e: 'jumpToTimelinePost', articleId: string): void;
+}>();
 
 const activeTab = ref<AdminTabId>('plugins');
 const salvageForm = reactive({ platform: 'twitter', account: '', source: 'all', limit: 0 }), importForm = reactive({ warcPath: '', offline: true }), selectedPlatform = ref('twitter');
@@ -26,7 +30,6 @@ const refreshCurrentTab = (tab: AdminTabId) => {
   try {
     if (tab === 'plugins') { admin.fetchActiveJob?.(); admin.fetchJobList?.(); admin.fetchSkinCSS?.(selectedPlatform.value || 'twitter'); }
     else if (tab === 'config') { admin.fetchConfig?.(); }
-    else if (tab === 'whitelist') { admin.fetchWhitelists?.(); }
     else if (tab === 'accounts') { admin.fetchAccounts?.(); }
     else if (tab === 'posts') { admin.searchArticles?.(); }
     else if (tab === 'media') { admin.fetchMedia?.(); }
@@ -73,8 +76,8 @@ onUnmounted(() => { window.removeEventListener('keydown', handleKey); document.b
         <RelationExplorerView v-else-if="activeTab === 'explorer'" class="overflow-y-auto flex-1" />
         <AuditReportView v-else-if="activeTab === 'audit'" class="overflow-y-auto flex-1" :restoring="admin.isJobRunning?.value ?? admin.isJobRunning" @trigger-restore="(resetDB) => { admin.triggerRestore('', resetDB); activeTab = 'plugins'; }" />
         <StashStatusView v-else-if="activeTab === 'stash'" class="overflow-y-auto flex-1" :config="admin.configForm" />
-        <DatabaseView v-else-if="activeTab === 'posts' || activeTab === 'media' || activeTab === 'accounts'" class="flex-1 min-h-0" :admin="admin" :view="activeTab" @navigate="(t) => activeTab = t" />
-        <WhitelistView v-else-if="activeTab === 'whitelist'" class="overflow-y-auto flex-1" :whitelist-list="admin.whitelists?.value ?? admin.whitelists" :loading="admin.isWhitelistLoading?.value ?? admin.isWhitelistLoading" :status-message="null" @fetch="admin.fetchWhitelists" @add="async (t, v, g, a) => { await admin.addWhitelist(t, v, g, a); emit('whitelistUpdated'); }" @update="async (id, t, v, g, a, act) => { await admin.updateWhitelist(id, t, v, g, a, act); emit('whitelistUpdated'); }" @delete="async (id) => { await admin.deleteWhitelist(id); emit('whitelistUpdated'); }" @toggle="async (id) => { await admin.toggleWhitelist(id); emit('whitelistUpdated'); }" />
+        <DownloaderConsoleView v-else-if="activeTab === 'downloaders'" class="overflow-y-auto flex-1" :admin="admin" />
+        <DatabaseView v-else-if="activeTab === 'posts' || activeTab === 'media' || activeTab === 'accounts'" class="flex-1 min-h-0" :admin="admin" :view="activeTab" @navigate="(t) => activeTab = t" @jump-to-timeline-post="(artId) => emit('jumpToTimelinePost', artId)" />
         <ConfigPortal v-else-if="activeTab === 'config'" class="overflow-y-auto flex-1" :config="admin.configForm" :loading-config="admin.isConfigLoading?.value ?? admin.isConfigLoading" :saving-config="admin.isConfigLoading?.value ?? admin.isConfigLoading" :save-status="admin.configSaved?.value ?? admin.configSaved ? { success: true, message: '設定を保存しました' } : null" @save-config="admin.saveConfig" @load-config="admin.fetchConfig" />
       </main>
     </div>

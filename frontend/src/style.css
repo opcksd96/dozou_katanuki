@@ -90,6 +90,7 @@ html.light [class*="border-white"] {
     border-color: #e2e8f0 !important;
 }
 
+html.light [class*="text-white"],
 html.light [class*="text-slate-100"],
 html.light [class*="text-slate-200"],
 html.light [class*="text-slate-300"] {

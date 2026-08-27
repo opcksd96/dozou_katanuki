@@ -11,6 +11,7 @@ const emit = defineEmits<{
   (e: 'retry', mediaId: string): void;
   (e: 'purge', mediaId: string): void;
   (e: 'viewPost', articleId: string): void;
+  (e: 'viewPostTimeline', articleId: string): void;
   (e: 'fullscreenChange', active: boolean): void;
 }>();
 
@@ -43,7 +44,7 @@ onUnmounted(() => window.removeEventListener('keydown', handleKeyDown));
           <span class="font-bold truncate max-w-md">{{ media.media_id || media.id }}</span>
           <span v-if="media.width && media.height" class="text-slate-400 text-[11px] shrink-0">({{ media.width }}x{{ media.height }})</span>
         </div>
-        <button @click="emit('close')" title="閉じる (Esc)" class="w-7 h-7 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center text-sm font-mono transition-colors">✕</button>
+        <button @click="emit('close')" title="閉じる (Esc)" class="w-7 h-7 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center text-sm font-mono transition-colors cursor-pointer">✕</button>
       </div>
 
       <!-- メインコンテンツ (左: 大画面メディアビューア, 右: 詳細インスペクタ＆エディタ) -->
@@ -58,13 +59,7 @@ onUnmounted(() => window.removeEventListener('keydown', handleKeyDown));
         </div>
 
         <!-- 右ペイン: 詳細インスペクタ ＆ メタデータエディタ -->
-        <MediaInspectorPanel
-          :media="media"
-          @save-metadata="(p) => emit('saveMetadata', p)"
-          @retry="(id) => emit('retry', id)"
-          @purge="(id) => emit('purge', id)"
-          @view-post="(artId) => emit('viewPost', artId)"
-        />
+        <MediaInspectorPanel :media="media" @save-metadata="(p) => emit('saveMetadata', p)" @retry="emit('retry', $event)" @purge="emit('purge', $event)" @view-post="emit('viewPost', $event)" @view-post-timeline="emit('viewPostTimeline', $event)" />
       </div>
     </div>
   </div>

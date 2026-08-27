@@ -1,4 +1,4 @@
-<!-- frontend/src/components/admin/database/DatabaseSpreadsheet.vue (100行以下) -->
+<!-- frontend/src/components/admin/database/DatabaseSpreadsheet.vue (100行以下 - SPEC-PRINCIPLE-001) -->
 <script setup lang="ts">
 import { ref } from 'vue';
 
@@ -40,8 +40,10 @@ const copyVal = (val: any, cellKey: string) => {
           <tr v-for="(r, idx) in (rows || []).filter(Boolean)" :key="r?.[idKey || 'id'] || idx" @click="emit('selectRow', r)" class="hover:bg-blue-900/20 cursor-pointer transition-colors" :class="{ 'bg-blue-950/40 text-white font-medium': selectedRowId && (r?.[idKey || 'id'] === selectedRowId) }">
             <td class="px-2 py-1.5 text-center border-r border-slate-800 text-[10px] text-slate-500 bg-slate-900/40 select-none">{{ idx + 1 }}</td>
             <td v-for="col in columns" :key="col.key" @dblclick="copyVal(r?.[col.key], `${idx}-${col.key}`)" class="px-3 py-1.5 border-r border-slate-800/60 truncate max-w-xs relative group" :title="String(r?.[col.key] ?? '')">
-              <span v-if="copiedCell === `${idx}-${col.key}`" class="text-emerald-400 font-sans text-[10px]">コピー完了!</span>
-              <span v-else>{{ r?.[col.key] !== null && r?.[col.key] !== undefined ? (typeof r[col.key] === 'boolean' ? (r[col.key] ? 'TRUE' : 'FALSE') : r[col.key]) : '-' }}</span>
+              <slot :name="`cell-${col.key}`" :row="r" :value="r?.[col.key]">
+                <span v-if="copiedCell === `${idx}-${col.key}`" class="text-emerald-400 font-sans text-[10px]">コピー完了!</span>
+                <span v-else>{{ r?.[col.key] !== null && r?.[col.key] !== undefined ? (typeof r[col.key] === 'boolean' ? (r[col.key] ? 'TRUE' : 'FALSE') : r[col.key]) : '-' }}</span>
+              </slot>
             </td>
           </tr>
         </tbody>
@@ -49,4 +51,3 @@ const copyVal = (val: any, cellKey: string) => {
     </div>
   </div>
 </template>
-

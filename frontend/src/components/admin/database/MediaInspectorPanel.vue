@@ -12,6 +12,7 @@ const emit = defineEmits<{
   (e: 'retry', mediaId: string): void;
   (e: 'purge', mediaId: string): void;
   (e: 'viewPost', articleId: string): void;
+  (e: 'viewPostTimeline', articleId: string): void;
 }>();
 
 const { fetchStashMetadata, updateStashMetadata } = useAdminDatabase();
@@ -19,9 +20,7 @@ const { fetchStashMetadata, updateStashMetadata } = useAdminDatabase();
 const editStatus = ref(props.media.download_status || props.media.raw_status || 'QUEUED');
 const editReason = ref(props.media.failed_reason || '');
 const stashData = ref<any>(null);
-const editTitle = ref('');
-const editDetails = ref('');
-const editRating = ref(0);
+const editTitle = ref(''), editDetails = ref(''), editRating = ref(0);
 const isMutating = ref(false);
 const undoSnapshot = ref<{ title: string; details: string; rating100: number } | null>(null);
 
@@ -37,9 +36,7 @@ const loadStashInfo = async () => {
   const res = await fetchStashMetadata(props.media.stash_scene_id || '', props.media.stash_image_id || '');
   if (res) {
     stashData.value = res;
-    editTitle.value = res.title || '';
-    editDetails.value = res.details || '';
-    editRating.value = res.rating100 || 0;
+    editTitle.value = res.title || ''; editDetails.value = res.details || ''; editRating.value = res.rating100 || 0;
   }
 };
 
@@ -54,10 +51,8 @@ watch(() => props.media, (m) => {
 
 const handleSaveSqlite = () => {
   emit('saveMetadata', {
-    mediaId: props.media.media_id || props.media.id,
-    downloadStatus: editStatus.value,
-    stashSceneId: props.media.stash_scene_id || '',
-    stashImageId: props.media.stash_image_id || '',
+    mediaId: props.media.media_id || props.media.id, downloadStatus: editStatus.value,
+    stashSceneId: props.media.stash_scene_id || '', stashImageId: props.media.stash_image_id || '',
     failedReason: editReason.value.trim(),
   });
 };
@@ -89,6 +84,6 @@ const handleUndoStash = async () => {
   <div class="w-80 md:w-[420px] bg-slate-900/95 border-l border-slate-800 flex flex-col p-4 space-y-3.5 overflow-y-auto text-xs font-mono text-slate-300 shrink-0">
     <MediaInspectorAccount :media="media" :has-stash="!!(media.stash_scene_id || media.stash_image_id)" @copy-to-stash-details="editDetails = $event" />
     <MediaInspectorStash :media="media" :stash-data="stashData" v-model:edit-title="editTitle" v-model:edit-details="editDetails" v-model:edit-rating="editRating" :is-modified="isStashModified" :is-mutating="isMutating" :has-undo="!!undoSnapshot" @request-save="handleSaveStash" @undo="handleUndoStash" />
-    <MediaInspectorSqlite :media="media" v-model:edit-status="editStatus" v-model:edit-reason="editReason" @save="handleSaveSqlite" @retry="emit('retry', media.media_id || media.id)" @purge="emit('purge', media.media_id || media.id)" @view-post="emit('viewPost', media.article_id)" />
+    <MediaInspectorSqlite :media="media" v-model:edit-status="editStatus" v-model:edit-reason="editReason" @save="handleSaveSqlite" @retry="emit('retry', media.media_id || media.id)" @purge="emit('purge', media.media_id || media.id)" @view-post="emit('viewPost', media.article_id)" @view-post-timeline="emit('viewPostTimeline', media.article_id)" />
   </div>
 </template>

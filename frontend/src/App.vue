@@ -91,7 +91,7 @@ onMounted(() => {
     </div>
 
     <KeyboardShortcutModal :is-open="isHelpOpen" @close="isHelpOpen = false" />
-    <AdminModal :is-open="isAdminOpen" @close="isAdminOpen = false" @whitelist-updated="reloadAll" />
+    <AdminModal :is-open="isAdminOpen" @close="isAdminOpen = false" @whitelist-updated="reloadAll" @jump-to-timeline-post="(artId) => { isAdminOpen = false; openDetail(artId); }" />
     <MediaOverlay :media="activeMedia" :article="activeArticle" :target-lang="systemLang" :has-next="hasNext" :has-prev="hasPrev" @close="closeMedia" @next="nextMedia" @prev="prevMedia" @toggle-like="toggleLike" />
     <ToastContainer />
   </div>

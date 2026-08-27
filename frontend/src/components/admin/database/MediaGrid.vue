@@ -20,6 +20,7 @@ const emit = defineEmits<{
   (e: 'retry', mediaId: string): void;
   (e: 'purge', mediaId: string): void;
   (e: 'viewPost', articleId: string): void;
+  (e: 'viewPostTimeline', articleId: string): void;
   (e: 'fullscreenChange', active: boolean): void;
 }>();
 
@@ -45,8 +46,9 @@ const filteredItems = computed(() => {
         v-for="(item, idx) in filteredItems" :key="item.media_id || item.id" :media="item"
         @click="selectedIndex = idx" @retry="emit('retryMedia', item.media_id || item.id)"
         @purge="emit('purgeMedia', item.media_id || item.id)" @toggle-bookmark="emit('toggleBookmark', item.media_id || item.id)"
+        @view-post="emit('viewPost', $event)" @view-post-timeline="emit('viewPostTimeline', $event)"
       />
     </div>
-    <MediaPreviewModal v-if="selectedIndex !== null" :media="filteredItems[selectedIndex]" :has-prev="selectedIndex > 0" :has-next="selectedIndex < filteredItems.length - 1" @close="selectedIndex = null" @prev="selectedIndex--" @next="selectedIndex++" @save-metadata="(p) => emit('saveMetadata', p)" @retry="(id) => emit('retry', id)" @purge="(id) => emit('purge', id)" @view-post="(artId) => emit('viewPost', artId)" @fullscreen-change="emit('fullscreenChange', $event)" />
+    <MediaPreviewModal v-if="selectedIndex !== null" :media="filteredItems[selectedIndex]" :has-prev="selectedIndex > 0" :has-next="selectedIndex < filteredItems.length - 1" @close="selectedIndex = null" @prev="selectedIndex--" @next="selectedIndex++" @save-metadata="(p) => emit('saveMetadata', p)" @retry="(id) => emit('retry', id)" @purge="(id) => emit('purge', id)" @view-post="(artId) => emit('viewPost', artId)" @view-post-timeline="(artId) => emit('viewPostTimeline', artId)" @fullscreen-change="emit('fullscreenChange', $event)" />
   </div>
 </template>

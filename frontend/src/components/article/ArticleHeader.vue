@@ -1,3 +1,4 @@
+<!-- frontend/src/components/article/ArticleHeader.vue (100行以下) -->
 <script setup lang="ts">
 import type { RenderAuthor } from '../../models/RenderTree';
 import { formatDate } from '../../utils/formatters';
@@ -14,7 +15,7 @@ defineProps<{
   <div class="flex items-center justify-between gap-2 text-left">
     <div class="flex items-center gap-1.5 min-w-0 truncate">
       <span class="font-bold text-slate-100 text-sm hover:underline cursor-pointer truncate leading-snug">
-        {{ author.display_name }}
+        {{ author.display_name || author.handle }}
       </span>
       <span class="text-xs text-slate-400 font-mono truncate leading-snug">
         @{{ author.handle }}

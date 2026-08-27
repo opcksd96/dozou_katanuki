@@ -35,6 +35,7 @@ const emit = defineEmits<{
   (e: 'purgeMedia', mediaId: string): void;
   (e: 'purgeByStatus', status: string): void;
   (e: 'viewPost', articleId: string): void;
+  (e: 'viewPostTimeline', articleId: string): void;
   (e: 'saveMetadata', payload: any): void;
   (e: 'startDownload'): void;
   (e: 'startPoll'): void;
@@ -74,7 +75,7 @@ onMounted(() => { emit('fetch'); });
       @reconcile-stash="emit('reconcileStash')"
     />
     <MediaQueueStatus :stats="queueStats" :active-job="activeJob" :status-filter="statusFilter" @update:status-filter="emit('update:statusFilter', $event)" />
-    <MediaGrid :media-items="mediaItems" :loading="loading" :search-query="searchQuery" :only-bookmarked="onlyBookmarked" @retry-media="emit('retryMedia', $event)" @purge-media="emit('purgeMedia', $event)" @toggle-bookmark="emit('toggleBookmark', $event)" />
+    <MediaGrid :media-items="mediaItems" :loading="loading" :search-query="searchQuery" :only-bookmarked="onlyBookmarked" @retry-media="emit('retryMedia', $event)" @purge-media="emit('purgeMedia', $event)" @toggle-bookmark="emit('toggleBookmark', $event)" @view-post="emit('viewPost', $event)" @view-post-timeline="emit('viewPostTimeline', $event)" />
     <MediaPaginationBar :page="page" :limit="limit" :total="total" @update:page="emit('update:page', $event)" @update:limit="emit('update:limit', $event)" />
   </div>
 </template>

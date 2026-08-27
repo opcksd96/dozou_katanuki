@@ -5,10 +5,10 @@ export type AdminTabId =
   | 'explorer' 
   | 'audit' 
   | 'stash' 
+  | 'downloaders'
   | 'posts' 
   | 'media' 
   | 'accounts' 
-  | 'whitelist' 
   | 'config';
 
 defineProps<{ activeTab: AdminTabId }>();
@@ -22,6 +22,7 @@ const groups = [
       { id: 'explorer', icon: '🧭', label: 'リレーション探査' },
       { id: 'audit', icon: '🩺', label: '整合性監査' },
       { id: 'stash', icon: '🎛️', label: 'Stash状態' },
+      { id: 'downloaders', icon: '⚡', label: 'Motrix & Thunder' },
     ],
   },
   {
@@ -30,7 +31,6 @@ const groups = [
       { id: 'posts', icon: '📝', label: '投稿・翻訳' },
       { id: 'media', icon: '🖼️', label: 'メディア' },
       { id: 'accounts', icon: '👤', label: 'アカウント' },
-      { id: 'whitelist', icon: '🛡️', label: 'Whitelist' },
     ],
   },
   {
@@ -43,7 +43,7 @@ const groups = [
 </script>
 
 <template>
-  <aside class="w-44 bg-slate-900/80 border-r border-slate-800 flex flex-col py-3 px-2 gap-4 shrink-0 select-none overflow-y-auto">
+  <aside class="w-44 bg-slate-900/80 border-r border-slate-800 flex flex-col py-3 px-2 gap-4 shrink-0 select-none overflow-y-auto font-sans">
     <div v-for="g in groups" :key="g.title" class="space-y-1">
       <div class="px-2 text-[10px] font-bold text-slate-500 uppercase tracking-wider">{{ g.title }}</div>
       <button
@@ -51,13 +51,13 @@ const groups = [
         :key="item.id"
         @click="emit('select', item.id as AdminTabId)"
         :class="[
-          'w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all text-left cursor-pointer',
+          'w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all text-left cursor-pointer active:scale-95',
           activeTab === item.id
             ? 'bg-blue-600 text-white shadow-md shadow-blue-900/30'
             : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
         ]"
       >
-        <span class="text-sm shrink-0">{{ item.icon }}</span>
+        <span>{{ item.icon }}</span>
         <span class="truncate">{{ item.label }}</span>
       </button>
     </div>

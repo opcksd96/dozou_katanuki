@@ -8,7 +8,7 @@ from .downloader_pipeline import DownloaderPipelineHelper
 
 
 class BaseDownloader:
-    """メディア原本取得 & Stash登録 & Motrix委託 & 品質(quality: orig~thumb)追跡パイプライン (100行以下)"""
+    """メディア原本取得 & Stash登録 & Motrix委託 & 品質追跡 & マジックナンバー整合性パイプライン (100行以下)"""
     DEFAULT_STORAGE = "G:/Media_Storage/Influencers" if os.path.exists("G:/Media_Storage/Influencers") else "blobs"
 
     def __init__(self, db_path: str = "archive.db", storage_dir: Optional[str] = None, platform: str = "twitter"):
@@ -49,6 +49,13 @@ class BaseDownloader:
         for c, q in cands: (c not in seen and not seen.add(c) and res.append((c, q)))
         return res
 
+    def _is_valid_binary(self, p: str) -> bool:
+        if not (os.path.exists(p) and os.path.getsize(p) > 0): return False
+        try:
+            with open(p, "rb") as f: h = f.read(32)
+            return not (h.startswith(b"<!DOCTYPE") or h.startswith(b"<html") or h.startswith(b"<HTML") or h.startswith(b"{\n") or h.startswith(b'{"') or h.startswith(b"<?xml"))
+        except Exception: return False
+
     def process_queued_media(self, article_id: Optional[str] = None, media_id: Optional[str] = None, log_fn: Optional[Callable[[int, int, str], None]] = None) -> int:
         with self._get_conn() as conn:
             wl = {r[0].lower() for r in conn.cursor().execute("SELECT value FROM whitelists WHERE is_active = 1").fetchall() if r[0]}
@@ -69,7 +76,7 @@ class BaseDownloader:
         if not is_wl: return "EXCLUDED", "Whitelist外", None, None, None
         u = self.resolve_media_url(media_id, url, m_type)
         t_title, txt, urls_list, c_fields = self.build_metadata(article_id, username, display_name, created_at, wayback_url, full_text, full_text_ja)
-        if os.path.exists(dest) and os.path.getsize(dest) > 0:
+        if self._is_valid_binary(dest):
             reg_id = self.reconciler.register_media(dest, m_type, title=t_title, details=txt, urls=urls_list, date=created_at[:10], username=username, display_name=display_name, custom_fields=c_fields)
             return ("COMPLETED", None, reg_id if m_type == "image" else None, reg_id if m_type != "image" else None, "local") if reg_id else ("RETAINED", "Saved to disk", None, None, "local")
         for cand_url, q_name in self._build_fallback_urls(u):
@@ -78,9 +85,10 @@ class BaseDownloader:
                 if resp.status_code == 200 and not ("html" in resp.headers.get("Content-Type", "") and "text" in resp.headers.get("Content-Type", "")):
                     with open(dest, "wb") as f:
                         for chunk in resp.iter_content(65536): f.write(chunk) if chunk else None
-                    if os.path.exists(dest) and os.path.getsize(dest) > 0:
+                    if self._is_valid_binary(dest):
                         reg_id = self.reconciler.register_media(dest, m_type, title=t_title, details=txt, urls=urls_list, date=created_at[:10], username=username, display_name=display_name, custom_fields=c_fields)
                         return ("COMPLETED", None, reg_id if m_type == "image" else None, reg_id if m_type != "image" else None, q_name) if reg_id else ("RETAINED", "Saved to disk", None, None, q_name)
+                    elif os.path.exists(dest): os.remove(dest)
             except Exception: pass
         esc_st, esc_r, esc_img, esc_scn = self._escalate_single(media_id, u, m_type, username=username)
         return esc_st, esc_r, esc_img, esc_scn, None
@@ -94,9 +102,9 @@ class BaseDownloader:
 
     def escalate_dead_media(self, log_fn: Optional[Callable[[int, int, str], None]] = None) -> int:
         with self._get_conn() as conn:
-            records = conn.cursor().execute("SELECT m.media_id, m.download_url, m.type, a.wayback_url, ac.username FROM media m JOIN articles a ON m.article_id = a.id JOIN accounts ac ON a.account_id = ac.numeric_id WHERE m.download_status IN ('DEAD_404', 'RETAINED')").fetchall()
+            records = conn.cursor().execute("SELECT m.media_id, m.download_url, m.type, a.wayback_url, ac.username FROM media m JOIN articles a ON m.article_id = a.id JOIN accounts ac ON a.account_id = ac.numeric_id WHERE m.download_status = 'DEAD_404'").fetchall()
         total, outsourced, existing = len(records), 0, self.aria2.get_queued_filenames()
-        if log_fn: log_fn(0, max(total, 1), f"Found {total} dead/retained media. Motrix cached: {len(existing)} items.")
+        if log_fn: log_fn(0, max(total, 1), f"Found {total} dead_404 media. Motrix cached: {len(existing)} items.")
         for idx, (m_id, url, m_type, _wb, user) in enumerate(records, start=1):
             base_name = m_id.split(":")[0]
             if base_name in existing or m_id in existing:
