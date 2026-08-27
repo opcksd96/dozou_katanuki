@@ -75,7 +75,7 @@ pip-log.txt
 downloaded_files
 
 # ==========================================
-# 7. OS・エディタ固有ファイル
+# 7. OS・エディタ・AIエージェント固有ファイル
 # ==========================================
 .DS_Store
 Thumbs.db
@@ -91,6 +91,11 @@ desktop.ini
 *.sln
 *.sw?
 .gemini/
+.agents/
+GEMINI.md
+AGENTS.md
+skills/
+.github/
 .kilo/
 
 # ==========================================
@@ -99,7 +104,11 @@ desktop.ini
 .playwright-mcp/
 playwright-report/
 test-results/
+tests/__pycache__/
+tests/.pytest_cache/
+tests/screenshots/
 *.md5
+
 
 # ==========================================
 # 9. キャッシュ・ローカルストレージ・テンポラリ
@@ -108,10 +117,15 @@ blobs/
 cache/
 middleware/temp/
 middleware/non_existent_avatar_dir/
+.trash/
+docs/internal/
+docs/reports/
 
 # ==========================================
 # 10. 配布パッケージ・リリース
 # ==========================================
 release/
 *.zip
+
+
 

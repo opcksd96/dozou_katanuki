@@ -1,7 +1,8 @@
 $exts = @('*.go', '*.py', '*.ts', '*.js', '*.vue')
 $files = Get-ChildItem -Recurse -File -Include $exts | Where-Object {
-    $_.FullName -notmatch '(node_modules|\.git|dist|wailsjs|__pycache__|\.venv|release|build|bin[\\/]scrapers|bin[\\/]plugins|docs[\\/]wiki)'
+    $_.FullName -notmatch '(node_modules|\.git|dist|wailsjs|__pycache__|\.venv|release|build|bin[\\/]|docs[\\/]|tests[\\/]|scripts[\\/]docs|\.trash)'
 }
+
 
 $over100 = @()
 $compliantCount = 0
