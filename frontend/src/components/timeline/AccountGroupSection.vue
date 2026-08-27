@@ -1,6 +1,6 @@
-<!-- frontend/src/components/timeline/AccountGroupSection.vue (100行以下) -->
 <script setup lang="ts">
 import type { RenderAuthor } from '../../models/RenderTree';
+import Avatar from '../article/Avatar.vue';
 
 defineProps<{
   groupName: string;
@@ -50,14 +50,8 @@ const pillClass = (active: boolean) => [
         :class="pillClass(selectedId === acc.numeric_id)"
         :title="acc.alias_of ? `裏垢 → 本垢: @${acc.alias_of}` : acc.display_name"
       >
-        <img
-          v-if="acc.avatar_url"
-          :src="acc.avatar_url"
-          :alt="acc.handle"
-          class="w-4 h-4 rounded-full object-cover bg-slate-800"
-          @error="($event.target as HTMLElement).style.display = 'none'"
-        />
-        <span>@{{ acc.handle }}</span>
+        <Avatar :avatar-url="acc.avatar_url" :handle="acc.handle || acc.username" :author="acc" size-class="w-4 h-4" />
+        <span>@{{ acc.handle || acc.username || acc.display_name }}</span>
         <span v-if="acc.alias_of" class="text-[9px] text-teal-400 font-mono opacity-80" title="裏垢">🔗</span>
       </button>
     </div>

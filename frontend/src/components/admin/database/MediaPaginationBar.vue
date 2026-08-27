@@ -29,11 +29,15 @@ const endRange = computed(() => Math.min(props.page * props.limit, props.total))
       <button :disabled="page >= totalPages" @click="emit('update:page', page + 1)" class="px-2.5 py-1 bg-slate-950 border border-slate-700 rounded disabled:opacity-40 hover:bg-slate-800 text-slate-200">
         次へ ▶
       </button>
-      <select :value="limit" @change="emit('update:limit', Number(($event.target as HTMLSelectElement).value))" class="bg-slate-950 border border-slate-700 rounded px-1.5 py-1 text-slate-300 ml-2">
-        <option :value="20">20件</option>
-        <option :value="50">50件</option>
-        <option :value="100">100件</option>
-      </select>
+      <div class="flex items-center gap-1 ml-2">
+        <span class="text-[11px] text-slate-400">表示:</span>
+        <select :value="limit" @change="emit('update:limit', Number(($event.target as HTMLSelectElement).value))" class="bg-slate-950 border border-slate-700 rounded px-1.5 py-1 text-slate-200 text-xs cursor-pointer">
+          <option :value="12">12件</option>
+          <option :value="24">24件</option>
+          <option :value="48">48件</option>
+          <option :value="96">96件</option>
+        </select>
+      </div>
     </div>
   </div>
 </template>

@@ -1,4 +1,4 @@
-// middleware/timeline_media.go (100行以下)
+// middleware/timeline_media.go (100行以下 - SPEC-PRINCIPLE-001)
 package middleware
 
 import (
@@ -46,4 +46,19 @@ func (s *TimelineService) SearchMediaDetails(accountID, status, mediaType string
 		Total: total,
 		Stats: stats,
 	}, nil
+}
+
+// FetchDownloadStatusStats はダウンロードキュー全体のステータス別集計を取得します
+func (s *TimelineService) FetchDownloadStatusStats(accountID string) (*models.DownloadStatusStats, error) {
+	return s.repo.FetchDownloadStatusStats(accountID)
+}
+
+// ListRawAccounts は登録済みアカウントRawエンティティ（usernameフィールド付き）一覧を取得します
+func (s *TimelineService) ListRawAccounts() ([]models.Account, error) {
+	return s.repo.ListAccounts()
+}
+
+// GetAccountDetail は指定アカウントの詳細・世代変遷履歴・投稿件数を取得します
+func (s *TimelineService) GetAccountDetail(numericID string) (*models.AccountDetailResult, error) {
+	return s.repo.GetAccountDetail(numericID)
 }

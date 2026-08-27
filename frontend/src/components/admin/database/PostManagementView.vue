@@ -57,7 +57,7 @@ const spreadsheetRows = computed(() => (props.articles || []).filter(Boolean).ma
     <div class="flex flex-wrap items-center gap-1.5 bg-slate-950/40 p-2 rounded-xl border border-slate-800">
       <span class="text-[11px] font-bold text-slate-400 mr-1">アカウント:</span>
       <button @click="selectAcc('all')" :class="searchAccount === 'all' ? 'bg-blue-600 text-white' : 'bg-slate-900 text-slate-400'" class="px-2.5 py-1 rounded-lg border border-slate-700 font-bold cursor-pointer">ALL</button>
-      <button v-for="acc in accounts" :key="acc.numeric_id" @click="selectAcc(acc.numeric_id)" :class="searchAccount === acc.numeric_id ? 'bg-blue-600 text-white' : 'bg-slate-900 text-slate-400'" class="px-2.5 py-1 rounded-lg border border-slate-700 font-mono cursor-pointer">@{{ acc.username }}</button>
+      <button v-for="acc in accounts" :key="acc.numeric_id" @click="selectAcc(acc.numeric_id)" :class="searchAccount === acc.numeric_id ? 'bg-blue-600 text-white' : 'bg-slate-900 text-slate-400'" class="px-2.5 py-1 rounded-lg border border-slate-700 font-mono cursor-pointer">@{{ acc.username || acc.handle || acc.numeric_id }}</button>
     </div>
 
     <!-- 検索バー ＆ ページネーション -->

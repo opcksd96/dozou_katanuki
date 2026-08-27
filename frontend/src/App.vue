@@ -57,13 +57,13 @@ onMounted(() => {
   <div class="min-h-screen bg-slate-950/85 text-slate-100 flex flex-col items-center selection:bg-blue-500/30 selection:text-blue-200">
     <GlobalAppBar :active-article-id="activeArticleId" :active-article-handle="detail?.article?.author.handle || ''" :is-stash-online="isStashReady" @open-admin="isAdminOpen = true" @back-to-timeline="closeDetail" />
 
-    <div class="w-full max-w-2xl px-4 py-4">
+    <div class="w-full max-w-full md:max-w-xl lg:max-w-2xl xl:max-w-2xl mx-auto px-0 py-0 md:border-x md:border-slate-800/80 shadow-2xl">
       <template v-if="!activeArticleId">
         <AccountHeroHeader v-if="currentAccountObj" :account="currentAccountObj" :total-articles="articles.length" @back-to-all="selectAccount('all')" @refresh="reloadAll" />
         <AccountScopeSelector v-else :accounts="accounts" :selected-id="selectedAccount" @select="selectAccount" />
       </template>
 
-      <main :key="renderKey" class="w-full border border-white/10 rounded-2xl bg-slate-950/90 backdrop-blur-2xl overflow-hidden shadow-2xl min-h-[600px] transition-all duration-300">
+      <main :key="renderKey" class="w-full bg-slate-950/90 min-h-[600px] transition-all duration-300">
         <!-- Stash 待機画面 -->
         <div v-if="!isStashReady" class="p-16 flex flex-col items-center justify-center min-h-[500px] text-center space-y-6">
           <div class="relative w-20 h-20 rounded-2xl bg-gradient-to-br from-blue-600/20 to-indigo-600/20 border border-blue-500/40 flex items-center justify-center text-blue-400 shadow-xl shadow-blue-500/10">

@@ -21,7 +21,7 @@ const emit = defineEmits<{
       <input :value="searchQuery" @input="emit('update:searchQuery', ($event.target as HTMLInputElement).value)" placeholder="🔍 メディア/URL検索..." class="w-40 bg-slate-950 border border-slate-700 rounded px-2 py-1 text-slate-200" />
       <select :value="accountFilter" @change="emit('update:accountFilter', ($event.target as HTMLSelectElement).value)" class="bg-slate-950 border border-slate-700 rounded px-2 py-1 text-slate-200">
         <option value="all">全アカウント</option>
-        <option v-for="a in accounts" :key="a.numeric_id" :value="a.numeric_id">@{{ a.username }}</option>
+        <option v-for="a in accounts" :key="a.numeric_id" :value="a.numeric_id">@{{ a.username || a.handle || a.numeric_id }}</option>
       </select>
       <select :value="statusFilter" @change="emit('update:statusFilter', ($event.target as HTMLSelectElement).value)" class="bg-slate-950 border border-slate-700 rounded px-2 py-1 text-slate-200">
         <option value="all">全ステータス</option>

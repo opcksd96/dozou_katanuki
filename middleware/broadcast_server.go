@@ -31,11 +31,20 @@ func (s *BroadcastService) startServerLocked() error {
 	mux.HandleFunc("/api/search", s.handleSearchAPI)
 	mux.HandleFunc("/api/article", s.handleArticleAPI)
 	mux.HandleFunc("/api/accounts", s.handleAccountsAPI)
+	mux.HandleFunc("/api/account/detail", s.handleAccountDetailAPI)
+	mux.HandleFunc("/api/media/stats", s.handleMediaStatsAPI)
+	mux.HandleFunc("/api/media/bookmark", s.handleMediaBookmarkAPI)
+	mux.HandleFunc("/api/media/update", s.handleMediaUpdateAPI)
+	mux.HandleFunc("/api/media/purge-status", s.handleMediaPurgeByStatusAPI)
+	mux.HandleFunc("/api/media/purge", s.handleMediaPurgeAPI)
+	mux.HandleFunc("/api/media/requeue", s.handleMediaRequeueAPI)
+	mux.HandleFunc("/api/media/open", s.handleMediaOpenActionAPI)
+	mux.HandleFunc("/api/media", s.handleMediaAPI)
 	mux.HandleFunc("/api/broadcast/status", s.handleStatusAPI)
 	mux.HandleFunc("/", s.handleRoot)
 
 	server := &http.Server{
-		Handler:     s.securityMiddleware(s.corsMiddleware(mux)),
+		Handler:     s.corsMiddleware(s.securityMiddleware(mux)),
 		ReadTimeout: 30 * time.Second, WriteTimeout: 60 * time.Second,
 	}
 	s.server, s.listener, s.running = server, listener, true

@@ -26,6 +26,13 @@ export function useAdminDatabaseArticles() {
         const res = await app.SearchArticles(searchQuery.value.trim(), searchAccount.value, searchFilter.value, limit.value, offset);
         searchResults.value = res?.items || res?.Items || [];
         totalCount.value = res?.total || res?.Total || 0;
+      } else {
+        const offset = Math.max(0, (page.value - 1) * limit.value);
+        const url = `/api/search?q=${encodeURIComponent(searchQuery.value.trim())}&account_id=${encodeURIComponent(searchAccount.value)}&filter=${encodeURIComponent(searchFilter.value)}&limit=${limit.value}&offset=${offset}`;
+        const res = await fetch(url);
+        const data = await res.json();
+        searchResults.value = data?.items || (Array.isArray(data) ? data : []);
+        totalCount.value = data?.total ?? searchResults.value.length;
       }
     } catch (e: any) {
       errorMessage.value = `投稿の検索に失敗: ${e?.message || e}`;

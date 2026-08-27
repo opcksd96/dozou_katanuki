@@ -35,9 +35,9 @@ onBeforeUnmount(cleanupHls);
 <template>
   <div @click.stop class="relative w-full h-full flex items-center justify-center bg-black rounded overflow-hidden select-none group/inline-player">
     <video v-show="!isError" ref="videoRef" :poster="poster" controls playsinline preload="metadata" class="w-full h-full max-h-[580px] object-contain rounded" @error="isError = true">動画の再生に対応していません。</video>
-    <div class="absolute top-2.5 right-2.5 z-20 opacity-0 group-hover/inline-player:opacity-100 transition-opacity flex items-center gap-1.5 pointer-events-auto">
-      <button v-if="!isError" @click.stop="emit('expand')" class="bg-black/80 hover:bg-blue-600 text-white text-[11px] font-mono px-2.5 py-1 rounded-lg border border-white/20 flex items-center gap-1"><span>全画面詳細</span></button>
-      <a v-if="stashUrl && !isError" :href="stashUrl" target="_blank" rel="noopener noreferrer" @click.stop class="bg-black/80 hover:bg-purple-600 text-white text-[11px] font-mono px-2.5 py-1 rounded-lg border border-white/20 flex items-center gap-1"><span>📦 Stash ↗</span></a>
+    <div class="absolute top-2.5 right-2.5 z-20 opacity-90 hover:opacity-100 transition-opacity flex items-center gap-1.5 pointer-events-auto">
+      <button v-if="!isError" @click.stop="emit('expand')" class="bg-black/80 hover:bg-blue-600 text-white text-[11px] font-mono px-2.5 py-1 rounded-lg border border-white/20 flex items-center gap-1 shadow cursor-pointer active:scale-95"><span>全画面詳細</span></button>
+      <a v-if="stashUrl && !isError" :href="stashUrl" target="_blank" rel="noopener noreferrer" @click.stop class="bg-black/80 hover:bg-purple-600 text-white text-[11px] font-mono px-2.5 py-1 rounded-lg border border-white/20 flex items-center gap-1 shadow cursor-pointer active:scale-95"><span>📦 Stash ↗</span></a>
     </div>
     <div v-if="isError" class="flex flex-col items-center justify-center p-6 text-slate-400 gap-2">
       <span class="text-2xl">⚠️</span>

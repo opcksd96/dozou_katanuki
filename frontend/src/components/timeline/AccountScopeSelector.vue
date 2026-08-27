@@ -1,4 +1,4 @@
-<!-- frontend/src/components/timeline/AccountScopeSelector.vue (100行以下) -->
+<!-- frontend/src/components/timeline/AccountScopeSelector.vue (100行以下 - SPEC-PRINCIPLE-001) -->
 <script setup lang="ts">
 import { computed } from 'vue';
 import type { RenderAuthor } from '../../models/RenderTree';
@@ -16,9 +16,7 @@ const groupedAccounts = computed(() => {
     if (acc.group_name) {
       if (!groups.has(acc.group_name)) groups.set(acc.group_name, []);
       groups.get(acc.group_name)!.push(acc);
-    } else {
-      ungrouped.push(acc);
-    }
+    } else { ungrouped.push(acc); }
   }
   const result: AccountGroup[] = [];
   for (const [name, accs] of groups) result.push({ name, accounts: accs });
@@ -32,17 +30,17 @@ const hasGroups = computed(() => definedGroups.value.length > 0);
 const isGroupSelected = (g: string) => props.selectedId === `group:${g}`;
 
 const pillClass = (active: boolean, isGroup = false) => [
-  'flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all border cursor-pointer shrink-0 shadow-sm',
+  'flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all border cursor-pointer shrink-0 shadow-sm active:scale-95 touch-manipulation',
   active
     ? (isGroup ? 'bg-amber-600 border-amber-500 text-white shadow-amber-500/20 font-bold' : 'bg-blue-600 border-blue-500 text-white shadow-blue-500/20 font-bold')
-    : (isGroup ? 'bg-slate-950 border-amber-900/40 text-amber-300/80 hover:text-amber-200 hover:border-amber-700/60 hover:bg-amber-950/30' : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-slate-200 hover:border-slate-700')
+    : (isGroup ? 'bg-slate-950 border-amber-900/40 text-amber-300/80 hover:text-amber-200' : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-slate-200')
 ];
 </script>
 
 <template>
-  <div class="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-4 mb-4 space-y-3.5 shadow-xl backdrop-blur-sm">
+  <div class="bg-slate-900/60 border-y sm:border sm:rounded-2xl border-slate-800/80 p-3 sm:p-4 mb-2 sm:mb-4 space-y-3 shadow-xl backdrop-blur-sm">
     <div class="flex items-center justify-between text-[11px] font-mono text-slate-400 border-b border-slate-800/60 pb-2">
-      <span class="flex items-center gap-1.5 font-semibold text-slate-200"><span>📁</span> アーカイブ対象スコープ (Scope):</span>
+      <span class="flex items-center gap-1.5 font-semibold text-slate-200"><span>📁</span> スコープ (Scope):</span>
       <div class="flex items-center gap-2 text-[10px]">
         <span v-if="hasGroups" class="text-amber-400 font-semibold">{{ definedGroups.length }} Groups</span>
         <span class="text-slate-600">•</span>
@@ -52,8 +50,7 @@ const pillClass = (active: boolean, isGroup = false) => [
 
     <!-- 最上段：全アカウント ＆ グループ一括選択ピルボタン一覧 -->
     <div class="space-y-1.5">
-      <div class="text-[10px] font-mono text-slate-400 flex items-center gap-1"><span>⚡ 一括スコープ切り替え:</span></div>
-      <div class="flex flex-wrap items-center gap-2">
+      <div class="flex flex-wrap items-center gap-1.5 sm:gap-2">
         <button @click="emit('select', 'all')" :class="pillClass(selectedId === 'all')">
           <span>🌐 全てのアカウント</span>
           <span class="text-[10px] opacity-75 font-mono">({{ accounts.length }})</span>
@@ -74,7 +71,7 @@ const pillClass = (active: boolean, isGroup = false) => [
 
     <!-- グループ別アカウント個別ピル一覧 -->
     <template v-if="hasGroups">
-      <div class="border-t border-slate-800/60 pt-2.5 space-y-3">
+      <div class="border-t border-slate-800/60 pt-2 space-y-2.5">
         <AccountGroupSection
           v-for="group in groupedAccounts"
           :key="group.name || '__ungrouped__'"
@@ -88,3 +85,4 @@ const pillClass = (active: boolean, isGroup = false) => [
     </template>
   </div>
 </template>
+

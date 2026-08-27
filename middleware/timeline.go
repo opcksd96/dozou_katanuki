@@ -24,7 +24,7 @@ func (s *TimelineService) GetAccounts(platform string) ([]models.RenderAuthor, e
 	for _, acc := range accounts {
 		avatarURL := ResolveAccountAvatar(platform, time.Now(), acc)
 		authors = append(authors, models.RenderAuthor{
-			NumericID: acc.NumericID, Handle: acc.Username,
+			NumericID: acc.NumericID, Handle: acc.Username, Username: acc.Username,
 			DisplayName: acc.DisplayName, AvatarURL: avatarURL, Bio: acc.Description,
 			GroupName: acc.GroupName, AliasOf: acc.AliasOf,
 		})

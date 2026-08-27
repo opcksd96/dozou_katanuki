@@ -1,4 +1,4 @@
-<!-- frontend/src/components/admin/database/MediaPreviewModal.vue (100行以下) -->
+<!-- frontend/src/components/admin/database/MediaPreviewModal.vue (100行以下 - SPEC-PRINCIPLE-001) -->
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted } from 'vue';
 import StashPlayer from '../../media/StashPlayer.vue';
@@ -13,6 +13,8 @@ const emit = defineEmits<{
   (e: 'viewPost', articleId: string): void;
   (e: 'viewPostTimeline', articleId: string): void;
   (e: 'fullscreenChange', active: boolean): void;
+  (e: 'openExplorer', mediaId: string): void;
+  (e: 'openDefault', mediaId: string): void;
 }>();
 
 const isVideo = computed(() => {
@@ -34,9 +36,7 @@ onUnmounted(() => window.removeEventListener('keydown', handleKeyDown));
 
 <template>
   <div class="fixed inset-0 z-[60] flex items-center justify-center bg-black/85 backdrop-blur-md p-3 md:p-5 select-none" @click.self="emit('close')">
-    <!-- モーダルコンテナ (大画面・2ペイン分割) -->
     <div class="bg-slate-950/95 border border-slate-700/80 rounded-2xl w-full max-w-[96vw] h-[92vh] flex flex-col overflow-hidden shadow-2xl">
-      <!-- ヘッダー -->
       <div class="px-4 py-2.5 border-b border-slate-800 flex items-center justify-between bg-slate-900/80 shrink-0">
         <div class="flex items-center gap-2 font-mono text-xs text-slate-200 min-w-0">
           <span class="px-2 py-0.5 rounded bg-blue-950 text-blue-300 font-bold border border-blue-800 shrink-0">{{ media.type?.toUpperCase() || 'MEDIA' }}</span>
@@ -47,9 +47,7 @@ onUnmounted(() => window.removeEventListener('keydown', handleKeyDown));
         <button @click="emit('close')" title="閉じる (Esc)" class="w-7 h-7 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center text-sm font-mono transition-colors cursor-pointer">✕</button>
       </div>
 
-      <!-- メインコンテンツ (左: 大画面メディアビューア, 右: 詳細インスペクタ＆エディタ) -->
       <div class="flex-1 flex flex-col md:flex-row min-h-0 overflow-hidden">
-        <!-- 左ペイン: メディア本体 (アスペクト比維持 & 最大化表示) -->
         <div class="flex-1 h-full bg-black/90 flex items-center justify-center p-3 relative overflow-hidden" @click.self="emit('close')">
           <div v-if="isVideo && media.urls?.stream" class="w-full h-full flex items-center justify-center">
             <StashPlayer :src="media.urls.stream" :poster="media.urls.thumbnail" :stashSceneId="media.stash_scene_id" :autoplay="true" :show-expand-button="false" class="max-w-full max-h-full" @fullscreen-change="handleFullscreenChange" />
@@ -58,8 +56,7 @@ onUnmounted(() => window.removeEventListener('keydown', handleKeyDown));
           <div v-else class="text-slate-500 font-mono text-xs">メディア実体を表示できません</div>
         </div>
 
-        <!-- 右ペイン: 詳細インスペクタ ＆ メタデータエディタ -->
-        <MediaInspectorPanel :media="media" @save-metadata="(p) => emit('saveMetadata', p)" @retry="emit('retry', $event)" @purge="emit('purge', $event)" @view-post="emit('viewPost', $event)" @view-post-timeline="emit('viewPostTimeline', $event)" />
+        <MediaInspectorPanel :media="media" @save-metadata="(p) => emit('saveMetadata', p)" @retry="emit('retry', $event)" @purge="emit('purge', $event)" @view-post="emit('viewPost', $event)" @view-post-timeline="emit('viewPostTimeline', $event)" @open-explorer="emit('openExplorer', $event)" @open-default="emit('openDefault', $event)" />
       </div>
     </div>
   </div>

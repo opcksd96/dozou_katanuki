@@ -6,6 +6,7 @@ import type { LanguageCode, FilterType } from '../../composables/useTimeline';
 import { useTimelineThread } from '../../composables/useTimelineThread';
 import TimelineFilter from './TimelineFilter.vue';
 import ArticleCard from '../article/ArticleCard.vue';
+import ScrollTopBottomButtons from './ScrollTopBottomButtons.vue';
 
 const props = defineProps<{
   articles: RenderTree[];
@@ -91,6 +92,8 @@ onUnmounted(() => observer?.disconnect());
       <span v-if="loading && articles.length > 0">⏳ Loading...</span>
       <span v-else-if="!hasMore && articles.length > 0">— End of Timeline —</span>
     </div>
+
+    <ScrollTopBottomButtons />
   </div>
 </template>
 

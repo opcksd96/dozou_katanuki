@@ -50,11 +50,11 @@ onBeforeUnmount(() => { if (unoffStashReady) try { unoffStashReady(); } catch {}
 <template>
   <div @click.stop class="relative w-full h-full flex items-center justify-center bg-black rounded overflow-hidden select-none group/player">
     <video v-show="!isError" ref="videoRef" :src="src" :poster="poster" playsinline preload="metadata" class="max-w-full max-h-full object-contain rounded" @error="handleError">動画の再生に対応していません。</video>
-    <div class="absolute top-2.5 right-2.5 z-30 opacity-0 group-hover/player:opacity-100 transition-opacity flex items-center gap-1.5">
-      <button v-if="showExpandButton && !isError" @click.stop="emit('expand')" class="bg-black/75 hover:bg-blue-600 text-white text-[11px] font-mono px-2.5 py-1 rounded-lg border border-white/20 flex items-center gap-1 cursor-pointer">
+    <div class="absolute top-2.5 right-2.5 z-30 opacity-90 hover:opacity-100 transition-opacity flex items-center gap-1.5 pointer-events-auto">
+      <button v-if="showExpandButton && !isError" @click.stop="emit('expand')" class="bg-black/75 hover:bg-blue-600 text-white text-[11px] font-mono px-2.5 py-1 rounded-lg border border-white/20 flex items-center gap-1 shadow cursor-pointer active:scale-95">
         <span>全画面詳細</span>
       </button>
-      <a v-if="stashUrl && !isError" :href="stashUrl" target="_blank" rel="noopener noreferrer" @click.stop class="bg-black/75 hover:bg-purple-600 text-white text-[11px] font-mono px-2.5 py-1 rounded-lg border border-white/20 flex items-center gap-1">
+      <a v-if="stashUrl && !isError" :href="stashUrl" target="_blank" rel="noopener noreferrer" @click.stop class="bg-black/75 hover:bg-purple-600 text-white text-[11px] font-mono px-2.5 py-1 rounded-lg border border-white/20 flex items-center gap-1 shadow cursor-pointer active:scale-95">
         <span>📦 Stash ↗</span>
       </a>
     </div>

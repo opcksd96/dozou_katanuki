@@ -71,11 +71,15 @@ onMounted(() => { emit('fetch'); });
       :accounts="accounts" :stats="stats"
       @update:account-filter="emit('update:accountFilter', $event)"
       @update:status-filter="emit('update:statusFilter', $event)"
+      @update:type-filter="emit('update:typeFilter', $event)"
+      @update:accountFilter="emit('update:accountFilter', $event)"
+      @update:statusFilter="emit('update:statusFilter', $event)"
+      @update:typeFilter="emit('update:typeFilter', $event)"
       @open-stash="openStash" @start-smart-recovery="emit('startSmartRecovery')" @start-thunder="emit('startThunder')"
       @reconcile-stash="emit('reconcileStash')"
     />
     <MediaQueueStatus :stats="queueStats" :active-job="activeJob" :status-filter="statusFilter" @update:status-filter="emit('update:statusFilter', $event)" />
-    <MediaGrid :media-items="mediaItems" :loading="loading" :search-query="searchQuery" :only-bookmarked="onlyBookmarked" @retry-media="emit('retryMedia', $event)" @purge-media="emit('purgeMedia', $event)" @toggle-bookmark="emit('toggleBookmark', $event)" @view-post="emit('viewPost', $event)" @view-post-timeline="emit('viewPostTimeline', $event)" />
+    <MediaGrid :media-items="mediaItems" :loading="loading" :search-query="searchQuery" :only-bookmarked="onlyBookmarked" @retry-media="emit('retryMedia', $event)" @purge-media="emit('purgeMedia', $event)" @toggle-bookmark="emit('toggleBookmark', $event)" @open-explorer="emit('openExplorer', $event)" @open-default="emit('openDefault', $event)" @save-metadata="emit('saveMetadata', $event)" @view-post="emit('viewPost', $event)" @view-post-timeline="emit('viewPostTimeline', $event)" />
     <MediaPaginationBar :page="page" :limit="limit" :total="total" @update:page="emit('update:page', $event)" @update:limit="emit('update:limit', $event)" />
   </div>
 </template>

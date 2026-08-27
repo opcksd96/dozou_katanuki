@@ -1,4 +1,4 @@
-// frontend/src/utils/wailsPolyfill.ts (100行以下)
+// frontend/src/utils/wailsPolyfill.ts (100行以下 - SPEC-PRINCIPLE-001)
 export function initWailsPolyfill() {
   if (typeof window === 'undefined') return;
   if (!window.runtime) {
@@ -11,6 +11,7 @@ export function initWailsPolyfill() {
   }
 
   if (!window.go || !window.go.app) {
+    const postJson = async (url: string, data: any) => (await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) })).json();
     const mockApp = {
       GetSystemLanguage: async () => 'ja',
       GetAccounts: async (p: string) => { try { return await (await fetch(`/api/accounts?platform=${encodeURIComponent(p || 'twitter')}`)).json(); } catch { return []; } },
@@ -21,17 +22,19 @@ export function initWailsPolyfill() {
         try { return await (await fetch(`/api/search?q=${encodeURIComponent(q || '')}&account_id=${encodeURIComponent(acc || 'all')}&filter=${encodeURIComponent(f || 'all')}&limit=${l || 50}&offset=${o || 0}`)).json(); } catch { return { items: [], total: 0 }; }
       },
       GetArticleDetail: async (p: string, id: string) => { try { return await (await fetch(`/api/article?platform=${encodeURIComponent(p || 'twitter')}&id=${encodeURIComponent(id)}`)).json(); } catch { return null; } },
-      GetBroadcastStatus: async () => { try { return await (await fetch('/api/broadcast/status')).json(); } catch { return { enabled: true, use_tls: true, port: 5175, active_clients: 0, networks: [] }; } },
-      GetConfig: async () => ({
-        system: { language: 'ja', default_framework: 'twitter', env: 'production' },
-        storage: { db_path: './archive.db', local_media_dir: 'G:/Media_Storage/Influencers', stash_dir: './stash', dumps_dir: './dumps', stash_enabled: true },
-        network: { stash_port: 9999, frontend_port: 5173, internal_bind_address: '127.0.0.1', middleware_port: 5175, public_bind_address: '0.0.0.0' },
-        scheduler: { poll_interval_sec: 300, backup_interval_hours: 24, max_backup_generations: 7 },
-        broadcast: { enabled: true, allowed_networks: ['192.168.10.0/24', '192.168.3.0/24', '127.0.0.1/32'] },
-        appearance: { font_family_ja: 'Hiragino Sans, Meiryo, sans-serif', font_family_en: 'Nunito, sans-serif', font_family_zh: 'Microsoft YaHei, SimHei, sans-serif' },
-      }),
-      GetMediaList: async () => ({ items: [], total: 0, stats: { total_count: 0, image_count: 0, video_count: 0 } }),
-      GetMediaDownloadStatusStats: async () => ({ queued: 0, completed: 1103, dead_404: 0, outsourced: 933, retained: 818, failed: 0, total: 2854 }),
+      GetBroadcastStatus: async () => { try { return await (await fetch('/api/broadcast/status')).json(); } catch { return { enabled: true, use_tls: false, port: 5175, active_clients: 0, networks: [] }; } },
+      GetConfig: async () => { try { const r = await fetch('/api/config'); if (r.ok) return await r.json(); } catch {} return { system: { language: 'ja', default_framework: 'twitter', env: 'production' } }; },
+      GetMediaList: async (acc = 'all', st = 'all', t = 'all', l = 24, o = 0) => {
+        try { return await (await fetch(`/api/media?account_id=${encodeURIComponent(acc)}&status=${encodeURIComponent(st)}&type=${encodeURIComponent(t)}&limit=${l}&offset=${o}`)).json(); } catch { return { items: [], total: 0, stats: { total_count: 0, image_count: 0, video_count: 0 } }; }
+      },
+      GetMediaDownloadStatusStats: async (acc = 'all') => {
+        try { return await (await fetch(`/api/media/stats?account_id=${encodeURIComponent(acc)}`)).json(); } catch { return { queued: 0, completed: 0, dead_404: 0, outsourced: 0, retained: 0, failed: 0, total: 0 }; }
+      },
+      ToggleMediaBookmark: async (id: string) => { try { const d = await postJson('/api/media/bookmark', { media_id: id }); return !!d?.is_bookmarked; } catch { return false; } },
+      UpdateMediaMetadata: async (id: string, st: string, sId: string, iId: string, r: string) => { try { await postJson('/api/media/update', { media_id: id, download_status: st, stash_scene_id: sId, stash_image_id: iId, failed_reason: r }); return true; } catch { return false; } },
+      PurgeMedia: async (id: string) => { try { await postJson('/api/media/purge', { media_id: id }); return true; } catch { return false; } },
+      PurgeMediaByStatus: async (st: string, acc = 'all') => { try { const d = await postJson('/api/media/purge-status', { status: st, account_id: acc }); return d?.purged_count || 0; } catch { return 0; } },
+      RequeueMediaByStatus: async (st: string, acc = 'all') => { try { const d = await postJson('/api/media/requeue', { status: st, account_id: acc }); return d?.requeued_count || 0; } catch { return 0; } },
       StartMediaEscalateJob: async () => ({ id: 'esc_job', status: 'RUNNING', percentage: 0 }),
       StartSmartRecoveryJob: async () => ({ id: 'smart_job', status: 'RUNNING', percentage: 0 }),
       StartThunderEscalateJob: async () => ({ id: 'thun_job', status: 'RUNNING', percentage: 0 }),
@@ -47,6 +50,7 @@ export function initWailsPolyfill() {
       SaveAvatarImage: async (p: string, k: string) => `/avatars/${p || 'twitter'}/${k}.jpg`,
       ListAvailableAvatars: async (p: string) => [`/avatars/${p || 'twitter'}/msluo14_avatar_001.jpg`, `/avatars/${p || 'twitter'}/default_avatar.jpg`],
     };
+    (window as any)._isWailsPolyfill = true;
     (window as any).go = { app: { App: mockApp }, main: { App: mockApp } };
   }
 }

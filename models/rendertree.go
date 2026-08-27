@@ -11,6 +11,7 @@ type RenderContent struct {
 type RenderAuthor struct {
 	NumericID   string `json:"numeric_id"`
 	Handle      string `json:"handle"`
+	Username    string `json:"username,omitempty"`
 	DisplayName string `json:"display_name"`
 	AvatarURL   string `json:"avatar_url"`
 	Bio         string `json:"bio,omitempty"`

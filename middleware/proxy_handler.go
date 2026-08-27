@@ -41,13 +41,14 @@ func (h *UnifiedHandler) SetJobOrchestrator(orch *JobOrchestrator) { h.jobOrch =
 func (h *UnifiedHandler) SetMediaDir(dir string)                  { h.mediaDir = dir }
 
 func (h *UnifiedHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	path := r.URL.Path
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS, HEAD")
+	w.Header().Set("Access-Control-Allow-Headers", "Origin, Content-Type, Accept, Authorization, Range, X-Requested-With")
+	w.Header().Set("Access-Control-Expose-Headers", "Content-Length, Content-Range, Accept-Ranges")
 	if r.Method == http.MethodOptions {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
 		w.WriteHeader(http.StatusOK); return
 	}
+	path := r.URL.Path
 	if strings.HasPrefix(path, "/api/jobs/") { h.serveJobAPI(w, r); return }
 	if strings.HasPrefix(path, "/avatars/") || strings.HasPrefix(path, "/assets/") {
 		h.serveAvatarOrAsset(w, r, path); return

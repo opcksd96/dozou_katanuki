@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { RenderAuthor } from '../../models/RenderTree';
+import Avatar from '../article/Avatar.vue';
 
 defineProps<{
   accounts: RenderAuthor[];
@@ -36,14 +37,8 @@ const emit = defineEmits<{
           : 'bg-slate-900/90 border-slate-800 text-slate-300 hover:text-white hover:bg-slate-800 hover:border-slate-700'
       ]"
     >
-      <img
-        v-if="acc.avatar_url"
-        :src="acc.avatar_url"
-        :alt="acc.handle"
-        class="w-4 h-4 rounded-full object-cover bg-slate-800"
-        @error="($event.target as HTMLElement).style.display = 'none'"
-      />
-      <span>@{{ acc.handle }}</span>
+      <Avatar :avatar-url="acc.avatar_url" :handle="acc.handle || acc.username" :author="acc" size-class="w-4 h-4" />
+      <span>@{{ acc.handle || acc.username || acc.display_name }}</span>
     </button>
   </div>
 </template>

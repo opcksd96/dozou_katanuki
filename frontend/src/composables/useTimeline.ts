@@ -1,4 +1,4 @@
-// frontend/src/composables/useTimeline.ts (100行以下)
+// frontend/src/composables/useTimeline.ts (100行以下 - SPEC-PRINCIPLE-001)
 import { ref, onMounted, onUnmounted } from 'vue';
 import { GetTimeline, GetAccounts, GetSystemLanguage, SearchArticles, RetryMediaDownload } from '../../wailsjs/go/app/App';
 import { EventsOn } from '../../wailsjs/runtime/runtime';
@@ -10,52 +10,39 @@ export type FilterType = 'all' | 'media' | 'reposts' | 'bookmarks';
 export function useTimeline(platform = 'twitter') {
   const articles = ref<RenderTree[]>([]), accounts = ref<RenderAuthor[]>([]);
   const selectedAccount = ref('all'), currentFilter = ref<FilterType>('all'), searchQuery = ref('');
-  const systemLang = ref<LanguageCode>('ja'), loading = ref(false), hasMore = ref(true);
-  const renderKey = ref(0), isStashReady = ref(false);
-
+  const systemLang = ref<LanguageCode>('ja'), loading = ref(false), hasMore = ref(true), renderKey = ref(0), isStashReady = ref(false);
   const isWails = () => typeof window !== 'undefined' && !!((window as any)?.go?.app?.App || (window as any)?.go?.main?.App);
 
   const fetchSystemLang = async () => {
-    try {
-      if (isWails()) {
-        const getApp = (window as any)?.go?.app?.App || (window as any)?.go?.main?.App;
-        if (getApp?.GetSystemLanguage) { const l = await getApp.GetSystemLanguage(); if (l) systemLang.value = l as LanguageCode; }
-      }
-    } catch {}
+    try { if (isWails()) { const l = await ((window as any)?.go?.app?.App || (window as any)?.go?.main?.App)?.GetSystemLanguage?.(); if (l) systemLang.value = l; } } catch {}
   };
 
   const fetchAccounts = async (retry = 2): Promise<void> => {
     try {
-      if (isWails()) {
-        const getApp = (window as any)?.go?.app?.App || (window as any)?.go?.main?.App;
-        if (getApp?.GetAccounts) { accounts.value = (await getApp.GetAccounts(platform)) || []; return; }
-      }
-      const res = await fetch(`/api/accounts?platform=${encodeURIComponent(platform)}`);
-      accounts.value = (await res.json()) || [];
+      if (isWails()) { const a = await ((window as any)?.go?.app?.App || (window as any)?.go?.main?.App)?.GetAccounts?.(platform); if (a) { accounts.value = a; return; } }
+      const raw = await (await fetch(`/api/accounts?platform=${encodeURIComponent(platform)}`)).json();
+      accounts.value = (raw || []).map((a: any) => ({
+        ...a, numeric_id: a.numeric_id || a.NumericID || '', handle: a.handle || a.username || a.Handle || '',
+        display_name: a.display_name || a.DisplayName || a.handle || a.username || '', avatar_url: a.avatar_url || a.AvatarURL || '',
+        bio: a.bio || a.description || a.Bio || '', group_name: a.group_name || a.GroupName || '', alias_of: a.alias_of || a.AliasOf || '',
+      }));
     } catch { if (retry > 0) { await new Promise((r) => setTimeout(r, 300)); return fetchAccounts(retry - 1); } }
   };
 
   const fetchTimeline = async (reset = false, retry = 2): Promise<void> => {
     if (!reset && (loading.value || !hasMore.value)) return;
-    loading.value = true;
-    const offset = reset ? 0 : articles.value.length;
+    loading.value = true; const offset = reset ? 0 : articles.value.length;
     try {
       let items: RenderTree[] = [];
+      const getApp = (window as any)?.go?.app?.App || (window as any)?.go?.main?.App;
       if (isWails()) {
-        const getApp = (window as any)?.go?.app?.App || (window as any)?.go?.main?.App;
-        if (searchQuery.value.trim() && getApp?.SearchArticles) {
-          const res = await getApp.SearchArticles(searchQuery.value.trim(), selectedAccount.value, currentFilter.value, 50, offset);
-          items = res?.items || [];
-        } else if (getApp?.GetTimeline) {
-          items = (await getApp.GetTimeline(platform, selectedAccount.value, currentFilter.value, 50, offset)) || [];
-        }
+        if (searchQuery.value.trim() && getApp?.SearchArticles) items = (await getApp.SearchArticles(searchQuery.value.trim(), selectedAccount.value, currentFilter.value, 50, offset))?.items || [];
+        else if (getApp?.GetTimeline) items = (await getApp.GetTimeline(platform, selectedAccount.value, currentFilter.value, 50, offset)) || [];
       } else {
         const url = searchQuery.value.trim()
           ? `/api/search?q=${encodeURIComponent(searchQuery.value.trim())}&account_id=${encodeURIComponent(selectedAccount.value)}&filter=${encodeURIComponent(currentFilter.value)}&limit=50&offset=${offset}`
           : `/api/timeline?platform=${encodeURIComponent(platform)}&account_id=${encodeURIComponent(selectedAccount.value)}&filter=${encodeURIComponent(currentFilter.value)}&limit=50&offset=${offset}`;
-        const res = await fetch(url);
-        const data = await res.json();
-        items = Array.isArray(data) ? data : data?.items || [];
+        const data = await (await fetch(url)).json(); items = Array.isArray(data) ? data : data?.items || [];
       }
       if (reset) articles.value = items; else articles.value.push(...items);
       hasMore.value = items.length === 50;
@@ -66,24 +53,18 @@ export function useTimeline(platform = 'twitter') {
   const reloadAll = async () => { loading.value = false; hasMore.value = true; renderKey.value++; await Promise.all([fetchAccounts(), fetchTimeline(true)]); };
   const checkInitialStashState = async () => {
     try {
-      if (isWails()) {
-        const getApp = (window as any)?.go?.app?.App || (window as any)?.go?.main?.App;
-        if (getApp?.IsStashReady && (await getApp.IsStashReady())) { isStashReady.value = true; return; }
-      }
-      const res = await fetch('/stash-proxy/', { method: 'HEAD' });
-      if (res.ok || res.status === 401 || res.status === 404) isStashReady.value = true;
+      if (isWails() && (await ((window as any)?.go?.app?.App || (window as any)?.go?.main?.App)?.IsStashReady?.())) { isStashReady.value = true; return; }
+      const res = await fetch('/stash-proxy/', { method: 'HEAD' }); if (res.ok || res.status === 401 || res.status === 404) isStashReady.value = true;
     } catch {}
   };
 
   const unoffs: (() => void)[] = [];
   onMounted(async () => {
     fetchSystemLang(); await checkInitialStashState();
-    try {
-      if ((window as any)?.runtime?.EventsOnMultiple) {
-        unoffs.push(EventsOn('app:ready', () => { fetchSystemLang(); reloadAll(); }));
-        unoffs.push(EventsOn('stash:ready', (ready: boolean) => { isStashReady.value = !!ready; if (ready) { renderKey.value++; reloadAll(); } }));
-      }
-    } catch {}
+    try { if ((window as any)?.runtime?.EventsOnMultiple) {
+      unoffs.push(EventsOn('app:ready', () => { fetchSystemLang(); reloadAll(); }));
+      unoffs.push(EventsOn('stash:ready', (ready: boolean) => { isStashReady.value = !!ready; if (ready) { renderKey.value++; reloadAll(); } }));
+    }} catch {}
     reloadAll();
   });
   onUnmounted(() => { unoffs.forEach((fn) => { try { fn(); } catch {} }); });
@@ -102,3 +83,4 @@ export function useTimeline(platform = 'twitter') {
     },
   };
 }
+

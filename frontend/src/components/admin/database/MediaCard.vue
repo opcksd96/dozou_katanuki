@@ -12,6 +12,7 @@ const emit = defineEmits<{
 }>();
 
 const isHovered = ref(false), imgFailed = ref(false);
+const isWails = computed(() => typeof window !== 'undefined' && !!((window as any)?.go?.app?.App || (window as any)?.go?.main?.App) && !(window as any)?._isWailsPolyfill);
 const isVideo = computed(() => { const t = props.media.type?.toLowerCase(); return t === 'video' || t === 'gif' || !!props.media.stash_scene_id; });
 const formattedTitle = computed(() => props.media.title || `X (@${props.media.username || 'unknown'}): Tweet ${props.media.article_id || props.media.media_id || props.media.id}`);
 const stashDirectUrl = computed(() => {
@@ -29,8 +30,7 @@ const openStash = () => {
 
 <template>
   <div class="bg-slate-900/95 rounded-xl p-3 flex flex-col space-y-2 group shadow-lg hover:shadow-2xl transition-all cursor-pointer border border-slate-800 hover:border-slate-600 select-none" @click="emit('click', media)" @mouseenter="isHovered = true" @mouseleave="isHovered = false">
-    <!-- プレビュー枠 -->
-    <div :class="[compact ? 'h-32' : 'h-48', 'bg-black/80 rounded-lg overflow-hidden flex items-center justify-center relative select-none']">
+    <div :class="[compact ? 'h-36' : 'h-52', 'bg-black/90 rounded-lg overflow-hidden flex items-center justify-center relative select-none w-full']">
       <video v-if="isVideo && media.urls?.preview && isHovered" :src="media.urls.preview" autoplay muted loop playsinline class="w-full h-full object-contain" />
       <img v-else-if="media.urls?.thumbnail && !imgFailed" :src="media.urls.thumbnail" :alt="media.media_id" class="w-full h-full object-contain group-hover:scale-105 transition-transform" loading="lazy" @error="imgFailed = true" />
       <div v-else class="text-slate-500 text-xs font-mono font-bold">{{ isVideo ? '🎬 VIDEO' : '🖼️ IMAGE' }}</div>
@@ -51,7 +51,6 @@ const openStash = () => {
       <span v-if="isVideo" class="absolute bottom-2 left-2 px-2 py-0.5 rounded bg-black/80 text-slate-200 text-[10px] font-mono font-bold">▶ VIDEO</span>
     </div>
 
-    <!-- メディア詳細 -->
     <div class="space-y-1 flex-1 min-w-0 font-sans text-xs">
       <div class="font-bold text-slate-100 truncate font-mono" :title="formattedTitle">{{ formattedTitle }}</div>
       <div v-if="!compact && (media.full_text || media.full_text_ja)" class="text-slate-200 line-clamp-2 leading-relaxed bg-slate-950 p-1.5 rounded border border-slate-800 select-text">{{ media.full_text_ja || media.full_text }}</div>
@@ -61,11 +60,10 @@ const openStash = () => {
       </div>
     </div>
 
-    <!-- アクションボタン -->
     <div class="pt-1.5 border-t border-slate-800 flex items-center justify-between text-xs" @click.stop>
       <div class="flex gap-1">
         <button v-if="media.article_id" @click.stop="emit('viewPostTimeline', media.article_id)" class="px-2 py-0.5 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded text-[11px] shadow-sm active:scale-95 cursor-pointer" title="タイムラインで該当ツイートを表示">📱 タイムライン</button>
-        <button @click.stop="emit('openExplorer', media.media_id || media.id)" class="p-1 bg-slate-800 hover:bg-slate-700 rounded active:scale-95 cursor-pointer" title="フォルダ">📂</button>
+        <button v-if="isWails" @click.stop="emit('openExplorer', media.media_id || media.id)" class="p-1 bg-slate-800 hover:bg-slate-700 rounded active:scale-95 cursor-pointer" title="フォルダ">📂</button>
         <button v-if="stashDirectUrl" @click.stop="openStash" class="p-1 bg-purple-950 hover:bg-purple-900 text-purple-300 rounded active:scale-95 cursor-pointer" title="Stash WebUI">🎛️</button>
       </div>
       <div class="flex gap-1">
