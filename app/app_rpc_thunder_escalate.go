@@ -1,3 +1,4 @@
+// app/app_rpc_thunder_escalate.go (100行以下 - SPEC-PRINCIPLE-001)
 package app
 
 import (
@@ -5,23 +6,36 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
+	"syscall"
 )
 
 const defaultThunderPath = `C:\Program Files (x86)\Thunder Network\Thunder\Program\Thunder.exe`
 
 // AddTaskViaThunderCOM は Windows COM (ThunderAgent) を呼び出して迅雷のキューへ直接投入します
-func AddTaskViaThunderCOM(downloadURL string, fileName string) bool {
+func AddTaskViaThunderCOM(downloadURL string, fileName string, destDir string) bool {
 	if downloadURL == "" {
 		return false
 	}
 	if fileName == "" {
 		fileName = filepath.Base(downloadURL)
 	}
+	if destDir != "" {
+		if abs, err := filepath.Abs(destDir); err == nil {
+			destDir = abs
+		}
+	}
+	cleanDest := strings.ReplaceAll(destDir, "'", "''")
+	// COM AddTask(URL, FileName, Path, Comments, ReferUrl, StartMode, OnlyFromOrigin, OriginThreadCount)
 	psCmd := fmt.Sprintf(
-		`$ids=@('ThunderAgent.Agent64.1','ThunderAgent.Agent64','ThunderAgent.Agent.1','ThunderAgent.Agent'); foreach($id in $ids){ try{ $a=New-Object -ComObject $id; if($a){ $a.AddTask('%s','%s','','','',1,0,5); $a.CommitTasks(); exit 0 } }catch{} }; exit 1`,
-		downloadURL, fileName,
+		`$ids=@('ThunderAgent.Agent64.1','ThunderAgent.Agent64','ThunderAgent.Agent.1','ThunderAgent.Agent'); foreach($id in $ids){ try{ $a=New-Object -ComObject $id; if($a){ $a.AddTask('%s','%s','%s','','',1,0,5); $a.CommitTasks(); exit 0 } }catch{} }; exit 1`,
+		downloadURL, fileName, cleanDest,
 	)
-	cmd := exec.Command("powershell.exe", "-NoProfile", "-NonInteractive", "-Command", psCmd)
+	cmd := exec.Command("powershell.exe", "-NoProfile", "-NonInteractive", "-WindowStyle", "Hidden", "-Command", psCmd)
+	cmd.SysProcAttr = &syscall.SysProcAttr{
+		HideWindow:    true,
+		CreationFlags: 0x08000000, // CREATE_NO_WINDOW
+	}
 	return cmd.Run() == nil
 }
 
@@ -45,26 +59,27 @@ func (a *App) EscalateToThunder(mediaID string, downloadURL string) (bool, error
 		return false, fmt.Errorf("download url is required")
 	}
 
-	// 1. COM コンポーネント (ThunderAgent) によるネイティブ直接投入
-	started := AddTaskViaThunderCOM(downloadURL, mediaID)
+	destDir := a.getMediaDownloadDir()
+	started := AddTaskViaThunderCOM(downloadURL, mediaID, destDir)
 
-	// 2. COM が利用できない場合の thunder:// URL スキーム起動
 	if !started {
 		thURL := EncodeThunderURL(downloadURL)
 		cmdScheme := exec.Command("rundll32.exe", "url.dll,FileProtocolHandler", thURL)
+		cmdScheme.SysProcAttr = &syscall.SysProcAttr{HideWindow: true, CreationFlags: 0x08000000}
 		started = (cmdScheme.Start() == nil)
-		if !started {
-			if _, err := os.Stat(defaultThunderPath); err == nil {
-				cmdDirect := exec.Command(defaultThunderPath, thURL, "-StartType:thunder")
-				started = (cmdDirect.Start() == nil)
-			}
-		}
 	}
 
 	if started && mediaID != "" && a.Repo != nil {
 		_ = a.Repo.UpdateMediaMetadata(mediaID, "ESCALATED", "", "", "Thunder P2SP エスカレーション投入")
 	}
 	return started, nil
+}
+
+func (a *App) getMediaDownloadDir() string {
+	if cfg, err := a.GetConfig(); err == nil && cfg != nil && cfg.Storage.LocalMediaDir != "" {
+		return cfg.Storage.LocalMediaDir
+	}
+	return filepath.Join("blobs")
 }
 
 // GiveUpRetainedMedia はユーザーが明示的に諦めたタスクを DEAD_404 状態へ確定します

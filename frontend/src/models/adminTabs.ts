@@ -1,7 +1,7 @@
 // frontend/src/models/adminTabs.ts (100行以下 - SPEC-PRINCIPLE-001)
 
 export type AdminTabId = 
-  | 'plugins' | 'accounts' | 'posts' | 'media' | 'explorer' | 'downloaders' | 'audit' | 'console' | 'config';
+  | 'plugins' | 'accounts' | 'posts' | 'media' | 'explorer' | 'downloaders' | 'thunder' | 'audit' | 'console' | 'config';
 
 export interface AdminTabItem { id: AdminTabId; icon: string; label: string; }
 export interface AdminTabGroup { title: string; items: AdminTabItem[]; }
@@ -25,7 +25,8 @@ export const adminTabGroups: AdminTabGroup[] = [
   {
     title: 'システム運用・インフラ',
     items: [
-      { id: 'downloaders', icon: '🚀', label: 'ダウンローダー遠隔管理' },
+      { id: 'downloaders', icon: '🚀', label: 'Motrix (Aria2) キュー管理' },
+      { id: 'thunder', icon: '⚡', label: '迅雷 P2SP オーケストレーター' },
       { id: 'audit', icon: '🩺', label: 'データベース＆Stash監査' },
       { id: 'console', icon: '📜', label: 'システムコンソール' },
       { id: 'config', icon: '⚙️', label: 'システム環境設定' },

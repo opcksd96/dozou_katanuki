@@ -11,6 +11,7 @@ import PluginHubView from './PluginHubView.vue';
 import RelationExplorerView from './RelationExplorerView.vue';
 import ConfigPortal from './ConfigPortal.vue';
 import DownloaderConsoleView from './DownloaderConsoleView.vue';
+import ThunderOrchestratorView from './ThunderOrchestratorView.vue';
 import AuditReportView from './AuditReportView.vue';
 import SystemConsoleView from './SystemConsoleView.vue';
 import DatabaseView from './DatabaseView.vue';
@@ -83,6 +84,7 @@ onUnmounted(() => { window.removeEventListener('keydown', handleKey); if (unoffS
       <main class="flex-1 min-h-0 overflow-y-auto p-2 sm:p-3 bg-slate-950 flex flex-col">
         <PluginHubView v-if="activeTab === 'plugins'" :admin="admin" :salvage-form="salvageForm" :import-form="importForm" v-model:selected-platform="selectedPlatform" @start-salvage="admin.startSalvage(salvageForm.platform, salvageForm.account, salvageForm.limit, salvageForm.source)" @start-import="admin.startManualImport(importForm.warcPath, importForm.offline)" />
         <DownloaderConsoleView v-else-if="activeTab === 'downloaders'" class="overflow-y-auto flex-1" :admin="admin" />
+        <ThunderOrchestratorView v-else-if="activeTab === 'thunder'" class="overflow-y-auto flex-1" :admin="admin" />
         <AuditReportView v-else-if="activeTab === 'audit'" class="overflow-y-auto flex-1" :restoring="admin.isJobRunning?.value ?? admin.isJobRunning" @trigger-restore="(resetDB) => { admin.triggerRestore('', resetDB); activeTab = 'plugins'; }" />
         <SystemConsoleView v-else-if="activeTab === 'console'" class="flex-1 min-h-0" />
         <RelationExplorerView v-else-if="activeTab === 'explorer'" class="overflow-y-auto flex-1" />

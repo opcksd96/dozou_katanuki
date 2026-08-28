@@ -31,6 +31,7 @@ func InitDB(dbPath string) (*gorm.DB, error) {
 		&models.Account{}, &models.AccountProfileHistory{},
 		&models.Article{}, &models.Media{},
 		&models.UrlRedirect{}, &models.Whitelist{},
+		&models.DownloadReserve{},
 	)
 	if err != nil { return nil, err }
 

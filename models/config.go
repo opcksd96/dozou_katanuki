@@ -20,11 +20,12 @@ type NetworkConfig struct {
 
 // StorageConfig は各種データおよびメディア保存先設定を表します
 type StorageConfig struct {
-	DBPath        string `json:"db_path"`
-	StashEnabled  bool   `json:"stash_enabled"`
-	LocalMediaDir string `json:"local_media_dir"`
-	StashDir      string `json:"stash_dir"`
-	DumpsDir      string `json:"dumps_dir"`
+	DBPath             string `json:"db_path"`
+	StashEnabled       bool   `json:"stash_enabled"`
+	LocalMediaDir      string `json:"local_media_dir"`
+	ThunderDownloadDir string `json:"thunder_download_dir,omitempty"` // 迅雷テンポラリダウンロードフォルダ
+	StashDir           string `json:"stash_dir"`
+	DumpsDir           string `json:"dumps_dir"`
 }
 
 // SchedulerConfig はバックグラウンド監視およびバックアップ間隔設定を表します
