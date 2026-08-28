@@ -8,7 +8,7 @@ CREATE INDEX IF NOT EXISTS `idx_articles_account_created` ON `articles`(`account
 CREATE INDEX IF NOT EXISTS `idx_articles_conversation` ON `articles`(`conversation_id`, `created_at` ASC);
 CREATE INDEX IF NOT EXISTS `idx_articles_reply_to` ON `articles`(`reply_to_id`);
 CREATE INDEX IF NOT EXISTS `idx_articles_created_at` ON `articles`(`created_at` DESC);
-CREATE TABLE IF NOT EXISTS `media` (`media_id` text,`article_id` text NOT NULL,`type` text NOT NULL,`download_url` text NOT NULL,`width` integer NOT NULL,`height` integer NOT NULL,`download_status` text NOT NULL DEFAULT "QUEUED",`failed_reason` text,`stash_scene_id` text,`stash_image_id` text,PRIMARY KEY (`media_id`),CONSTRAINT `fk_articles_media` FOREIGN KEY (`article_id`) REFERENCES `articles`(`id`));
+CREATE TABLE IF NOT EXISTS `media` (`media_id` text,`article_id` text NOT NULL,`type` text NOT NULL,`download_url` text NOT NULL,`width` integer NOT NULL DEFAULT 0,`height` integer NOT NULL DEFAULT 0,`download_status` text NOT NULL DEFAULT "QUEUED",`failed_reason` text,`stash_scene_id` text,`stash_image_id` text,`thumbnail_url` text,`tweet_urls` text,`media_quality` text,`is_bookmarked` boolean NOT NULL DEFAULT false,PRIMARY KEY (`media_id`),CONSTRAINT `fk_articles_media` FOREIGN KEY (`article_id`) REFERENCES `articles`(`id`));
 CREATE INDEX IF NOT EXISTS `idx_media_article` ON `media`(`article_id`);
 CREATE UNIQUE INDEX IF NOT EXISTS `idx_media_stash_scene` ON `media`(`stash_scene_id`) WHERE `stash_scene_id` IS NOT NULL;
 CREATE UNIQUE INDEX IF NOT EXISTS `idx_media_stash_image` ON `media`(`stash_image_id`) WHERE `stash_image_id` IS NOT NULL;

@@ -18,8 +18,10 @@ const emit = defineEmits<{
 const isEditing = ref(false);
 const cols = [
   { key: 'is_whitelist', label: '🛡️ 巡回', width: '65px' },
-  { key: 'username', label: 'Handle', width: '110px' }, { key: 'display_name', label: 'Name', width: '110px' },
-  { key: 'numeric_id', label: 'ID', width: '90px' },
+  { key: 'username', label: 'Handle', width: '95px' },
+  { key: 'post_count', label: '投稿数', width: '65px' },
+  { key: 'display_name', label: 'Name', width: '95px' },
+  { key: 'actions', label: '動線', width: '80px' },
 ];
 
 onMounted(() => emit('refresh'));
@@ -59,6 +61,15 @@ const confirmMerge = (sourceId: string) => {
               {{ row.is_whitelist ? '🛡️ ON' : '⚪ OFF' }}
             </button>
           </template>
+          <template #cell-post_count="{ row }">
+            <span class="font-mono text-blue-400 font-bold text-[11px]">{{ row.post_count || 0 }}件</span>
+          </template>
+          <template #cell-actions="{ row }">
+            <div class="flex items-center gap-1" @click.stop>
+              <button @click="emit('viewPosts', row.numeric_id)" class="px-1.5 py-0.5 bg-blue-900/60 hover:bg-blue-700 text-blue-200 rounded text-[10px] font-bold cursor-pointer" title="このアカウントの投稿一覧">📝</button>
+              <button @click="emit('viewMedia', row.numeric_id)" class="px-1.5 py-0.5 bg-indigo-900/60 hover:bg-indigo-700 text-indigo-200 rounded text-[10px] font-bold cursor-pointer" title="このアカウントのメディア一覧">🖼️</button>
+            </div>
+          </template>
         </DatabaseSpreadsheet>
       </div>
     </div>
@@ -67,7 +78,7 @@ const confirmMerge = (sourceId: string) => {
     <div class="w-full md:w-1/2 flex flex-col min-h-0 overflow-y-auto p-3 sm:p-4 space-y-4 bg-slate-950">
       <div v-if="loading" class="text-center py-12 text-xs text-slate-500">アカウント詳細を読み込み中...</div>
       <template v-else-if="selectedDetail?.account">
-        <AccountDetailCard :account="selectedDetail.account" :post-count="selectedDetail.post_count || 0" :is-editing="isEditing" :available-avatars="availableAvatars" @start-edit="isEditing = true" @cancel-edit="isEditing = false" @save="handleSave" @toggle-whitelist="emit('toggleWhitelist', selectedDetail.account.numeric_id, !selectedDetail.account.is_whitelist)" @view-posts="emit('viewPosts', selectedDetail.account.numeric_id)" @view-media="emit('viewMedia', selectedDetail.account.numeric_id)" />
+        <AccountDetailCard :account="selectedDetail.account" :post-count="selectedDetail.post_count ?? selectedDetail.PostCount ?? selectedDetail.account?.post_count ?? 0" :is-editing="isEditing" :available-avatars="availableAvatars" @start-edit="isEditing = true" @cancel-edit="isEditing = false" @save="handleSave" @toggle-whitelist="emit('toggleWhitelist', selectedDetail.account.numeric_id, !selectedDetail.account.is_whitelist)" @view-posts="emit('viewPosts', selectedDetail.account.numeric_id)" @view-media="emit('viewMedia', selectedDetail.account.numeric_id)" />
         <div v-if="mergeCandidates.length" class="p-3 bg-amber-950/40 border border-amber-800/60 rounded-xl space-y-2 text-xs">
           <div class="font-bold text-amber-300">💡 名寄せ候補アカウント</div>
           <div class="space-y-1.5">
@@ -83,4 +94,3 @@ const confirmMerge = (sourceId: string) => {
     </div>
   </div>
 </template>
-

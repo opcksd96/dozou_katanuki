@@ -17,7 +17,7 @@ export function useAdminDatabase() {
   const clearError = () => { accounts.errorMessage.value = null; articles.errorMessage.value = null; media.errorMessage.value = null; };
 
   const showAccountPosts = (id: string, onNav?: (tab: 'posts') => void) => {
-    articles.searchAccount.value = id; articles.page.value = 1; activeSubTab.value = 'posts';
+    articles.searchAccount.value = id; articles.searchQuery.value = ''; activeSubTab.value = 'posts';
     articles.searchArticles(); if (onNav) onNav('posts');
   };
 

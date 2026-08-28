@@ -66,6 +66,7 @@ def run_auto_salvage(platform: str, account: str, limit: int, db_path: str, stor
             elif done % 5 == 0 or done == tot: emit_progress(done, tot, f"[PHASE-3:PROCESS] [{done}/{tot}] buffer={len(buffer)} status={log_info.get('status')}")
     s_ok = sum(1 for j in journal if j.get("status") == "OK")
     emit_progress(100, 100, f"[SALVAGE_SUMMARY] Completed. Target={tot} | Parsed={s_ok} | Errors={tot - s_ok} | DB_New={saved_new} | DB_Merged={saved_merged}")
+    Downloader(db_path=db_path, storage_dir=storage_dir).process_queued_media(log_fn=lambda c, t, m: emit_progress(c, t, f"[PHASE-DL] {m}"))
 
 
 def main():

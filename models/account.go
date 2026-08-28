@@ -15,6 +15,7 @@ type Account struct {
 	AliasOf      string    `gorm:"column:alias_of;type:text;default:''" json:"alias_of"`
 	IsWhitelist  bool      `gorm:"column:is_whitelist;default:true" json:"is_whitelist"`
 	UpdatedAt    time.Time `gorm:"column:updated_at;type:datetime;not null" json:"updated_at"`
+	PostCount    int64     `gorm:"->" json:"post_count"`
 
 	ProfileHistory []AccountProfileHistory `gorm:"foreignKey:AccountID;references:NumericID" json:"profile_history,omitempty"`
 	Articles       []Article               `gorm:"foreignKey:AccountID;references:NumericID" json:"articles,omitempty"`

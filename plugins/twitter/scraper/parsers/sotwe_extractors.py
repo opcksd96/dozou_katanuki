@@ -50,6 +50,11 @@ def extract_media_entities(raw: Dict[str, Any]) -> List[Dict[str, Any]]:
     for m in raw_media:
         m_type = m.get("type", "image")
         direct_vid = m.get("videoURL") or ""
+        v_list = (m.get("videoInfo") or {}).get("variants", [])
+        mp4_vars = [v for v in v_list if "mp4" in (v.get("type") or v.get("content_type", "") or v.get("url", ""))]
+        if mp4_vars:
+            best_mp4 = max(mp4_vars, key=lambda x: int(x.get("bitrate") or 0))
+            direct_vid = best_mp4.get("url") or direct_vid
         thumb = m.get("mediaURL") or m.get("media_url_https") or m.get("url") or ""
         target_u = direct_vid if direct_vid else thumb
         fn = get_filename_from_url(target_u)
@@ -58,7 +63,7 @@ def extract_media_entities(raw: Dict[str, Any]) -> List[Dict[str, Any]]:
             fn = f"{fn}.{ext}"
         ss_url = build_streamsaver_url(fn)
         variants = []
-        for v in (m.get("videoInfo") or {}).get("variants", []):
+        for v in v_list:
             v_url = v.get("url")
             if v_url:
                 v_fn = get_filename_from_url(v_url)

@@ -10,6 +10,22 @@ class DownloaderPipelineHelper:
         self.d = downloader
         self.thunder = ThunderClient()
 
+    def escalate_dead_media(self, log_fn: Optional[Callable[[int, int, str], None]] = None) -> int:
+        with self.d._get_conn() as conn:
+            records = conn.cursor().execute("SELECT m.media_id, m.download_url, m.type, a.wayback_url, ac.username FROM media m JOIN articles a ON m.article_id = a.id JOIN accounts ac ON a.account_id = ac.numeric_id WHERE m.download_status = 'DEAD_404'").fetchall()
+        total, outsourced, existing = len(records), 0, self.d.aria2.get_queued_filenames()
+        if log_fn: log_fn(0, max(total, 1), f"Found {total} dead_404 media. Motrix cached: {len(existing)} items.")
+        for idx, (m_id, url, m_type, _wb, user) in enumerate(records, start=1):
+            base_name = m_id.split(":")[0]
+            if base_name in existing or m_id in existing:
+                self.d._update_status(m_id, "OUTSOURCED", "Motrix既存キュー確認 (送信スキップ)"); continue
+            u, dest_dir = self.d.resolve_media_url(m_id, url, m_type), os.path.dirname(self.d.get_target_path(user or "unknown", m_id, m_type))
+            fallback_urls = [cand for cand, _ in self.d._build_fallback_urls(u)]
+            gid = self.d.aria2.add_uri(fallback_urls, dest_dir, base_name) if fallback_urls else None
+            self.d._update_status(m_id, "OUTSOURCED" if gid else "RETAINED", f"Motrix外注 (GID: {gid})" if gid else "Aria2 offline")
+            outsourced += (1 if gid else 0); (log_fn and log_fn(idx, total, f"{m_id} -> {'OUTSOURCED' if gid else 'RETAINED'}"))
+        return outsourced
+
     def clean_failed_outsourced(self, log_fn: Optional[Callable[[str], None]] = None) -> int:
         """Motrixでエラーまたはキューから消失したタスクを検知し、DBステータスを確実にRETAINEDへ移行"""
         if not hasattr(self.d, "aria2"): return 0
@@ -30,7 +46,6 @@ class DownloaderPipelineHelper:
         return len(to_retained)
 
     def escalate_to_thunder(self, log_fn: Optional[Callable[[int, int, str], None]] = None, max_batch: int = 50) -> int:
-        """RETAINED メディア原本の直リンク (jpg/mp4) を Thunder.exe へ投入 (HTMLではなくメディア本体)"""
         if not self.thunder.is_available():
             if log_fn: log_fn(0, 0, "Thunder.exe not found on system."); return 0
         with self.d._get_conn() as conn:
@@ -45,7 +60,6 @@ class DownloaderPipelineHelper:
         return sent
 
     def run_smart_recovery(self, log_fn: Optional[Callable[[int, int, str], None]] = None) -> dict:
-        """ワンクリック統合スマートリカバリー: Stage 1 (直接) -> Stage 2 (Motrix安全2並列) -> Stage 3 (Stash) -> Stage 4 (Clean & Retained)"""
         r1 = self.d.process_queued_media(log_fn=log_fn)
         r2 = self.d.escalate_dead_media(log_fn=log_fn)
         r3 = self.d.poll_outsourced_media()

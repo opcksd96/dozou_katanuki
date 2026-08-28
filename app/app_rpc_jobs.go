@@ -1,7 +1,10 @@
 // app/app_rpc_jobs.go (100行以下)
 package app
 
-import "dozou_katanuki/models"
+import (
+	"dozou_katanuki/middleware"
+	"dozou_katanuki/models"
+)
 
 func (a *App) StartSalvageJob(platform, account, source string, limit int) (*models.JobProgress, error) {
 	if err := a.WaitForReady(); err != nil { return nil, err }; if platform == "" { platform = "twitter" }
@@ -46,4 +49,16 @@ func (a *App) StartThunderEscalateJob(platform string) (*models.JobProgress, err
 func (a *App) CancelJob(jobID string) error {
 	if err := a.WaitForReady(); err != nil { return err }
 	return a.JobOrchestrator.CancelJob(jobID)
+}
+
+// GetLatestMissionReport は直近のミッション完了テキストレポート（5W1H）を取得します
+func (a *App) GetLatestMissionReport() (*models.MissionReport, error) {
+	if err := a.WaitForReady(); err != nil { return nil, err }
+	return middleware.GetLatestReport()
+}
+
+// GetSystemJournals はインフラ常駐処理のオンメモリ構造化JSONジャーナルを取得します
+func (a *App) GetSystemJournals(limit int) ([]models.SystemJournalEntry, error) {
+	if err := a.WaitForReady(); err != nil { return nil, err }
+	return middleware.GetGlobalJournal().GetEntries(limit), nil
 }

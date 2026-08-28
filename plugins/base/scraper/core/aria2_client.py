@@ -3,7 +3,6 @@ import json, os, shutil, subprocess, time, uuid
 from typing import Any, Dict, List, Optional, Set
 import requests
 
-
 class Aria2Client:
     """Motrix Next (:29100) / Motrix (:16800) / Aria2 (:6800) JSON-RPC 連携 (100行以下)"""
     PORTS = [29100, 16800, 6800]
@@ -53,10 +52,10 @@ class Aria2Client:
         if not self.is_alive(): return
         safe_opts = {
             "max-concurrent-downloads": str(max_concurrent), "max-connection-per-server": "1",
-            "split": "1", "min-split-size": "20M", "retry-wait": "5", "max-tries": "3", "timeout": "30",
+            "split": "1", "min-split-size": "20M", "retry-wait": "3", "max-tries": "3", "timeout": "30",
+            "uri-selector": "inorder",
         }
         self._call("aria2.changeGlobalOption", [safe_opts])
-
     def launch_and_wait(self, timeout_sec: float = 6.0) -> bool:
         if self.is_alive(): self.apply_safe_rate_limits(); return True
         self._detect_motrix_config()
@@ -71,12 +70,14 @@ class Aria2Client:
             if self.is_alive(): self.apply_safe_rate_limits(); return True
         return False
 
-    def add_uri(self, urls: List[str], download_dir: str, filename: str) -> Optional[str]:
+    def add_uri(self, urls: List[str], download_dir: str, filename: str, cookies: Optional[str] = None) -> Optional[str]:
         if not self.is_alive() and not self.launch_and_wait(): return None
+        hdrs = ["User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36", "Accept: */*", "Referer: https://www.sotwe.com/"]
+        if cookies: hdrs.append(f"Cookie: {cookies}")
         options = {
             "dir": download_dir.replace("\\", "/"), "out": filename, "allow-overwrite": "true", "auto-file-renaming": "false",
-            "check-certificate": "false", "max-connection-per-server": "1", "split": "1", "retry-wait": "5", "max-tries": "3",
-            "header": ["User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36", "Accept: */*"],
+            "check-certificate": "false", "max-connection-per-server": "1", "split": "1", "retry-wait": "3", "max-tries": "3",
+            "uri-selector": "inorder", "header": hdrs,
         }
         res = self._call("aria2.addUri", [urls, options]); return str(res) if res else None
 

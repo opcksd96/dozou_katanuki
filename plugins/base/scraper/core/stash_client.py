@@ -2,7 +2,6 @@
 import json, os, requests
 from typing import Any, Dict, List, Optional
 
-
 class StashClient:
     """Stashapp GraphQL API (:9999) 連携基本クライアント (SPEC-STASH-DB-001)"""
     def __init__(self, endpoint: str = "http://127.0.0.1:9999/graphql"):
@@ -23,8 +22,7 @@ class StashClient:
         if not name: return None
         if name in self._studio_cache: return self._studio_cache[name]
         r = self.query("query($q: String!) { findStudios(filter: { q: $q, per_page: 1 }) { studios { id name } } }", {"q": name})
-        studios = (r.get("findStudios") or {}).get("studios") or [] if r else []
-        for s in studios:
+        for s in ((r.get("findStudios") or {}).get("studios") or [] if r else []):
             if s.get("name", "").lower() == name.lower():
                 self._studio_cache[name] = str(s["id"]); return self._studio_cache[name]
         c_res = self.query("mutation($in: StudioCreateInput!) { studioCreate(input: $in) { id } }", {"in": {"name": name}})
@@ -36,8 +34,7 @@ class StashClient:
         if not name: return None
         if name in self._performer_cache: return self._performer_cache[name]
         r = self.query("query($q: String!) { findPerformers(filter: { q: $q, per_page: 1 }) { performers { id name } } }", {"q": name})
-        performers = (r.get("findPerformers") or {}).get("performers") or [] if r else []
-        for p in performers:
+        for p in ((r.get("findPerformers") or {}).get("performers") or [] if r else []):
             if p.get("name", "").lower() == name.lower():
                 self._performer_cache[name] = str(p["id"]); return self._performer_cache[name]
         inp: Dict[str, Any] = {"name": name}
@@ -74,25 +71,22 @@ class StashClient:
     def update_image(self, img_id: str, title: str, details: str = "", urls: Optional[List[str]] = None, date: str = "", studio_id: Optional[str] = None, performer_ids: Optional[List[str]] = None, custom_fields: Optional[Dict[str, Any]] = None) -> bool:
         inp: Dict[str, Any] = {"id": img_id, "title": title}
         if details: inp["details"] = details
-        if urls: inp["urls"] = urls; inp["url"] = urls[0]
+        if urls: inp["urls"], inp["url"] = urls, urls[0]
         if date: inp["date"] = date[:10]
         if studio_id: inp["studio_id"] = studio_id
         if performer_ids: inp["performer_ids"] = performer_ids
-        if custom_fields:
-            fmt_map = {k: json.dumps(v, ensure_ascii=False) if isinstance(v, (list, dict)) else str(v) for k, v in custom_fields.items()}
-            inp["custom_fields"] = {"partial": fmt_map}
+        if custom_fields: inp["custom_fields"] = {"partial": {k: json.dumps(v, ensure_ascii=False) if isinstance(v, (list, dict)) else str(v) for k, v in custom_fields.items()}}
         return bool(self.query("mutation($in: ImageUpdateInput!) { imageUpdate(input: $in) { id } }", {"in": inp}))
 
-    def update_scene(self, scn_id: str, title: str, details: str = "", urls: Optional[List[str]] = None, date: str = "", studio_id: Optional[str] = None, performer_ids: Optional[List[str]] = None, custom_fields: Optional[Dict[str, Any]] = None) -> bool:
+    def update_scene(self, scn_id: str, title: str, details: str = "", urls: Optional[List[str]] = None, date: str = "", studio_id: Optional[str] = None, performer_ids: Optional[List[str]] = None, cover_image: Optional[str] = None, custom_fields: Optional[Dict[str, Any]] = None) -> bool:
         inp: Dict[str, Any] = {"id": scn_id, "title": title}
         if details: inp["details"] = details
-        if urls: inp["urls"] = urls; inp["url"] = urls[0]
+        if urls: inp["urls"], inp["url"] = urls, urls[0]
         if date: inp["date"] = date[:10]
         if studio_id: inp["studio_id"] = studio_id
         if performer_ids: inp["performer_ids"] = performer_ids
-        if custom_fields:
-            fmt_map = {k: json.dumps(v, ensure_ascii=False) if isinstance(v, (list, dict)) else str(v) for k, v in custom_fields.items()}
-            inp["custom_fields"] = {"partial": fmt_map}
+        if cover_image: inp["cover_image"] = cover_image
+        if custom_fields: inp["custom_fields"] = {"partial": {k: json.dumps(v, ensure_ascii=False) if isinstance(v, (list, dict)) else str(v) for k, v in custom_fields.items()}}
         return bool(self.query("mutation($in: SceneUpdateInput!) { sceneUpdate(input: $in) { id } }", {"in": inp}))
 
     def trigger_scan(self, paths: Optional[List[str]] = None) -> bool:

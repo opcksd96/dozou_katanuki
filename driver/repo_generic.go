@@ -14,14 +14,17 @@ var allowedTables = map[string]bool{
 
 func (r *Repository) GetAccountDetail(numericID string) (*models.AccountDetailResult, error) {
 	var acc models.Account
-	if err := r.db.Where("numeric_id = ? OR username = ?", numericID, numericID).First(&acc).Error; err != nil {
+	if err := r.db.Select("accounts.*, (SELECT count(*) FROM articles WHERE articles.account_id = accounts.numeric_id) as post_count").
+		Where("numeric_id = ? OR username = ?", numericID, numericID).First(&acc).Error; err != nil {
 		return nil, err
 	}
 	var hist []models.AccountProfileHistory
 	_ = r.db.Where("account_id = ?", acc.NumericID).Order("avatar_seq ASC").Find(&hist).Error
 
-	var postCount int64
-	_ = r.db.Model(&models.Article{}).Where("account_id = ?", acc.NumericID).Count(&postCount).Error
+	var postCount int64 = acc.PostCount
+	if postCount == 0 {
+		_ = r.db.Model(&models.Article{}).Where("account_id = ?", acc.NumericID).Count(&postCount).Error
+	}
 	return &models.AccountDetailResult{Account: acc, Histories: hist, PostCount: postCount}, nil
 }
 
@@ -44,6 +47,7 @@ func (r *Repository) GetTableRecords(tableName string, limit, offset int, search
 
 func (r *Repository) ListAccounts() ([]models.Account, error) {
 	var accs []models.Account
-	err := r.db.Order("updated_at DESC").Find(&accs).Error
+	err := r.db.Select("accounts.*, (SELECT count(*) FROM articles WHERE articles.account_id = accounts.numeric_id) as post_count").
+		Order("updated_at DESC").Find(&accs).Error
 	return accs, err
 }

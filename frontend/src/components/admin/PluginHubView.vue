@@ -5,7 +5,7 @@ import JobController from './JobController.vue';
 import SkinFontEditor from './SkinFontEditor.vue';
 import PluginSourcesView from './plugins/PluginSourcesView.vue';
 
-export type PluginSubTab = 'jobs' | 'skin' | 'sources';
+export type PluginSubTab = 'scraper' | 'skin' | 'sources';
 
 defineProps<{
   admin: any;
@@ -20,34 +20,32 @@ defineEmits<{
   (e: 'startImport'): void;
 }>();
 
-const currentSubTab = ref<PluginSubTab>('jobs');
+const currentSubTab = ref<PluginSubTab>('scraper');
 const subTabs: { id: PluginSubTab; icon: string; label: string }[] = [
-  { id: 'jobs', icon: '🚀', label: 'サルベージ＆ジョブ' },
-  { id: 'skin', icon: '🎨', label: 'スキン＆外観' },
-  { id: 'sources', icon: '📡', label: 'ソースエンジン' },
+  { id: 'scraper', icon: '🕷️', label: 'スクレイパー・採取' },
+  { id: 'skin', icon: '🎨', label: 'スキン＆テーマ' },
+  { id: 'sources', icon: '📡', label: 'ソース仕様' },
 ];
 </script>
 
 <template>
-  <div class="flex flex-col h-full space-y-4">
-    <!-- プラグイン選択 ＆ サブタブヘッダー -->
-    <div class="flex flex-wrap items-center justify-between gap-3 bg-slate-900/90 border border-slate-800 rounded-xl p-3 shrink-0">
+  <div class="flex flex-col h-full space-y-3 font-sans">
+    <div class="flex flex-wrap items-center justify-between gap-2 bg-slate-900/90 border border-slate-800 rounded-xl p-2.5 shrink-0 shadow-md">
       <div class="flex items-center gap-3">
         <div class="flex items-center gap-2">
           <span class="text-base">🧩</span>
-          <span class="text-xs font-bold text-slate-300">対象プラグイン:</span>
+          <span class="text-xs font-bold text-slate-200">サイドカー:</span>
         </div>
         <select
           :value="selectedPlatform"
           @change="(e) => $emit('update:selectedPlatform', (e.target as HTMLSelectElement).value)"
-          class="bg-slate-950 border border-slate-700 text-xs font-bold text-slate-100 rounded-lg px-3 py-1.5 focus:outline-none focus:border-blue-500"
+          class="bg-slate-950 border border-slate-700 text-xs font-bold text-slate-100 rounded-lg px-3 py-1.5 focus:outline-none focus:border-blue-500 cursor-pointer"
         >
-          <option value="twitter">🐦 Twitter / X プラグイン (Active 🟢)</option>
-          <option value="bsky">🦋 Bluesky プラグイン (Ready 🟡)</option>
+          <option value="twitter">🐦 Twitter / X サイドカー (Active 🟢)</option>
+          <option value="bsky">🦋 Bluesky サイドカー (Ready 🟡)</option>
         </select>
       </div>
 
-      <!-- サブタブセレクタ -->
       <div class="flex items-center bg-slate-950 p-1 rounded-lg border border-slate-800 gap-1">
         <button
           v-for="st in subTabs"
@@ -63,23 +61,20 @@ const subTabs: { id: PluginSubTab; icon: string; label: string }[] = [
       </div>
     </div>
 
-    <!-- コンテンツ領域 -->
     <div class="flex-1 overflow-y-auto min-h-0 pr-1">
       <JobController
-        v-if="currentSubTab === 'jobs'"
+        v-if="currentSubTab === 'scraper'"
         :active-job="admin.activeJob?.value ?? admin.activeJob"
-        :job-list="admin.jobList?.value ?? admin.jobList"
         :logs="admin.jobLogs?.value ?? admin.jobLogs"
         :salvage-form="salvageForm"
         :import-form="importForm"
         :action-loading="admin.isJobRunning?.value ?? admin.isJobRunning"
-        :loading-jobs="false"
         @start-salvage="$emit('startSalvage')"
         @start-import="$emit('startImport')"
         @cancel-job="(id) => admin.cancelJob(id)"
-        @fetch-jobs="admin.fetchJobList"
         @clear-logs="admin.clearLogs"
       />
+
       <SkinFontEditor
         v-else-if="currentSubTab === 'skin'"
         :skin-c-s-s="admin.skinCSS?.value ?? admin.skinCSS"
@@ -91,6 +86,7 @@ const subTabs: { id: PluginSubTab; icon: string; label: string }[] = [
         @save-skin="(p, css) => admin.saveSkinCSS(p, css)"
         @apply-dynamic-skin="() => {}"
       />
+
       <PluginSourcesView v-else-if="currentSubTab === 'sources'" :platform="selectedPlatform" />
     </div>
   </div>
