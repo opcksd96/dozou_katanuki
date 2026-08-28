@@ -51,8 +51,8 @@ class StashReconciler:
                             cur.execute("SELECT article_id FROM media WHERE (media_id = ? OR media_id = ? OR download_url LIKE ?)", (bn, os.path.splitext(bn)[0], f"%/{bn}"))
                             row = cur.fetchone()
                             if row: art_id = row[0]
-                            cur.execute(f"UPDATE media SET {col} = ?, download_status = 'COMPLETED' WHERE (media_id = ? OR media_id = ? OR media_id LIKE ? OR download_url LIKE ? OR download_url LIKE ?) AND ({col} IS NULL OR {col} = '')",
-                                        (s_id, bn, os.path.splitext(bn)[0], f"%_{bn}", f"%/{bn}", f"%/{bn}?%"))
+                            cur.execute(f"UPDATE media SET {col} = ?, download_status = 'COMPLETED' WHERE rowid = (SELECT rowid FROM media WHERE (media_id = ? OR media_id = ? OR media_id LIKE ? OR download_url LIKE ? OR download_url LIKE ?) AND ({col} IS NULL OR {col} = '') LIMIT 1) AND NOT EXISTS (SELECT 1 FROM media WHERE {col} = ?)",
+                                        (s_id, bn, os.path.splitext(bn)[0], f"%_{bn}", f"%/{bn}", f"%/{bn}?%", s_id))
                             if cur.rowcount > 0:
                                 bound += cur.rowcount; matched = True
                                 _log(f"Bound media '{bn}' -> Stash {'Scene' if is_scn else 'Image'} #{s_id} (Parent: {art_id or 'none'})")

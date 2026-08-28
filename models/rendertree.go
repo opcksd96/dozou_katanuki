@@ -19,7 +19,6 @@ type RenderAuthor struct {
 	AliasOf     string `json:"alias_of,omitempty"`
 }
 
-
 type RenderMediaURLs struct {
 	Stream    string `json:"stream,omitempty"`
 	Image     string `json:"image,omitempty"`
@@ -64,8 +63,17 @@ type RenderTree struct {
 	IsLiked        bool          `json:"is_liked"`
 	IsPinned       bool          `json:"is_pinned"`
 	SourceURL      string        `json:"source_url"`
+	SourceDomain   string        `json:"source_domain,omitempty"`
+	OriginalURL    string        `json:"original_url,omitempty"`
+	WaybackURL     string        `json:"wayback_url,omitempty"`
+	SotweURL       string        `json:"sotwe_url,omitempty"`
+	NitterURL      string        `json:"nitter_url,omitempty"`
+	TwistalkerURL  string        `json:"twistalker_url,omitempty"`
 	ParentID       string        `json:"parent_id,omitempty"`
 	ReplyToHandle  string        `json:"reply_to_handle,omitempty"`
+	IsTrash        bool          `json:"is_trash,omitempty"`
+	TrashedBy      string        `json:"trashed_by,omitempty"`
+	TrashReason    string        `json:"trash_reason,omitempty"`
 }
 
 // ArticleSearchResult は記事検索のページネーション付き結果構造体です

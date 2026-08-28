@@ -43,9 +43,12 @@ export function useAdminDatabase() {
     // Articles
     searchResults: articles.searchResults, totalCount: articles.totalCount, isSearchLoading: articles.isSearchLoading,
     isTranslating: articles.isTranslating, searchQuery: articles.searchQuery, searchAccount: articles.searchAccount,
-    searchFilter: articles.searchFilter, page: articles.page, limit: articles.limit, searchArticles: articles.searchArticles,
-    setPage: articles.setPage, setAccount: articles.setAccount,
-    saveTranslation: articles.saveTranslation, autoTranslate: articles.autoTranslate, startBatchTranslate: articles.startBatchTranslate,
+    searchFilter: articles.searchFilter, includeTrash: articles.includeTrash, hasMore: articles.hasMore,
+    canUndo: articles.canUndo, canRedo: articles.canRedo, searchArticles: articles.searchArticles, fetchMoreArticles: articles.fetchMoreArticles,
+    setAccount: articles.setAccount, toggleIncludeTrash: articles.toggleIncludeTrash, saveTranslation: articles.saveTranslation,
+    autoTranslate: articles.autoTranslate, startBatchTranslate: articles.startBatchTranslate,
+    trashArticle: articles.trashArticle, batchTrashArticles: articles.batchTrashArticles, batchRestoreArticles: articles.batchRestoreArticles,
+    batchResetTranslations: articles.batchResetTranslations, undo: articles.undo, redo: articles.redo,
     // Accounts
     accountsList: accounts.accountsList, selectedAccountDetail: accounts.selectedAccountDetail, isAccountLoading: accounts.isAccountLoading,
     fetchAccounts: accounts.fetchAccounts, selectAccount: accounts.selectAccount, toggleAccountWhitelist: accounts.toggleAccountWhitelist,

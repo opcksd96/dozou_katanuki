@@ -23,6 +23,16 @@ type Article struct {
 	IsRepost       bool           `gorm:"column:is_repost;type:boolean;not null;default:false" json:"is_repost"`
 	IsLiked        bool           `gorm:"index;column:is_liked;type:boolean;not null;default:false" json:"is_liked"`
 	WaybackURL     string         `gorm:"column:wayback_url;type:text;not null" json:"wayback_url"`
+	SourceDomain   sql.NullString `gorm:"column:source_domain;type:text" json:"source_domain,omitempty"`
+	OriginalURL    sql.NullString `gorm:"column:original_url;type:text" json:"original_url,omitempty"`
+	SotweURL       sql.NullString `gorm:"column:sotwe_url;type:text" json:"sotwe_url,omitempty"`
+	NitterURL      sql.NullString `gorm:"column:nitter_url;type:text" json:"nitter_url,omitempty"`
+	TwistalkerURL  sql.NullString `gorm:"column:twistalker_url;type:text" json:"twistalker_url,omitempty"`
+	SourceName     sql.NullString `gorm:"column:source_name;type:text" json:"source_name,omitempty"`
+	IsTrash        bool           `gorm:"index;column:is_trash;type:boolean;not null;default:false" json:"is_trash"`
+	TrashedBy      sql.NullString `gorm:"index;column:trashed_by;type:text" json:"trashed_by,omitempty"`
+	TrashReason    sql.NullString `gorm:"column:trash_reason;type:text" json:"trash_reason,omitempty"`
+	TrashedAt      sql.NullTime   `gorm:"column:trashed_at;type:datetime" json:"trashed_at,omitempty"`
 
 	Account      Account       `gorm:"foreignKey:AccountID;references:NumericID" json:"account,omitempty"`
 	Media        []Media       `gorm:"foreignKey:ArticleID;references:ID" json:"media,omitempty"`

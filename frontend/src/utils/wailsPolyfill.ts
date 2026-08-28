@@ -21,6 +21,12 @@ export function initWailsPolyfill() {
       SearchArticles: async (q: string, acc: string, f: string, l: number, o: number) => {
         try { return await (await fetch(`/api/search?q=${encodeURIComponent(q || '')}&account_id=${encodeURIComponent(acc || 'all')}&filter=${encodeURIComponent(f || 'all')}&limit=${l || 50}&offset=${o || 0}`)).json(); } catch { return { items: [], total: 0 }; }
       },
+      TrashArticle: async (id: string, trashedBy = 'admin', reason = '') => { try { await postJson('/api/article/trash', { id, trashed_by: trashedBy, reason }); return true; } catch { return false; } },
+      RestoreArticle: async (id: string) => { try { await postJson('/api/article/restore', { id }); return true; } catch { return false; } },
+      BatchTrashArticles: async (ids: string[], trashedBy = 'admin', reason = '') => { try { await postJson('/api/article/batch-trash', { ids, trashed_by: trashedBy, reason }); return true; } catch { return false; } },
+      BatchRestoreArticles: async (ids: string[]) => { try { await postJson('/api/article/batch-restore', { ids }); return true; } catch { return false; } },
+      BatchResetTranslations: async (ids: string[]) => { try { await postJson('/api/article/batch-reset-translations', { ids }); return true; } catch { return false; } },
+      GetArticlesByIDs: async (ids: string[]) => { try { return (await Promise.all(ids.map(id => fetch(`/api/article?id=${id}`).then(r => r.json())))).filter(Boolean); } catch { return []; } },
       GetArticleDetail: async (p: string, id: string) => { try { return await (await fetch(`/api/article?platform=${encodeURIComponent(p || 'twitter')}&id=${encodeURIComponent(id)}`)).json(); } catch { return null; } },
       GetBroadcastStatus: async () => { try { return await (await fetch('/api/broadcast/status')).json(); } catch { return { enabled: true, use_tls: false, port: 5175, active_clients: 0, networks: [] }; } },
       GetConfig: async () => { try { const r = await fetch('/api/config'); if (r.ok) return await r.json(); } catch {} return { system: { language: 'ja', default_framework: 'twitter', env: 'production' } }; },

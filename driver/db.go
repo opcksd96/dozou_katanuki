@@ -48,6 +48,8 @@ func InitDB(dbPath string) (*gorm.DB, error) {
 		"CREATE UNIQUE INDEX IF NOT EXISTS idx_media_stash_image ON media(stash_image_id) WHERE stash_image_id IS NOT NULL;",
 		"CREATE INDEX IF NOT EXISTS idx_media_status_type ON media(download_status, type);",
 		"CREATE INDEX IF NOT EXISTS idx_whitelist_type_active ON whitelists(type, is_active);",
+		"CREATE INDEX IF NOT EXISTS idx_articles_is_trash ON articles(is_trash, created_at DESC);",
+		"CREATE INDEX IF NOT EXISTS idx_articles_trashed_by ON articles(trashed_by) WHERE is_trash = 1;",
 	}
 	for _, idxSql := range indexes { _ = db.Exec(idxSql).Error }
 

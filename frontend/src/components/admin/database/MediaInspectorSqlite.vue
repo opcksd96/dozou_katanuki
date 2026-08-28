@@ -2,33 +2,30 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 
-const props = defineProps<{
-  media: any;
-  editStatus: string;
-  editReason: string;
-}>();
+const props = defineProps<{ media: any; editStatus: string; editReason: string }>();
 
 const emit = defineEmits<{
-  (e: 'update:editStatus', val: string): void;
-  (e: 'update:editReason', val: string): void;
-  (e: 'save'): void;
-  (e: 'retry'): void;
-  (e: 'purge'): void;
-  (e: 'viewPost'): void;
-  (e: 'viewPostTimeline'): void;
-  (e: 'openExplorer'): void;
-  (e: 'openDefault'): void;
+  (e: 'update:editStatus', val: string): void; (e: 'update:editReason', val: string): void;
+  (e: 'save'): void; (e: 'retry'): void; (e: 'purge'): void;
+  (e: 'viewPost'): void; (e: 'viewPostTimeline'): void; (e: 'openExplorer'): void; (e: 'openDefault'): void;
 }>();
 
 const isWails = computed(() => typeof window !== 'undefined' && !!((window as any)?.go?.app?.App || (window as any)?.go?.main?.App) && !(window as any)?._isWailsPolyfill);
 const localPath = computed(() => props.media.file_path || props.media.local_path || '');
+const tweetUrls = computed(() => {
+  const v = props.media.tweet_urls;
+  if (Array.isArray(v)) return v;
+  if (typeof v === 'string' && v.startsWith('[')) {
+    try { return JSON.parse(v); } catch { return []; }
+  }
+  return [];
+});
 </script>
 
 <template>
   <div class="p-3 bg-slate-950/80 rounded-xl border border-slate-800 space-y-2.5">
     <div class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">🗄️ SQLite レコード編集</div>
     
-    <!-- ローカルファイルパス表示 (TASK-04) -->
     <div v-if="localPath" class="space-y-1">
       <label class="text-[10px] text-slate-400">実体ファイルパス</label>
       <div class="p-1.5 bg-slate-900 border border-slate-700/80 rounded font-mono text-[11px] text-slate-300 select-all break-all leading-tight">{{ localPath }}</div>
@@ -38,16 +35,18 @@ const localPath = computed(() => props.media.file_path || props.media.local_path
       </div>
     </div>
 
+    <div v-if="tweetUrls.length > 0" class="space-y-1">
+      <label class="text-[10px] text-slate-400">参照ツイートURL ({{ tweetUrls.length }}件)</label>
+      <div class="space-y-1 max-h-24 overflow-y-auto">
+        <a v-for="u in tweetUrls" :key="u" :href="u" target="_blank" class="block p-1 bg-slate-900 border border-slate-800 rounded font-mono text-[10px] text-indigo-400 hover:underline truncate">{{ u }}</a>
+      </div>
+    </div>
+
     <div class="space-y-1">
       <label class="text-[10px] text-slate-400">ステータス</label>
       <select :value="editStatus" @change="emit('update:editStatus', ($event.target as HTMLSelectElement).value)" class="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-slate-200 text-xs cursor-pointer">
-        <option value="COMPLETED">COMPLETED</option>
-        <option value="QUEUED">QUEUED</option>
-        <option value="OUTSOURCED">OUTSOURCED</option>
-        <option value="RETAINED">RETAINED</option>
-        <option value="DEAD_404">DEAD_404</option>
-        <option value="FAILED">FAILED</option>
-        <option value="EXCLUDED">EXCLUDED</option>
+        <option value="COMPLETED">COMPLETED</option><option value="QUEUED">QUEUED</option><option value="OUTSOURCED">OUTSOURCED</option>
+        <option value="RETAINED">RETAINED</option><option value="DEAD_404">DEAD_404</option><option value="FAILED">FAILED</option><option value="EXCLUDED">EXCLUDED</option>
       </select>
     </div>
 

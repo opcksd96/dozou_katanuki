@@ -17,7 +17,7 @@ func (r *Repository) applyAccountFilter(query *gorm.DB, accountID string) *gorm.
 
 func (r *Repository) FetchArticles(accountID, filter string, limit, offset int) ([]models.Article, error) {
 	query := r.db.Model(&models.Article{}).Preload("Account").Preload("Account.ProfileHistory").Preload("Media").Preload("UrlRedirects").Order("created_at DESC")
-	query = query.Where("is_repost = ? OR reply_to_handle IN (SELECT value FROM whitelists WHERE is_active = ?)", false, true)
+	query = query.Where("is_trash = ? AND (is_repost = ? OR reply_to_handle IN (SELECT value FROM whitelists WHERE is_active = ?))", false, false, true)
 	query = r.applyAccountFilter(query, accountID)
 	switch filter {
 	case "reposts": query = query.Where("is_repost = ?", true)
@@ -53,10 +53,17 @@ func (r *Repository) SearchArticles(searchQuery, accountID, filter string, limit
 		query = query.Where("full_text LIKE ? OR full_text_ja LIKE ? OR full_text_en LIKE ? OR full_text_zh LIKE ? OR id LIKE ?", pat, pat, pat, pat, pat)
 	}
 	query = r.applyAccountFilter(query, accountID)
-	switch filter {
-	case "reposts": query = query.Where("is_repost = ?", true)
-	case "media": query = query.Joins("JOIN media ON media.article_id = articles.id").Group("articles.id")
-	case "bookmarks": query = query.Where("is_liked = ?", true)
+	if filter == "trash" {
+		query = query.Where("is_trash = ?", true)
+	} else if filter == "all_with_trash" {
+		// ゴミ箱データも含めて全件検索
+	} else {
+		query = query.Where("is_trash = ?", false)
+		switch filter {
+		case "reposts": query = query.Where("is_repost = ?", true)
+		case "media": query = query.Joins("JOIN media ON media.article_id = articles.id").Group("articles.id")
+		case "bookmarks": query = query.Where("is_liked = ?", true)
+		}
 	}
 	var total int64
 	if err := query.Count(&total).Error; err != nil { return nil, 0, err }

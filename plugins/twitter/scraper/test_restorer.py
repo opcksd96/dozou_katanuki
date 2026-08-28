@@ -1,15 +1,19 @@
 # plugins/twitter/scraper/test_restorer.py (100行以下)
-import json, os, shutil, sqlite3, tempfile
-from core.restorer import Restorer
+import json, os, shutil, sqlite3, sys, tempfile
+try:
+    from plugins.twitter.scraper.core.restorer import Restorer
+except ImportError:
+    from core.restorer import Restorer
 
 
 def init_test_db(db_path: str):
     conn = sqlite3.connect(db_path)
     cur = conn.cursor()
-    cur.execute("CREATE TABLE accounts (numeric_id TEXT PRIMARY KEY, username TEXT NOT NULL, display_name TEXT, avatar_url TEXT, updated_at DATETIME);")
+    cur.execute("CREATE TABLE accounts (numeric_id TEXT PRIMARY KEY, username TEXT NOT NULL, display_name TEXT, avatar_url TEXT, avatar_base64 TEXT, description TEXT, group_name TEXT DEFAULT '', alias_of TEXT DEFAULT '', updated_at DATETIME);")
+    cur.execute("CREATE TABLE account_profile_histories (id INTEGER PRIMARY KEY AUTOINCREMENT, account_id TEXT NOT NULL, display_name TEXT NOT NULL, description TEXT DEFAULT '', avatar_original_url TEXT NOT NULL, avatar_seq INTEGER NOT NULL, avatar_virtual_key TEXT NOT NULL, avatar_base64 TEXT, observed_at DATETIME NOT NULL);")
     cur.execute("CREATE TABLE whitelists (id INTEGER PRIMARY KEY, type TEXT, value TEXT NOT NULL UNIQUE, is_active INTEGER);")
-    cur.execute("CREATE TABLE articles (id TEXT PRIMARY KEY, account_id TEXT NOT NULL, conversation_id TEXT, reply_to_id TEXT, reply_to_handle TEXT, created_at DATETIME, full_text TEXT, lang TEXT DEFAULT 'ja', full_text_ja TEXT, full_text_en TEXT, full_text_zh TEXT, via TEXT DEFAULT 'twitter', is_repost INTEGER DEFAULT 0, is_liked INTEGER DEFAULT 0, wayback_url TEXT);")
-    cur.execute("CREATE TABLE media (media_id TEXT PRIMARY KEY, article_id TEXT NOT NULL, type TEXT, download_url TEXT, width INTEGER, height INTEGER, download_status TEXT, failed_reason TEXT, stash_scene_id TEXT, stash_image_id TEXT);")
+    cur.execute("CREATE TABLE articles (id TEXT PRIMARY KEY, account_id TEXT NOT NULL, conversation_id TEXT, reply_to_id TEXT, reply_to_handle TEXT, created_at DATETIME, full_text TEXT, lang TEXT DEFAULT 'ja', full_text_ja TEXT, full_text_en TEXT, full_text_zh TEXT, via TEXT DEFAULT 'twitter', is_repost INTEGER DEFAULT 0, is_liked INTEGER DEFAULT 0, wayback_url TEXT, source_name TEXT, source_domain TEXT, original_url TEXT, sotwe_url TEXT, nitter_url TEXT, twistalker_url TEXT, is_trash BOOLEAN DEFAULT 0, trashed_by TEXT, trash_reason TEXT, trashed_at DATETIME);")
+    cur.execute("CREATE TABLE media (media_id TEXT PRIMARY KEY, article_id TEXT NOT NULL, type TEXT, download_url TEXT, width INTEGER, height INTEGER, download_status TEXT, failed_reason TEXT, stash_scene_id TEXT, stash_image_id TEXT, media_quality TEXT);")
     cur.execute("CREATE TABLE url_redirects (short_url TEXT PRIMARY KEY, expanded_url TEXT, article_id TEXT);")
     conn.commit(); conn.close()
 

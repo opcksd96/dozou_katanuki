@@ -2,14 +2,11 @@
 package app
 
 import (
-	"bytes"
 	"encoding/json"
-	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strconv"
-	"time"
 
 	"dozou_katanuki/models"
 )
@@ -27,14 +24,11 @@ func (a *App) GetDownloaderDashboardStatus() (models.DownloaderDashboardStatus, 
 	if stats, err := a.Repo.FetchDownloadStatusStats(""); err == nil && stats != nil {
 		result.Thunder.RetainedCount = stats.Retained
 	}
-
 	return result, nil
 }
 
-// ControlMotrix は Motrix (Aria2) に対する制御コマンドを実行します (pause_all / unpause_all / purge_all / safe_limits)
+// ControlMotrix は Motrix に対する制御コマンドを実行します
 func (a *App) ControlMotrix(action string) (bool, error) {
-	endpoints := []string{"http://localhost:16800/jsonrpc", "http://localhost:6800/jsonrpc"}
-	client := &http.Client{Timeout: 3 * time.Second}
 	var method string
 	var params []interface{}
 
@@ -51,14 +45,8 @@ func (a *App) ControlMotrix(action string) (bool, error) {
 	default: return false, nil
 	}
 
-	for _, ep := range endpoints {
-		payload, _ := json.Marshal(map[string]interface{}{"jsonrpc": "2.0", "id": "ctrl", "method": method, "params": params})
-		if resp, err := client.Post(ep, "application/json", bytes.NewReader(payload)); err == nil {
-			resp.Body.Close()
-			return true, nil
-		}
-	}
-	return false, nil
+	_, err := callMotrixRPC(method, params)
+	return err == nil, err
 }
 
 // LaunchThunder は Thunder.exe を起動します
@@ -70,56 +58,40 @@ func (a *App) LaunchThunder() (bool, error) {
 }
 
 func (a *App) fetchMotrixStatus() models.MotrixGlobalStat {
-	endpoints := []string{"http://localhost:16800/jsonrpc", "http://localhost:6800/jsonrpc"}
-	client := &http.Client{Timeout: 2 * time.Second}
-	for _, ep := range endpoints {
-		payload, _ := json.Marshal(map[string]interface{}{"jsonrpc": "2.0", "id": "stat", "method": "aria2.getGlobalStat"})
-		resp, err := client.Post(ep, "application/json", bytes.NewReader(payload))
-		if err != nil { continue }
-		defer resp.Body.Close()
+	raw, err := callMotrixRPC("aria2.getGlobalStat", nil)
+	if err != nil { return models.MotrixGlobalStat{IsOnline: false} }
 
-		var res struct {
-			Result struct {
-				DownloadSpeed string `json:"downloadSpeed"`
-				UploadSpeed   string `json:"uploadSpeed"`
-				NumActive     string `json:"numActive"`
-				NumWaiting    string `json:"numWaiting"`
-				NumStopped    string `json:"numStopped"`
-			} `json:"result"`
-		}
-		if err := json.NewDecoder(resp.Body).Decode(&res); err == nil {
-			ds, _ := strconv.ParseInt(res.Result.DownloadSpeed, 10, 64)
-			us, _ := strconv.ParseInt(res.Result.UploadSpeed, 10, 64)
-			na, _ := strconv.Atoi(res.Result.NumActive)
-			nw, _ := strconv.Atoi(res.Result.NumWaiting)
-			ns, _ := strconv.Atoi(res.Result.NumStopped)
-			tasks := a.fetchMotrixActiveTasks(client, ep)
-			return models.MotrixGlobalStat{IsOnline: true, DownloadSpeed: ds, UploadSpeed: us, NumActive: na, NumWaiting: nw, NumStopped: ns, ActiveTasks: tasks}
-		}
+	var res struct {
+		Result struct {
+			DownloadSpeed string `json:"downloadSpeed"`
+			UploadSpeed   string `json:"uploadSpeed"`
+			NumActive     string `json:"numActive"`
+			NumWaiting    string `json:"numWaiting"`
+			NumStopped    string `json:"numStopped"`
+		} `json:"result"`
 	}
-	return models.MotrixGlobalStat{IsOnline: false}
+	if err := json.Unmarshal(raw, &res); err != nil { return models.MotrixGlobalStat{IsOnline: false} }
+
+	ds, _ := strconv.ParseInt(res.Result.DownloadSpeed, 10, 64)
+	us, _ := strconv.ParseInt(res.Result.UploadSpeed, 10, 64)
+	na, _ := strconv.Atoi(res.Result.NumActive)
+	nw, _ := strconv.Atoi(res.Result.NumWaiting)
+	ns, _ := strconv.Atoi(res.Result.NumStopped)
+	tasks := a.fetchMotrixActiveTasks()
+	return models.MotrixGlobalStat{IsOnline: true, DownloadSpeed: ds, UploadSpeed: us, NumActive: na, NumWaiting: nw, NumStopped: ns, ActiveTasks: tasks}
 }
 
-func (a *App) fetchMotrixActiveTasks(client *http.Client, ep string) []models.DownloaderTaskInfo {
-	payload, _ := json.Marshal(map[string]interface{}{"jsonrpc": "2.0", "id": "active", "method": "aria2.tellActive", "params": []interface{}{[]string{"gid", "status", "totalLength", "completedLength", "downloadSpeed", "files", "errorMessage"}}})
-	resp, err := client.Post(ep, "application/json", bytes.NewReader(payload))
+func (a *App) fetchMotrixActiveTasks() []models.DownloaderTaskInfo {
+	raw, err := callMotrixRPC("aria2.tellActive", []interface{}{[]string{"gid", "status", "totalLength", "completedLength", "downloadSpeed", "files", "errorMessage"}})
 	if err != nil { return nil }
-	defer resp.Body.Close()
 
 	var res struct {
 		Result []struct {
-			GID             string `json:"gid"`
-			Status          string `json:"status"`
-			TotalLength     string `json:"totalLength"`
-			CompletedLength string `json:"completedLength"`
-			DownloadSpeed   string `json:"downloadSpeed"`
-			ErrorMessage    string `json:"errorMessage"`
-			Files           []struct {
-				Path string `json:"path"`
-			} `json:"files"`
+			GID, Status, TotalLength, CompletedLength, DownloadSpeed, ErrorMessage string
+			Files []struct{ Path string `json:"path"` } `json:"files"`
 		} `json:"result"`
 	}
-	if err := json.NewDecoder(resp.Body).Decode(&res); err != nil { return nil }
+	if err := json.Unmarshal(raw, &res); err != nil { return nil }
 
 	var tasks []models.DownloaderTaskInfo
 	for _, t := range res.Result {

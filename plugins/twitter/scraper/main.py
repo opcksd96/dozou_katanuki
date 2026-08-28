@@ -53,17 +53,19 @@ def run_auto_salvage(platform: str, account: str, limit: int, db_path: str, stor
         else: post["lang"], post["full_text_ja"] = "ja", ftext
         return p, {"status": "OK", "url": uri, "id": post.get("id"), "media": len(p.get("media", [])), "ms": int((time.time() - t0)*1000)}
 
-    buffer, journal, saved, done = [], [], 0, 0
+    buffer, journal, saved_new, saved_merged, done = [], [], 0, 0, 0
     with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as ex:
         for fut in concurrent.futures.as_completed([ex.submit(_parse_and_translate, r) for r in raw_records]):
             done += 1; parsed_json, log_info = fut.result(); journal.append(log_info)
             if parsed_json: buffer.append(parsed_json)
             if len(buffer) >= chunk_size or (done == tot and buffer):
-                t_db = time.time(); c_saved = mutator.upsert_batch(buffer); saved += c_saved
-                emit_progress(done, tot, f"[PHASE-6:DRIVER_COMMIT] Saved {c_saved} articles ({saved}/{tot}) in {int((time.time() - t_db)*1000)}ms"); buffer.clear()
+                t_db = time.time(); res = mutator.upsert_batch(buffer)
+                c_new, c_merged = (res[0], res[1]) if isinstance(res, tuple) else (res, 0)
+                saved_new += c_new; saved_merged += c_merged
+                emit_progress(done, tot, f"[PHASE-6:DRIVER_COMMIT] Commit: New={c_new}, Merged={c_merged} in {int((time.time() - t_db)*1000)}ms"); buffer.clear()
             elif done % 5 == 0 or done == tot: emit_progress(done, tot, f"[PHASE-3:PROCESS] [{done}/{tot}] buffer={len(buffer)} status={log_info.get('status')}")
     s_ok = sum(1 for j in journal if j.get("status") == "OK")
-    emit_progress(100, 100, f"[SALVAGE_SUMMARY] Completed. Target={tot} | Parsed={s_ok} | Errors={tot - s_ok} | DB_Saved={saved}")
+    emit_progress(100, 100, f"[SALVAGE_SUMMARY] Completed. Target={tot} | Parsed={s_ok} | Errors={tot - s_ok} | DB_New={saved_new} | DB_Merged={saved_merged}")
 
 
 def main():

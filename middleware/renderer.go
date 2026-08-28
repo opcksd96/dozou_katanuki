@@ -54,6 +54,17 @@ func ToRenderTree(item models.Article, platform string) models.RenderTree {
 		zh = decorateText(item.FullTextZH.String, platform, item.UrlRedirects, hasMedia)
 	} else if item.Lang == "zh" { zh = orig }
 
+	domain := ""
+	if item.SourceDomain.Valid { domain = item.SourceDomain.String }
+	origURL := ""
+	if item.OriginalURL.Valid { origURL = item.OriginalURL.String }
+	sotweURL := ""
+	if item.SotweURL.Valid { sotweURL = item.SotweURL.String }
+	nitterURL := ""
+	if item.NitterURL.Valid { nitterURL = item.NitterURL.String }
+	twistalkerURL := ""
+	if item.TwistalkerURL.Valid { twistalkerURL = item.TwistalkerURL.String }
+
 	return models.RenderTree{
 		ID: item.ID, ConversationID: item.ConversationID,
 		CreatedAt: item.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
@@ -67,19 +78,16 @@ func ToRenderTree(item models.Article, platform string) models.RenderTree {
 
 		Media: MapMediaToRenderMediaWithContext(item.Media, platform, item.Account.Username), Metrics: models.RenderMetrics{},
 		IsLiked: item.IsLiked, SourceURL: item.WaybackURL,
+		SourceDomain: domain, OriginalURL: origURL, WaybackURL: item.WaybackURL,
+		SotweURL: sotweURL, NitterURL: nitterURL, TwistalkerURL: twistalkerURL,
 		ParentID: item.ReplyToID.String, ReplyToHandle: item.ReplyToHandle.String,
+		IsTrash: item.IsTrash, TrashedBy: item.TrashedBy.String, TrashReason: item.TrashReason.String,
 	}
 }
 
-func BuildRenderMedia(m models.Media) models.RenderMedia {
-	return models.BuildRenderMedia(m)
-}
-
-func MapMediaToRenderMedia(mediaList []models.Media) []models.RenderMedia {
-	return models.MapMediaToRenderMedia(mediaList)
-}
-
-func MapMediaToRenderMediaWithContext(mediaList []models.Media, platform, username string) []models.RenderMedia {
-	return models.MapMediaToRenderMediaWithContext(mediaList, platform, username)
+func BuildRenderMedia(m models.Media) models.RenderMedia { return models.BuildRenderMedia(m) }
+func MapMediaToRenderMedia(m []models.Media) []models.RenderMedia { return models.MapMediaToRenderMedia(m) }
+func MapMediaToRenderMediaWithContext(m []models.Media, p, u string) []models.RenderMedia {
+	return models.MapMediaToRenderMediaWithContext(m, p, u)
 }
 

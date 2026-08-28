@@ -1,75 +1,91 @@
-"""
-sotwe_extractors.py (SPEC-PLUGIN-001 / 100行以下)
-Sotwe HTMLからメトリクス、メディア、アカウント情報、Snowflake IDを抽出するヘルパーモジュール
-"""
+# plugins/twitter/scraper/parsers/sotwe_extractors.py (SPEC-PLUGIN-001 / 100行以下)
+import os, re, time
 from datetime import datetime, timezone
-import re
 from typing import Any, Dict, List, Optional
-from bs4 import Tag
+from urllib.parse import urlparse
 
-TWITTER_EPOCH = 1288834974657
+VUE_EXTRACT_JS = """(() => {
+    const all = Array.from(document.querySelectorAll('*')), found = [], seen = new Set();
+    function inspect(vm) {
+        if (!vm) return;
+        const cands = [vm.tweet, vm.post, vm.item, vm.data, vm.$props?.tweet, vm.$props?.post, vm.$props?.item, vm.$props?.data, vm.$data?.tweet, vm.$data?.post, vm.$data?.item, vm.$data?.data];
+        for (const c of cands) {
+            if (c && typeof c === 'object' && (c.id || c.id_str) && (c.text !== undefined || c.full_text !== undefined || c.mediaEntities)) {
+                const tid = String(c.id || c.id_str);
+                if (tid && !seen.has(tid)) { seen.add(tid); found.push(c); }
+            }
+        }
+        if (vm.$children && Array.isArray(vm.$children)) for (const ch of vm.$children) inspect(ch);
+    }
+    for (const el of all) { if (el.__vue__) inspect(el.__vue__); }
+    return found;
+})()"""
 
-def parse_iso_datetime(dt_str: Optional[str]) -> str:
-    """time[datetime] の文字列を標準ISO8601 (UTC) に正規化"""
-    if not dt_str:
-        return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+def get_filename_from_url(url: str) -> str:
+    if not url: return ""
+    fn = urlparse(url.split("?")[0]).path.split("/")[-1]
+    for sfx in [":large", ":orig", ":small", ":medium", ":thumb"]: fn = fn[:-len(sfx)] if fn.endswith(sfx) else fn
+    return fn
+
+def build_streamsaver_url(filename: str) -> str:
+    return f"https://jimmywarting.github.io/StreamSaver.js/www.sotwe.com/{filename}" if filename else ""
+
+def parse_iso_datetime(dt_val: Any) -> str:
+    if not dt_val: return datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+    if isinstance(dt_val, (int, float)):
+        ts = dt_val / 1000.0 if dt_val > 1e11 else dt_val
+        return datetime.fromtimestamp(ts, tz=timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
     try:
-        dt = datetime.fromisoformat(dt_str.replace(".000Z", "+00:00").replace("Z", "+00:00"))
-        return dt.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-    except Exception:
-        return dt_str
+        dt = datetime.fromisoformat(str(dt_val).replace(".000Z", "+00:00").replace("Z", "+00:00"))
+        return dt.astimezone(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+    except Exception: return str(dt_val)
 
-def generate_snowflake_id(dt_str: Optional[str]) -> str:
-    """投稿日時から19桁のTwitter Snowflake IDを正確に算出"""
-    if not dt_str:
-        epoch_ms = int(datetime.now(timezone.utc).timestamp() * 1000)
-    else:
-        try:
-            dt = datetime.fromisoformat(dt_str.replace(".000Z", "+00:00").replace("Z", "+00:00"))
-            epoch_ms = int(dt.timestamp() * 1000)
-        except Exception:
-            epoch_ms = int(datetime.now(timezone.utc).timestamp() * 1000)
-    
-    snowflake = (epoch_ms - TWITTER_EPOCH) << 22
-    return str(max(snowflake, epoch_ms))
+def extract_metrics_dict(raw: Dict[str, Any]) -> Dict[str, int]:
+    return {"replies": int(raw.get("replyCount", 0)), "likes": int(raw.get("favoriteCount", 0)),
+            "retweets": int(raw.get("retweetCount", 0)), "bookmarks": 0, "views": int(raw.get("viewCount", 0))}
 
-def extract_metrics(card: Tag) -> Dict[str, int]:
-    """いいね、RT、リプライ、ブックマーク、閲覧数を抽出"""
-    metrics = {"replies": 0, "likes": 0, "retweets": 0, "bookmarks": 0, "views": 0}
-    stats = card.select(".tweet-stats-item")
-    for st in stats:
-        txt = st.get_text(strip=True)
-        num = int(re.sub(r"[^\d]", "", txt)) if re.sub(r"[^\d]", "", txt) else 0
-        if st.select_one(".fa-comment"): metrics["replies"] = num
-        elif st.select_one(".fa-heart"): metrics["likes"] = num
-        elif st.select_one(".fa-retweet"): metrics["retweets"] = num
-        elif st.select_one(".fa-bookmark"): metrics["bookmarks"] = num
-        elif st.select_one(".fa-chart-bar"): metrics["views"] = num
-    return metrics
-
-def extract_card_media(card: Tag) -> List[Dict[str, Any]]:
-    """カルーセル画像、動画MP4、ポスターサムネイルを完全抽出"""
+def extract_media_entities(raw: Dict[str, Any]) -> List[Dict[str, Any]]:
     media_list = []
-    for img in card.select(".media-carousel img[src], .media-carousel-image img[src]"):
-        src = img.get("src", "")
-        if src and "profile_images" not in src and not any(m["url"] == src for m in media_list):
-            media_list.append({"url": src, "type": "image", "width": 0, "height": 0})
-
-    for vid in card.select("video.video-player source[type='video/mp4']"):
-        src = vid.get("src", "")
-        if src and not any(m["url"] == src for m in media_list):
-            media_list.append({"url": src, "type": "video", "width": 0, "height": 0})
-
-    for vid_p in card.select("video.video-player[poster]"):
-        poster = vid_p.get("poster", "")
-        if poster and not any(m["url"] == poster for m in media_list):
-            media_list.append({"url": poster, "type": "image", "width": 0, "height": 0})
+    raw_media = raw.get("mediaEntities") or raw.get("extended_entities", {}).get("media") or raw.get("entities", {}).get("media") or []
+    for m in raw_media:
+        m_type = m.get("type", "image")
+        direct_vid = m.get("videoURL") or ""
+        thumb = m.get("mediaURL") or m.get("media_url_https") or m.get("url") or ""
+        target_u = direct_vid if direct_vid else thumb
+        fn = get_filename_from_url(target_u)
+        if "." not in fn and target_u:
+            ext = "mp4" if direct_vid or m_type == "video" else "jpg"
+            fn = f"{fn}.{ext}"
+        ss_url = build_streamsaver_url(fn)
+        variants = []
+        for v in (m.get("videoInfo") or {}).get("variants", []):
+            v_url = v.get("url")
+            if v_url:
+                v_fn = get_filename_from_url(v_url)
+                variants.append({"content_type": v.get("type") or v.get("content_type", ""), "bitrate": v.get("bitrate", 0), "filename": v_fn, "streamsaver_url": build_streamsaver_url(v_fn), "direct_url": v_url})
+        media_list.append({"media_id": fn, "url": target_u, "download_url": target_u, "type": "video" if direct_vid or m_type == "video" else "image",
+                           "width": (m.get("sizes", {}).get("large", {}) or {}).get("w", 0), "height": (m.get("sizes", {}).get("large", {}) or {}).get("h", 0),
+                           "filename": fn, "streamsaver_url": ss_url, "thumbnail_url": thumb, "stream_variants": variants})
     return media_list
 
-def extract_status_id_from_media(media_list: List[Dict[str, Any]], created_at_iso: str) -> str:
-    """メディアURL内のStatus IDを探索、存在しない場合はSnowflake IDを算出"""
-    for m in media_list:
-        match = re.search(r"ext_tw_video(?:_thumb)?/(\d{15,20})", m["url"])
-        if match:
-            return match.group(1)
-    return generate_snowflake_id(created_at_iso)
+def normalize_vue_tweet(raw: Dict[str, Any], default_account: str) -> Dict[str, Any]:
+    t_id = str(raw.get("id") or raw.get("id_str") or "")
+    u_info = raw.get("user") or {}
+    u_name = u_info.get("screenName") or u_info.get("screen_name") or default_account
+    d_name = u_info.get("name") or raw.get("fullname") or u_name
+    c_at = parse_iso_datetime(raw.get("createdAt"))
+    f_text = raw.get("text") or raw.get("full_text") or ""
+    media = extract_media_entities(raw)
+    return {
+        "platform": "twitter", "source_name": "sotwe",
+        "account": {"numeric_id": str(u_info.get("id") or u_info.get("id_str") or f"ext_{u_name}"), "username": u_name, "display_name": d_name,
+                    "avatar_url": (u_info.get("profileImage") or u_info.get("profile_image_url_https") or "").replace("_normal.", "."),
+                    "avatar_original_url": (u_info.get("profileImage") or u_info.get("profile_image_url_https") or "").replace("_normal.", "."),
+                    "description": u_info.get("description", ""), "profile_history": []},
+        "post": {"id": t_id, "conversation_id": t_id, "reply_to_tweet_id": None, "reply_to_handle": None, "created_at": c_at, "full_text": f_text,
+                 "via": "Sotwe", "source_name": "sotwe", "source_domain": "sotwe.com", "is_repost": False, "is_pinned": bool(raw.get("isPinned")),
+                 "retweeted_by": "", "wayback_url": "",
+                 "sotwe_url": f"https://www.sotwe.com/tweet/{t_id}" if t_id else "", "original_url": f"https://x.com/{u_name}/status/{t_id}" if t_id else "",
+                 "metrics": extract_metrics_dict(raw), "urls": []},
+        "media": media
+    }

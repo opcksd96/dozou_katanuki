@@ -59,6 +59,7 @@ dumps/
 *.tmp
 *.log
 sotwe.html
+sotwe_tweet.html
 
 # ==========================================
 # 6. Python サイドカー関連
