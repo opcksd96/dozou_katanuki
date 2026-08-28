@@ -3,6 +3,7 @@ import { ref, computed } from 'vue';
 import { useAdminDatabaseAccounts } from './useAdminDatabaseAccounts';
 import { useAdminDatabaseArticles } from './useAdminDatabaseArticles';
 import { useAdminDatabaseMedia } from './useAdminDatabaseMedia';
+import { useToast } from '../useToast';
 
 const getApp = () => (window as any)?.go?.app?.App || (window as any)?.go?.main?.App;
 
@@ -12,6 +13,7 @@ export function useAdminDatabase() {
   const accounts = useAdminDatabaseAccounts();
   const articles = useAdminDatabaseArticles();
   const media = useAdminDatabaseMedia();
+  const { addToast } = useToast();
 
   const errorMessage = computed(() => accounts.errorMessage.value || articles.errorMessage.value || media.errorMessage.value || null);
   const clearError = () => { accounts.errorMessage.value = null; articles.errorMessage.value = null; media.errorMessage.value = null; };
@@ -26,13 +28,13 @@ export function useAdminDatabase() {
     media.fetchMedia(); if (onNav) onNav('media');
   };
 
-  const startMediaDownload = async (mId = '') => { try { return await getApp()?.StartMediaDownloadJob?.('twitter', mId); } catch {} };
-  const startMediaPoll = async () => { try { return await getApp()?.StartMediaPollJob?.('twitter'); } catch {} };
-  const startMediaEscalate = async () => { try { return await getApp()?.StartMediaEscalateJob?.('twitter'); } catch {} };
-  const startSmartRecovery = async () => { try { return await getApp()?.StartSmartRecoveryJob?.('twitter'); } catch {} };
-  const startThunderEscalate = async () => { try { return await getApp()?.StartThunderEscalateJob?.('twitter'); } catch {} };
-  const requeueMedia = async (status = 'DEAD_404') => { try { const count = await getApp()?.RequeueMediaByStatus?.(status, media.mediaAccount.value); await media.fetchMedia(); return count; } catch { return 0; } };
-  const reconcileStashMedia = async () => { try { const count = await getApp()?.ReconcileStashMedia?.(); await media.fetchMedia(); return count; } catch { return 0; } };
+  const startMediaDownload = async (mId = '') => { try { addToast('🚀 ダウンロードジョブを開始しました', 'info', 2500); return await getApp()?.StartMediaDownloadJob?.('twitter', mId); } catch {} };
+  const startMediaPoll = async () => { try { addToast('📡 Motrixポーリングを開始しました', 'info', 2500); return await getApp()?.StartMediaPollJob?.('twitter'); } catch {} };
+  const startMediaEscalate = async () => { try { addToast('⚡ Motrixエスカレーションを開始しました', 'info', 2500); return await getApp()?.StartMediaEscalateJob?.('twitter'); } catch {} };
+  const startSmartRecovery = async () => { try { addToast('🪄 スマート一括回収ジョブを開始しました', 'info', 3000); return await getApp()?.StartSmartRecoveryJob?.('twitter'); } catch {} };
+  const startThunderEscalate = async () => { try { addToast('⚡ 迅雷(Thunder)一括投入ジョブを開始しました', 'info', 3000); return await getApp()?.StartThunderEscalateJob?.('twitter'); } catch {} };
+  const requeueMedia = async (status = 'DEAD_404') => { try { const count = await getApp()?.RequeueMediaByStatus?.(status, media.mediaAccount.value); addToast(`🔄 ${count}件を再キューイングしました`, 'success', 2500); await media.fetchMedia(); return count; } catch { return 0; } };
+  const reconcileStashMedia = async () => { try { addToast('📦 Stash照合・同期を開始しました', 'info', 2500); const count = await getApp()?.ReconcileStashMedia?.(); addToast(`✅ Stash照合完了 (${count}件)`, 'success', 3000); await media.fetchMedia(); return count; } catch { return 0; } };
   const fetchStashMetadata = async (sId: string, iId: string) => { try { return await getApp()?.GetStashMetadata?.(sId, iId); } catch { return null; } };
   const updateStashMetadata = async (isScene: boolean, id: string, title: string, details: string, rating100: number) => {
     try { return await getApp()?.UpdateStashMetadata?.(isScene, id, title, details, rating100); } catch { return null; }
@@ -62,7 +64,7 @@ export function useAdminDatabase() {
     mediaPage: media.mediaPage, mediaLimit: media.mediaLimit, fetchMedia: media.fetchMedia, setMediaAccount: media.setMediaAccount,
     setMediaStatusFilter: media.setMediaStatusFilter, setMediaTypeFilter: media.setMediaTypeFilter, setMediaPage: media.setMediaPage,
     setMediaLimit: media.setMediaLimit, retryMedia: media.retryMedia, purgeMedia: media.purgeMedia, purgeMediaByStatus: media.purgeMediaByStatus,
-    trashMedia: media.trashMedia, restoreMedia: media.restoreMedia,
+    trashMedia: media.trashMedia, restoreMedia: media.restoreMedia, escalateMediaToThunder: media.escalateMediaToThunder,
     openInExplorer: media.openInExplorer, openWithDefaultApp: media.openWithDefaultApp, toggleBookmark: media.toggleBookmark,
     startMediaDownload, startMediaPoll, startMediaEscalate, startSmartRecovery, startThunderEscalate, requeueMedia, reconcileStashMedia, fetchStashMetadata, updateStashMetadata,
   };

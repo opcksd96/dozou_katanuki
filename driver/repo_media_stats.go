@@ -34,6 +34,8 @@ func (r *Repository) FetchDownloadStatusStats(accountID string) (*models.Downloa
 			stats.Dead404 += row.Count
 		case "OUTSOURCED":
 			stats.Outsourced += row.Count
+		case "ESCALATED":
+			stats.Escalated += row.Count
 		case "RETAINED":
 			stats.Retained += row.Count
 		case "FAILED":

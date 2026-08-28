@@ -6,6 +6,7 @@ type DownloaderTaskInfo struct {
 	GID             string  `json:"gid"`
 	Status          string  `json:"status"`
 	FileName        string  `json:"file_name"`
+	URL             string  `json:"url,omitempty"`
 	TotalLength     int64   `json:"total_length"`
 	CompletedLength int64   `json:"completed_length"`
 	DownloadSpeed   int64   `json:"download_speed"`
@@ -26,9 +27,10 @@ type MotrixGlobalStat struct {
 
 // ThunderGlobalStat は Thunder (迅雷) の状態情報です
 type ThunderGlobalStat struct {
-	IsInstalled   bool   `json:"is_installed"`
-	Executable    string `json:"executable"`
-	RetainedCount int64  `json:"retained_count"`
+	IsInstalled    bool   `json:"is_installed"`
+	Executable     string `json:"executable"`
+	EscalatedCount int64  `json:"escalated_count"`
+	RetainedCount  int64  `json:"retained_count"`
 }
 
 // DownloaderDashboardStatus は管理コンソール向けの総合ステータスです

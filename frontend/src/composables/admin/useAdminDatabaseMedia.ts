@@ -72,6 +72,15 @@ export function useAdminDatabaseMedia() {
     setMediaStatusFilter: (st: string) => { mediaStatusFilter.value = st; mediaPage.value = 1; return fetchMedia(); },
     setMediaTypeFilter: (t: 'all' | 'image' | 'video') => { mediaTypeFilter.value = t; mediaPage.value = 1; return fetchMedia(); },
     trashMedia, restoreMedia, updateMediaMetadata, toggleBookmark,
+    escalateMediaToThunder: async (m: any) => {
+      const mId = String(typeof m === 'object' ? (m.media_id || m.id) : m).trim();
+      const url = String(typeof m === 'object' ? (m.download_url || m.url || '') : '').trim();
+      try {
+        const ok = await getApp()?.EscalateToThunder?.(mId, url);
+        if (ok) { addToast(`⚡ Thunder (迅雷) へエスカレーション投入しました`, 'success', 3000); await fetchMedia(); }
+        else { addToast('❌ Thunder への投入に失敗しました', 'error', 3000); }
+      } catch (e: any) { addToast(`エスカレーション失敗: ${e?.message || e}`, 'error', 3500); }
+    },
     retryMedia: async (mId: string) => { try { await getApp()?.RetryMediaDownload?.(mId); addToast(`🔄 再ダウンロードを発行`, 'info', 3000); await fetchMedia(); } catch (e: any) { addToast(`リトライ失敗: ${e?.message || e}`, 'error', 3500); } },
     openInExplorer: async (mId: string) => { try { await getApp()?.OpenInExplorer?.(mId); addToast('📂 フォルダ表示', 'info', 2000); } catch { addToast('フォルダ表示失敗', 'warning', 3000); } },
     openWithDefaultApp: async (mId: string) => { try { await getApp()?.OpenWithDefaultApp?.(mId); addToast('▶️ 既定アプリ起動', 'info', 2000); } catch { addToast('起動失敗', 'warning', 3000); } },

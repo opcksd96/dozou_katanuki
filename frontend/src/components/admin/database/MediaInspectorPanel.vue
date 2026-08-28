@@ -11,6 +11,7 @@ const emit = defineEmits<{
   (e: 'saveMetadata', payload: { mediaId: string; downloadStatus: string; stashSceneId: string; stashImageId: string; failedReason: string }): void;
   (e: 'retry', mediaId: string): void;
   (e: 'purge', mediaId: string): void;
+  (e: 'escalateThunder', m: any): void;
   (e: 'viewPost', articleId: string): void;
   (e: 'viewPostTimeline', articleId: string): void;
   (e: 'openExplorer', mediaId: string): void;
@@ -84,6 +85,6 @@ const handleUndoStash = async () => {
   <div class="w-80 md:w-[420px] bg-slate-900/95 border-l border-slate-800 flex flex-col p-4 space-y-3.5 overflow-y-auto text-xs font-mono text-slate-300 shrink-0">
     <MediaInspectorAccount :media="media" :has-stash="!!(media.stash_scene_id || media.stash_image_id)" @copy-to-stash-details="editDetails = $event" />
     <MediaInspectorStash :media="media" :stash-data="stashData" v-model:edit-title="editTitle" v-model:edit-details="editDetails" v-model:edit-rating="editRating" :is-modified="isStashModified" :is-mutating="isMutating" :has-undo="!!undoSnapshot" @request-save="handleSaveStash" @undo="handleUndoStash" />
-    <MediaInspectorSqlite :media="media" v-model:edit-status="editStatus" v-model:edit-reason="editReason" @save="handleSaveSqlite" @retry="emit('retry', media.media_id || media.id)" @purge="emit('purge', media.media_id || media.id)" @view-post="emit('viewPost', media.article_id)" @view-post-timeline="emit('viewPostTimeline', media.article_id)" @open-explorer="emit('openExplorer', media.media_id || media.id)" @open-default="emit('openDefault', media.media_id || media.id)" />
+    <MediaInspectorSqlite :media="media" v-model:edit-status="editStatus" v-model:edit-reason="editReason" @save="handleSaveSqlite" @retry="emit('retry', media.media_id || media.id)" @purge="emit('purge', media.media_id || media.id)" @escalate-thunder="emit('escalateThunder', media)" @view-post="emit('viewPost', media.article_id)" @view-post-timeline="emit('viewPostTimeline', media.article_id)" @open-explorer="emit('openExplorer', media.media_id || media.id)" @open-default="emit('openDefault', media.media_id || media.id)" />
   </div>
 </template>

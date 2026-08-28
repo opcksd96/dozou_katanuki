@@ -7,13 +7,14 @@ import MediaToolbar from './MediaToolbar.vue';
 import MediaPaginationBar from './MediaPaginationBar.vue';
 import MediaQueueStatus from './MediaQueueStatus.vue';
 import MediaGrid from './MediaGrid.vue';
+import MediaTableView from './MediaTableView.vue';
 import MediaTrashModal from './MediaTrashModal.vue';
 
 const props = defineProps<{
   mediaItems: any[]; total: number; accounts: any[]; accountFilter: string; statusFilter: string;
   typeFilter: 'all' | 'image' | 'video'; loading: boolean; page: number; limit: number; config?: any; activeJob?: any;
   stats?: { total_count: number; image_count: number; video_count: number };
-  queueStats?: { queued: number; completed: number; dead_404: number; outsourced: number; failed: number; total: number };
+  queueStats?: { queued: number; completed: number; dead_404: number; outsourced: number; escalated?: number; retained?: number; failed?: number; total: number };
 }>();
 
 const emit = defineEmits<{
@@ -22,7 +23,7 @@ const emit = defineEmits<{
   (e: 'retryMedia', mediaId: string): void; (e: 'trashMedia', payload: { mediaId: string; reason: string }): void; (e: 'restoreMedia', id: string): void;
   (e: 'purgeMedia', mediaId: string): void; (e: 'purgeByStatus', status: string): void; (e: 'viewPost', articleId: string): void;
   (e: 'viewPostTimeline', articleId: string): void; (e: 'saveMetadata', payload: any): void; (e: 'startDownload'): void;
-  (e: 'startPoll'): void; (e: 'startEscalate'): void; (e: 'startSmartRecovery'): void; (e: 'startThunder'): void;
+  (e: 'startPoll'): void; (e: 'startEscalate'): void; (e: 'startSmartRecovery'): void; (e: 'startThunder'): void; (e: 'escalateThunder', m: any): void;
   (e: 'requeueFailed'): void; (e: 'reconcileStash'): void; (e: 'openExplorer', id: string): void; (e: 'openDefault', id: string): void;
   (e: 'toggleBookmark', id: string): void; (e: 'cancelJob', id: string): void;
 }>();
@@ -45,7 +46,7 @@ onMounted(() => emit('fetch'));
     <MediaToolbar
       v-model:search-query="searchQuery" :account-filter="accountFilter" :status-filter="statusFilter"
       :type-filter="typeFilter" v-model:view-mode="viewMode" v-model:only-bookmarked="onlyBookmarked"
-      :accounts="accounts" :stats="stats"
+      :accounts="accounts" :stats="stats" :active-job="activeJob"
       @update:account-filter="emit('update:accountFilter', $event)"
       @update:status-filter="emit('update:statusFilter', $event)"
       @update:type-filter="emit('update:typeFilter', $event)"
@@ -53,7 +54,10 @@ onMounted(() => emit('fetch'));
       @reconcile-stash="emit('reconcileStash')"
     />
     <MediaQueueStatus :stats="queueStats" :active-job="activeJob" :status-filter="statusFilter" @update:status-filter="emit('update:statusFilter', $event)" />
-    <MediaGrid :media-items="mediaItems" :loading="loading" :search-query="searchQuery" :only-bookmarked="onlyBookmarked" @retry-media="emit('retryMedia', $event)" @trash-media="openTrashModal" @restore-media="emit('restoreMedia', $event)" @purge-media="emit('purgeMedia', $event)" @toggle-bookmark="emit('toggleBookmark', $event)" @open-explorer="emit('openExplorer', $event)" @open-default="emit('openDefault', $event)" @save-metadata="emit('saveMetadata', $event)" @view-post="emit('viewPost', $event)" @view-post-timeline="emit('viewPostTimeline', $event)" />
+    <div class="flex-1 min-h-0 overflow-y-auto">
+      <MediaTableView v-if="viewMode === 'table'" :items="mediaItems" @retry="emit('retryMedia', $event)" @purge="emit('purgeMedia', $event)" @open-explorer="emit('openExplorer', $event)" @open-default="emit('openDefault', $event)" @toggle-bookmark="emit('toggleBookmark', $event)" @escalate-thunder="emit('escalateThunder', $event)" />
+      <MediaGrid v-else :media-items="mediaItems" :loading="loading" :search-query="searchQuery" :only-bookmarked="onlyBookmarked" @retry-media="emit('retryMedia', $event)" @trash-media="openTrashModal" @restore-media="emit('restoreMedia', $event)" @purge-media="emit('purgeMedia', $event)" @toggle-bookmark="emit('toggleBookmark', $event)" @open-explorer="emit('openExplorer', $event)" @open-default="emit('openDefault', $event)" @save-metadata="emit('saveMetadata', $event)" @escalate-thunder="emit('escalateThunder', $event)" @view-post="emit('viewPost', $event)" @view-post-timeline="emit('viewPostTimeline', $event)" />
+    </div>
     <MediaPaginationBar :page="page" :limit="limit" :total="total" @update:page="emit('update:page', $event)" @update:limit="emit('update:limit', $event)" />
     <MediaTrashModal :show="showTrashModal" :media-item="selectedMediaForTrash" @close="showTrashModal = false" @confirm="(p) => emit('trashMedia', p)" />
   </div>

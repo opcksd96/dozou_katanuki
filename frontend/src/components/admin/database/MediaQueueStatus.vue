@@ -3,7 +3,7 @@
 import { computed } from 'vue';
 
 interface DownloadQueueStats {
-  queued?: number; completed?: number; dead_404?: number; outsourced?: number; retained?: number; failed?: number; total?: number;
+  queued?: number; completed?: number; dead_404?: number; outsourced?: number; escalated?: number; retained?: number; failed?: number; total?: number;
 }
 
 const props = defineProps<{ stats?: DownloadQueueStats | any; activeJob?: any; statusFilter?: string; }>();
@@ -12,7 +12,8 @@ const emit = defineEmits<{ (e: 'update:statusFilter', v: string): void; }>();
 const segments = computed(() => [
   { label: 'QUEUED', value: props.stats?.queued ?? props.stats?.Queued ?? 0, color: 'bg-slate-500', status: 'QUEUED' },
   { label: 'COMPLETED', value: props.stats?.completed ?? props.stats?.Completed ?? 0, color: 'bg-emerald-500', status: 'COMPLETED' },
-  { label: 'OUTSOURCED', value: props.stats?.outsourced ?? props.stats?.Outsourced ?? 0, color: 'bg-purple-500', status: 'OUTSOURCED' },
+  { label: 'OUTSOURCED', value: props.stats?.outsourced ?? props.stats?.Outsourced ?? 0, color: 'bg-blue-500', status: 'OUTSOURCED' },
+  { label: 'ESCALATED', value: props.stats?.escalated ?? props.stats?.Escalated ?? 0, color: 'bg-cyan-500', status: 'ESCALATED' },
   { label: 'RETAINED', value: props.stats?.retained ?? props.stats?.Retained ?? 0, color: 'bg-amber-500', status: 'RETAINED' },
   { label: 'DEAD_404', value: props.stats?.dead_404 ?? props.stats?.Dead404 ?? props.stats?.dead404 ?? 0, color: 'bg-rose-500', status: 'DEAD_404' },
   { label: 'FAILED', value: props.stats?.failed ?? props.stats?.Failed ?? 0, color: 'bg-red-600', status: 'FAILED' },
@@ -21,6 +22,10 @@ const segments = computed(() => [
 const total = computed(() => (props.stats?.total ?? props.stats?.Total ?? segments.value.reduce((s, x) => s + x.value, 0)) || 0);
 const pct = (v: number) => (total.value > 0 ? (v / total.value) * 100 : 0);
 const isJobActive = computed(() => props.activeJob && props.activeJob.status === 'RUNNING');
+
+const handleStatusClick = (st: string) => {
+  emit('update:statusFilter', props.statusFilter === st ? 'all' : st);
+};
 </script>
 
 <template>
@@ -30,9 +35,15 @@ const isJobActive = computed(() => props.activeJob && props.activeJob.status ===
         <div v-for="s in segments" :key="s.status" class="h-full transition-all duration-300" :class="s.color" :style="{ width: `${pct(s.value)}%` }" :title="`${s.label}: ${s.value}`" />
       </div>
       <div class="mt-1.5 flex flex-wrap gap-2">
-        <button v-for="s in segments" :key="s.status" @click="emit('update:statusFilter', s.status)"
-          :class="statusFilter === s.status ? 'ring-2 ring-slate-300' : 'opacity-80 hover:opacity-100'"
-          class="flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-mono bg-slate-800 text-slate-200 cursor-pointer">
+        <button @click="emit('update:statusFilter', 'all')"
+          :class="!statusFilter || statusFilter === 'all' ? 'ring-2 ring-slate-300 bg-slate-700 text-white font-bold' : 'opacity-80 hover:opacity-100 bg-slate-800 text-slate-200'"
+          class="flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-mono cursor-pointer active:scale-95 transition-all">
+          <span>ALL</span>
+          <span class="text-slate-400 font-normal">({{ total }})</span>
+        </button>
+        <button v-for="s in segments" :key="s.status" @click="handleStatusClick(s.status)"
+          :class="statusFilter === s.status ? 'ring-2 ring-slate-300 bg-slate-700' : 'opacity-80 hover:opacity-100 bg-slate-800'"
+          class="flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-mono text-slate-200 cursor-pointer active:scale-95 transition-all">
           <span class="w-2 h-2 rounded-full" :class="s.color" />
           <span class="font-bold">{{ s.value }}</span>
           <span class="text-slate-400">{{ s.label }}</span>

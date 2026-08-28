@@ -49,14 +49,20 @@ class DownloaderPipelineHelper:
         if not self.thunder.is_available():
             if log_fn: log_fn(0, 0, "Thunder.exe not found on system."); return 0
         with self.d._get_conn() as conn:
-            records = conn.cursor().execute("SELECT m.media_id, m.download_url, m.type FROM media m WHERE m.download_status = 'RETAINED' LIMIT ?", (max_batch,)).fetchall()
-        total, urls_to_send = len(records), []
-        for m_id, url, m_type in records:
-            u = self.d.resolve_media_url(m_id, url, m_type)
-            wb_media_url = f"https://web.archive.org/web/2id_/{u}" if u and not u.startswith("http://web.archive") and not u.startswith("https://web.archive") else u
-            urls_to_send.append(wb_media_url or u)
-        sent = self.thunder.add_batch_tasks([u for u in urls_to_send if u], max_limit=max_batch)
-        if log_fn: log_fn(sent, total, f"Sent {sent}/{total} direct media URLs to Thunder.exe")
+            cur = conn.cursor()
+            records = cur.execute("SELECT m.media_id, m.download_url, m.type, ac.username FROM media m JOIN articles a ON m.article_id = a.id JOIN accounts ac ON a.account_id = ac.numeric_id WHERE m.download_status = 'RETAINED' LIMIT ?", (max_batch,)).fetchall()
+            total, tasks, m_ids = len(records), [], []
+            for m_id, url, m_type, user in records:
+                u = self.d.resolve_media_url(m_id, url, m_type)
+                wb_url = f"https://web.archive.org/web/2id_/{u}" if u and not u.startswith("http://web.archive") and not u.startswith("https://web.archive") else u
+                target_path = self.d.get_target_path(user or "unknown", m_id, m_type)
+                tasks.append({"url": wb_url or u, "file_name": m_id.split(":")[0], "dest_dir": os.path.dirname(target_path)})
+                m_ids.append(m_id)
+            sent = self.thunder.add_batch_tasks(tasks, max_limit=max_batch)
+            if sent > 0 and m_ids:
+                cur.executemany("UPDATE media SET download_status = 'ESCALATED', failed_reason = 'Thunder P2SP エスカレーション投入' WHERE media_id = ?", [(mid,) for mid in m_ids[:sent]])
+                conn.commit()
+        if log_fn: log_fn(sent, max(total, 1), f"Escalated {sent}/{total} media items to Thunder (ESCALATED).")
         return sent
 
     def run_smart_recovery(self, log_fn: Optional[Callable[[int, int, str], None]] = None) -> dict:
@@ -65,3 +71,4 @@ class DownloaderPipelineHelper:
         r3 = self.d.poll_outsourced_media()
         r4 = self.clean_failed_outsourced(log_fn=lambda m: (log_fn(0, 0, m) if log_fn else None))
         return {"stage1_salvaged": r1, "stage2_outsourced": r2, "stage3_reconciled": r3, "failed_cleaned": r4}
+

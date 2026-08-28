@@ -8,7 +8,7 @@ const props = withDefaults(defineProps<{ media: any; compact?: boolean }>(), { c
 const emit = defineEmits<{
   (e: 'click', m: any): void; (e: 'retry', id: string): void; (e: 'trash', m: any): void; (e: 'restore', id: string): void;
   (e: 'openExplorer', id: string): void; (e: 'openDefault', id: string): void; (e: 'toggleBookmark', id: string): void;
-  (e: 'viewPost', articleId: string): void; (e: 'viewPostTimeline', articleId: string): void;
+  (e: 'viewPost', articleId: string): void; (e: 'viewPostTimeline', articleId: string): void; (e: 'escalateThunder', m: any): void;
 }>();
 
 const isHovered = ref(false), imgFailed = ref(false);
@@ -39,7 +39,8 @@ const openStash = () => {
       <span v-if="media.is_trash" class="absolute top-2 right-2 px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-rose-950 text-rose-300 border border-rose-700/60">🗑️ ゴミ箱</span>
       <span v-else class="absolute top-2 right-2 px-2 py-0.5 rounded text-[10px] font-mono font-bold" :class="{
         'bg-emerald-950 text-emerald-300 border border-emerald-700/50': media.download_status === 'COMPLETED',
-        'bg-purple-950 text-purple-300 border border-purple-700/50': media.download_status === 'OUTSOURCED',
+        'bg-blue-950 text-blue-300 border border-blue-700/50': media.download_status === 'OUTSOURCED',
+        'bg-cyan-950 text-cyan-300 border border-cyan-500/60': media.download_status === 'ESCALATED',
         'bg-amber-950 text-amber-300 border border-amber-600/60': media.download_status === 'RETAINED',
         'bg-rose-950 text-rose-300 border border-rose-700/50': media.download_status === 'DEAD_404',
         'bg-red-950 text-red-300 border border-red-700/50': media.download_status === 'FAILED',
@@ -69,6 +70,7 @@ const openStash = () => {
         <button v-if="stashDirectUrl" @click.stop="openStash" class="p-1 bg-purple-950 hover:bg-purple-900 text-purple-300 rounded active:scale-95 cursor-pointer" title="Stash WebUI">🎛️</button>
       </div>
       <div class="flex gap-1">
+        <button v-if="!media.is_trash && media.download_status !== 'COMPLETED'" @click="emit('escalateThunder', media)" class="px-1.5 py-0.5 bg-amber-600/90 hover:bg-amber-500 text-white rounded text-[10px] font-bold active:scale-95 cursor-pointer" title="⚡ 迅雷へエスカレーション">⚡</button>
         <button v-if="!media.is_trash" @click="emit('retry', media.media_id || media.id)" class="p-1 bg-blue-950 hover:bg-blue-900 text-blue-300 rounded active:scale-95 cursor-pointer" title="リトライ">🔄</button>
         <button v-if="media.is_trash" @click="emit('restore', media.media_id || media.id)" class="px-2 py-0.5 bg-emerald-700 hover:bg-emerald-600 text-white font-bold rounded text-[11px] active:scale-95 cursor-pointer" title="ゴミ箱から復元">♻️ 復元</button>
         <button v-else @click="emit('trash', media)" class="p-1 bg-rose-950 hover:bg-rose-900 text-rose-300 rounded active:scale-95 cursor-pointer" title="ゴミ箱へ移動">🗑️</button>

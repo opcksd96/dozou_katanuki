@@ -7,6 +7,7 @@ defineProps<{ items: any[] }>();
 const emit = defineEmits<{
   (e: 'select', m: any): void; (e: 'retry', mediaId: string): void; (e: 'purge', mediaId: string): void;
   (e: 'openExplorer', mediaId: string): void; (e: 'openDefault', mediaId: string): void; (e: 'copy', media: any): void; (e: 'toggleBookmark', mediaId: string): void;
+  (e: 'escalateThunder', m: any): void;
 }>();
 
 const parseUrls = (val: any) => {
@@ -62,7 +63,8 @@ const parseUrls = (val: any) => {
           <td class="p-2.5">
             <span class="px-2 py-0.5 rounded text-[10px] font-bold" :class="{
               'bg-emerald-950 text-emerald-300 border border-emerald-700': m.download_status === 'COMPLETED',
-              'bg-purple-950 text-purple-300 border border-purple-700': m.download_status === 'OUTSOURCED',
+              'bg-blue-950 text-blue-300 border border-blue-700': m.download_status === 'OUTSOURCED',
+              'bg-cyan-950 text-cyan-300 border border-cyan-500': m.download_status === 'ESCALATED',
               'bg-amber-950 text-amber-300 border border-amber-600': m.download_status === 'RETAINED',
               'bg-slate-800 text-slate-300 border border-slate-700': m.download_status === 'QUEUED',
               'bg-rose-950 text-rose-300 border border-rose-700': m.download_status === 'DEAD_404',
@@ -74,7 +76,7 @@ const parseUrls = (val: any) => {
           <td class="p-2.5 text-right space-x-1" @click.stop>
             <button @click.stop="emit('openExplorer', m.media_id || m.id)" class="p-1.5 bg-slate-900 hover:bg-slate-800 text-slate-300 rounded-lg text-xs" title="エクスプローラー">📂</button>
             <button @click.stop="emit('openDefault', m.media_id || m.id)" class="p-1.5 bg-slate-900 hover:bg-slate-800 text-slate-300 rounded-lg text-xs" title="既定アプリ">🚀</button>
-            <button @click.stop="emit('copy', m)" class="p-1.5 bg-slate-900 hover:bg-slate-800 text-slate-300 rounded-lg text-xs" title="コピー">📋</button>
+            <button v-if="m.download_status !== 'COMPLETED'" @click="emit('escalateThunder', m)" class="p-1.5 bg-amber-600/90 hover:bg-amber-500 text-white rounded-lg text-xs font-bold" title="⚡ 迅雷へエスカレーション">⚡</button>
             <button @click="emit('retry', m.media_id || m.id)" class="p-1.5 bg-blue-950/80 hover:bg-blue-900 border border-blue-700/60 text-blue-300 rounded-lg text-xs" title="再取得 (リトライ)">🔄</button>
             <button @click="emit('purge', m.media_id || m.id)" class="p-1.5 bg-rose-950/80 hover:bg-rose-900 border border-rose-700/60 text-rose-300 rounded-lg text-xs" title="DBからパージ">🗑️</button>
           </td>

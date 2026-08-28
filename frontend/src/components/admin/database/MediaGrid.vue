@@ -13,6 +13,7 @@ const emit = defineEmits<{
   (e: 'toggleBookmark', id: string): void; (e: 'close'): void; (e: 'saveMetadata', payload: any): void;
   (e: 'viewPost', articleId: string): void; (e: 'viewPostTimeline', articleId: string): void;
   (e: 'fullscreenChange', active: boolean): void; (e: 'openExplorer', mediaId: string): void; (e: 'openDefault', mediaId: string): void;
+  (e: 'escalateThunder', m: any): void;
 }>();
 
 const selectedIndex = ref<number | null>(null);
@@ -38,9 +39,10 @@ const filteredItems = computed(() => {
         @trash="emit('trashMedia', item)" @restore="emit('restoreMedia', item.media_id || item.id)"
         @toggle-bookmark="emit('toggleBookmark', item.media_id || item.id)"
         @open-explorer="emit('openExplorer', item.media_id || item.id)" @open-default="emit('openDefault', item.media_id || item.id)"
+        @escalate-thunder="emit('escalateThunder', $event)"
         @view-post="emit('viewPost', $event)" @view-post-timeline="emit('viewPostTimeline', $event)"
       />
     </div>
-    <MediaPreviewModal v-if="selectedIndex !== null" :media="filteredItems[selectedIndex]" :has-prev="selectedIndex > 0" :has-next="selectedIndex < filteredItems.length - 1" @close="selectedIndex = null" @prev="selectedIndex--" @next="selectedIndex++" @save-metadata="(p) => emit('saveMetadata', p)" @retry="(id) => emit('retryMedia', id)" @view-post="(artId) => emit('viewPost', artId)" @view-post-timeline="(artId) => emit('viewPostTimeline', artId)" @fullscreen-change="emit('fullscreenChange', $event)" @open-explorer="emit('openExplorer', $event)" @open-default="emit('openDefault', $event)" />
+    <MediaPreviewModal v-if="selectedIndex !== null" :media="filteredItems[selectedIndex]" :has-prev="selectedIndex > 0" :has-next="selectedIndex < filteredItems.length - 1" @close="selectedIndex = null" @prev="selectedIndex--" @next="selectedIndex++" @save-metadata="(p) => emit('saveMetadata', p)" @retry="(id) => emit('retryMedia', id)" @escalate-thunder="emit('escalateThunder', $event)" @view-post="(artId) => emit('viewPost', artId)" @view-post-timeline="(artId) => emit('viewPostTimeline', artId)" @fullscreen-change="emit('fullscreenChange', $event)" @open-explorer="emit('openExplorer', $event)" @open-default="emit('openDefault', $event)" />
   </div>
 </template>

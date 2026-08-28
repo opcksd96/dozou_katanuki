@@ -71,6 +71,7 @@ type DownloadStatusStats struct {
 	Completed  int64 `json:"completed"`
 	Dead404    int64 `json:"dead_404"`
 	Outsourced int64 `json:"outsourced"`
+	Escalated  int64 `json:"escalated"`
 	Retained   int64 `json:"retained"`
 	Failed     int64 `json:"failed"`
 	Total      int64 `json:"total"`

@@ -1,4 +1,4 @@
-export type DownloadStatus = 'QUEUED' | 'COMPLETED' | 'DEAD_404' | 'OUTSOURCED' | 'RETAINED';
+export type DownloadStatus = 'QUEUED' | 'COMPLETED' | 'DEAD_404' | 'OUTSOURCED' | 'ESCALATED' | 'RETAINED';
 
 export interface RenderMetrics {
   replies: number;

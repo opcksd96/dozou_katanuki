@@ -37,6 +37,28 @@ export function useDownloaderConsole() {
     else addToast('❌ Thunder.exe の起動に失敗しました', 'error', 3000);
   };
 
+  const escalateToThunder = async (mediaID: string, downloadURL: string) => {
+    try {
+      const getApp = () => (window as any)?.go?.app?.App;
+      const ok = await getApp()?.EscalateToThunder?.(mediaID, downloadURL);
+      if (ok) {
+        addToast('⚡ Thunder (迅雷) へエスカレーション投入しました', 'success', 3000);
+        await fetchStatus();
+      } else { addToast('❌ Thunder への投入に失敗しました', 'error', 3000); }
+    } catch { addToast('❌ エスカレーション処理でエラーが発生しました', 'error', 3000); }
+  };
+
+  const giveUpRetained = async (mediaID: string) => {
+    try {
+      const getApp = () => (window as any)?.go?.app?.App;
+      const ok = await getApp()?.GiveUpRetainedMedia?.(mediaID);
+      if (ok) {
+        addToast('🛑 タスクの探索を諦め、ステータスを確定しました', 'info', 3000);
+        await fetchStatus();
+      } else { addToast('❌ ステータス更新に失敗しました', 'error', 3000); }
+    } catch { addToast('❌ 処理でエラーが発生しました', 'error', 3000); }
+  };
+
   const startPolling = (ms = 2500) => {
     fetchStatus();
     timer = setInterval(fetchStatus, ms);
@@ -46,5 +68,5 @@ export function useDownloaderConsole() {
   onMounted(() => startPolling());
   onUnmounted(() => stopPolling());
 
-  return { status, loading, fetchStatus, controlMotrix, launchThunder, startPolling, stopPolling };
+  return { status, loading, fetchStatus, controlMotrix, launchThunder, escalateToThunder, giveUpRetained, startPolling, stopPolling };
 }

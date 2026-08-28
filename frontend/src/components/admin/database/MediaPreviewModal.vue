@@ -10,6 +10,7 @@ const emit = defineEmits<{
   (e: 'saveMetadata', payload: any): void;
   (e: 'retry', mediaId: string): void;
   (e: 'purge', mediaId: string): void;
+  (e: 'escalateThunder', m: any): void;
   (e: 'viewPost', articleId: string): void;
   (e: 'viewPostTimeline', articleId: string): void;
   (e: 'fullscreenChange', active: boolean): void;
@@ -56,7 +57,7 @@ onUnmounted(() => window.removeEventListener('keydown', handleKeyDown));
           <div v-else class="text-slate-500 font-mono text-xs">メディア実体を表示できません</div>
         </div>
 
-        <MediaInspectorPanel :media="media" @save-metadata="(p) => emit('saveMetadata', p)" @retry="emit('retry', $event)" @purge="emit('purge', $event)" @view-post="emit('viewPost', $event)" @view-post-timeline="emit('viewPostTimeline', $event)" @open-explorer="emit('openExplorer', $event)" @open-default="emit('openDefault', $event)" />
+        <MediaInspectorPanel :media="media" @save-metadata="(p) => emit('saveMetadata', p)" @retry="emit('retry', $event)" @purge="emit('purge', $event)" @escalate-thunder="emit('escalateThunder', $event)" @view-post="emit('viewPost', $event)" @view-post-timeline="emit('viewPostTimeline', $event)" @open-explorer="emit('openExplorer', $event)" @open-default="emit('openDefault', $event)" />
       </div>
     </div>
   </div>
