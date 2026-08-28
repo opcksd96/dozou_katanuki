@@ -1,4 +1,4 @@
-// driver/db.go (100行以下)
+// driver/db.go (100行以下 - SPEC-PRINCIPLE-001)
 package driver
 
 import (
@@ -34,8 +34,17 @@ func InitDB(dbPath string) (*gorm.DB, error) {
 	)
 	if err != nil { return nil, err }
 
-	// GAP-1: Wiki仕様 10大インデックス完全適用 (SPEC-DATABASE-001 §1.3)
-	indexes := []string{
+	migrations := []string{
+		"ALTER TABLE accounts ADD COLUMN is_trash BOOLEAN DEFAULT 0;",
+		"ALTER TABLE accounts ADD COLUMN trashed_by TEXT;",
+		"ALTER TABLE accounts ADD COLUMN trash_reason TEXT;",
+		"ALTER TABLE accounts ADD COLUMN trashed_at DATETIME;",
+		"ALTER TABLE media ADD COLUMN is_trash BOOLEAN DEFAULT 0;",
+		"ALTER TABLE media ADD COLUMN trashed_by TEXT;",
+		"ALTER TABLE media ADD COLUMN trash_reason TEXT;",
+		"ALTER TABLE media ADD COLUMN trashed_at DATETIME;",
+		"CREATE INDEX IF NOT EXISTS idx_accounts_is_trash ON accounts(is_trash);",
+		"CREATE INDEX IF NOT EXISTS idx_media_is_trash ON media(is_trash);",
 		"CREATE INDEX IF NOT EXISTS idx_articles_is_liked_created ON articles(is_liked, created_at DESC) WHERE is_liked = 1;",
 		"CREATE INDEX IF NOT EXISTS idx_articles_account_created ON articles(account_id, created_at DESC);",
 		"CREATE INDEX IF NOT EXISTS idx_articles_conversation ON articles(conversation_id, created_at ASC);",
@@ -51,9 +60,9 @@ func InitDB(dbPath string) (*gorm.DB, error) {
 		"CREATE INDEX IF NOT EXISTS idx_articles_is_trash ON articles(is_trash, created_at DESC);",
 		"CREATE INDEX IF NOT EXISTS idx_articles_trashed_by ON articles(trashed_by) WHERE is_trash = 1;",
 	}
-	for _, idxSql := range indexes { _ = db.Exec(idxSql).Error }
+	for _, mSql := range migrations { _ = db.Exec(mSql).Error }
 
 	_ = MigrateAvatarsToBase64(db)
-	log.Printf("[Driver] Database initialized (WAL mode & 10 Major Indexes applied): %s", dbPath)
+	log.Printf("[Driver] Database initialized (WAL mode & Migrations applied): %s", dbPath)
 	return db, nil
 }

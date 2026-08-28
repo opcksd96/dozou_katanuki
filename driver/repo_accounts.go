@@ -1,4 +1,4 @@
-// driver/repo_accounts.go (100行以下)
+// driver/repo_accounts.go (100行以下 - SPEC-PRINCIPLE-001)
 package driver
 
 import (
@@ -9,8 +9,17 @@ import (
 )
 
 func (r *Repository) GetAccounts() ([]models.Account, error) {
+	return r.GetAllAccounts(false)
+}
+
+func (r *Repository) GetAllAccounts(includeTrash bool) ([]models.Account, error) {
 	var accounts []models.Account
-	err := r.db.Preload("ProfileHistory").Order("is_whitelist DESC, username ASC").Find(&accounts).Error
+	q := r.db.Select("accounts.*, (SELECT count(*) FROM articles WHERE articles.account_id = accounts.numeric_id AND (articles.is_trash = 0 OR articles.is_trash IS NULL)) as post_count").
+		Preload("ProfileHistory").Order("is_whitelist DESC, username ASC")
+	if !includeTrash {
+		q = q.Where("accounts.is_trash = ?", false)
+	}
+	err := q.Find(&accounts).Error
 	return accounts, err
 }
 
@@ -22,7 +31,6 @@ func (r *Repository) ToggleAccountWhitelist(numericID string, isWhitelist bool) 
 	if err := r.db.Model(&acc).Update("is_whitelist", isWhitelist).Error; err != nil {
 		return err
 	}
-	// whitelists テーブルとも小文字正規化して同期
 	lowerUser := strings.ToLower(acc.Username)
 	var wl models.Whitelist
 	if err := r.db.Where("LOWER(value) = ?", lowerUser).First(&wl).Error; err == nil {
@@ -36,16 +44,10 @@ func (r *Repository) ToggleAccountWhitelist(numericID string, isWhitelist bool) 
 }
 
 func (r *Repository) UpdateAccount(numericID, displayName, username, avatarURL, description, aliasOf, groupName string) error {
-	lowerUser := strings.ToLower(username)
-	lowerAlias := strings.ToLower(aliasOf)
+	lowerUser, lowerAlias := strings.ToLower(username), strings.ToLower(aliasOf)
 	return r.db.Model(&models.Account{}).Where("numeric_id = ?", numericID).Updates(map[string]interface{}{
-		"display_name": displayName,
-		"username":     lowerUser,
-		"avatar_url":   avatarURL,
-		"description":  description,
-		"alias_of":     lowerAlias,
-		"group_name":   groupName,
-		"updated_at":   time.Now(),
+		"display_name": displayName, "username": lowerUser, "avatar_url": avatarURL,
+		"description": description, "alias_of": lowerAlias, "group_name": groupName, "updated_at": time.Now(),
 	}).Error
 }
 

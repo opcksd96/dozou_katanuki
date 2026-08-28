@@ -4,20 +4,12 @@ import { ref, watch } from 'vue';
 import Avatar from '../../article/Avatar.vue';
 import { resolveAvatarUrl } from '../../../utils/avatar';
 
-const props = defineProps<{
-  account: any;
-  postCount: number;
-  isEditing: boolean;
-  availableAvatars?: string[];
-}>();
-
+const props = defineProps<{ account: any; postCount: number; isEditing: boolean; availableAvatars?: string[]; }>();
 const emit = defineEmits<{
-  (e: 'startEdit'): void;
-  (e: 'cancelEdit'): void;
+  (e: 'startEdit'): void; (e: 'cancelEdit'): void;
   (e: 'save', payload: { displayName: string; username: string; avatarUrl: string; description: string; aliasOf: string; groupName: string }): void;
-  (e: 'toggleWhitelist'): void;
-  (e: 'viewPosts'): void;
-  (e: 'viewMedia'): void;
+  (e: 'toggleWhitelist'): void; (e: 'viewPosts'): void; (e: 'viewMedia'): void;
+  (e: 'trashAccount', id: string): void; (e: 'restoreAccount', id: string): void;
 }>();
 
 const editForm = ref({ displayName: '', username: '', avatarUrl: '', description: '', aliasOf: '', groupName: '' });
@@ -26,9 +18,8 @@ const showPicker = ref(false);
 watch(() => props.account, (acc) => {
   if (acc) {
     editForm.value = {
-      displayName: acc.display_name || '', username: acc.username || '',
-      avatarUrl: acc.avatar_url || '', description: acc.description || '',
-      aliasOf: acc.alias_of || '', groupName: acc.group_name || '',
+      displayName: acc.display_name || '', username: acc.username || '', avatarUrl: acc.avatar_url || '',
+      description: acc.description || '', aliasOf: acc.alias_of || '', groupName: acc.group_name || '',
     };
   }
 }, { immediate: true });
@@ -42,12 +33,15 @@ const save = () => emit('save', { ...editForm.value });
       <div class="flex items-center gap-3 min-w-0">
         <Avatar :avatar-url="isEditing ? editForm.avatarUrl : resolveAvatarUrl(account)" :handle="account?.username || ''" size-class="w-12 h-12" />
         <div class="min-w-0">
-          <h3 class="text-sm md:text-base font-bold text-slate-100 truncate">{{ account?.display_name || '名称未設定' }}</h3>
+          <div class="flex items-center gap-1.5">
+            <h3 class="text-sm md:text-base font-bold text-slate-100 truncate">{{ account?.display_name || '名称未設定' }}</h3>
+            <span v-if="account?.is_trash" class="px-1.5 py-0.2 bg-rose-950 text-rose-300 border border-rose-800/60 rounded text-[9px] font-bold">🗑️ ゴミ箱</span>
+          </div>
           <p class="text-xs text-slate-400 font-mono">@{{ account?.username || '' }} <span class="text-slate-500 text-[10px]">({{ account?.numeric_id || '' }})</span></p>
         </div>
       </div>
       <div class="flex items-center gap-2 shrink-0">
-        <button @click="emit('toggleWhitelist')" class="px-2.5 py-1 rounded text-xs font-bold font-mono transition-colors cursor-pointer shadow-sm" :class="account?.is_whitelist ? 'bg-emerald-950 text-emerald-300 border border-emerald-700/60' : 'bg-slate-800 text-slate-400 hover:text-slate-200'" :title="account?.is_whitelist ? '巡回・保存対象 (ON)' : '外部参照のみ (OFF)'">
+        <button @click="emit('toggleWhitelist')" class="px-2.5 py-1 rounded text-xs font-bold font-mono transition-colors cursor-pointer shadow-sm" :class="account?.is_whitelist ? 'bg-emerald-950 text-emerald-300 border border-emerald-700/60' : 'bg-slate-800 text-slate-400 hover:text-slate-200'">
           {{ account?.is_whitelist ? '🛡️ Whitelist ON' : '⚪ Whitelist OFF' }}
         </button>
         <button v-if="!isEditing" @click="emit('startEdit')" class="px-3 py-1 bg-slate-800 hover:bg-slate-700 text-blue-400 rounded text-xs font-bold cursor-pointer">編集</button>
@@ -58,10 +52,14 @@ const save = () => emit('save', { ...editForm.value });
       </div>
     </div>
 
-    <div v-if="!isEditing" class="flex flex-wrap gap-1.5 pt-1 border-t border-slate-800 text-[10px] font-mono">
-      <span v-if="account?.group_name" class="px-2 py-0.5 bg-indigo-900/50 text-indigo-300 rounded">グループ: {{ account.group_name }}</span>
-      <span v-if="account?.alias_of" class="px-2 py-0.5 bg-amber-900/50 text-amber-300 rounded">エイリアス: @{{ account.alias_of }}</span>
-      <span v-if="!account?.group_name && !account?.alias_of" class="text-slate-500">（グループ・エイリアス未設定）</span>
+    <div v-if="!isEditing" class="flex flex-wrap items-center justify-between gap-1.5 pt-1 border-t border-slate-800 text-[10px] font-mono">
+      <div class="flex flex-wrap gap-1.5">
+        <span v-if="account?.group_name" class="px-2 py-0.5 bg-indigo-900/50 text-indigo-300 rounded">グループ: {{ account.group_name }}</span>
+        <span v-if="account?.alias_of" class="px-2 py-0.5 bg-amber-900/50 text-amber-300 rounded">エイリアス: @{{ account.alias_of }}</span>
+        <span v-if="!account?.group_name && !account?.alias_of" class="text-slate-500">（グループ・エイリアス未設定）</span>
+      </div>
+      <button v-if="!account?.is_trash" @click="emit('trashAccount', account.numeric_id)" class="px-2 py-0.5 bg-rose-950/80 hover:bg-rose-900 text-rose-300 border border-rose-800/60 rounded text-[10px] cursor-pointer" title="このアカウントをゴミ箱へ退避">🗑️ ゴミ箱へ</button>
+      <button v-else @click="emit('restoreAccount', account.numeric_id)" class="px-2 py-0.5 bg-emerald-950/80 hover:bg-emerald-900 text-emerald-300 border border-emerald-800/60 rounded text-[10px] cursor-pointer" title="このアカウントを通常復元">♻️ 復元する</button>
     </div>
 
     <!-- 編集フォーム -->

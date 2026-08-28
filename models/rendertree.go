@@ -1,4 +1,4 @@
-// models/rendertree.go (100行以下)
+// models/rendertree.go (100行以下 - SPEC-PRINCIPLE-001)
 package models
 
 type RenderContent struct {
@@ -42,6 +42,9 @@ type RenderMedia struct {
 	DownloadURL    string          `json:"download_url,omitempty"`
 	FilePath       string          `json:"file_path,omitempty"`
 	MediaQuality   string          `json:"media_quality,omitempty"`
+	IsTrash        bool            `json:"is_trash,omitempty"`
+	TrashedBy      string          `json:"trashed_by,omitempty"`
+	TrashReason    string          `json:"trash_reason,omitempty"`
 }
 
 type RenderMetrics struct {
@@ -95,4 +98,3 @@ type SkinPackage struct {
 	DesignCSS  string `json:"design_css"`
 	Controller string `json:"controller_js"`
 }
-

@@ -51,6 +51,7 @@ export function useAdminDatabase() {
     batchResetTranslations: articles.batchResetTranslations, undo: articles.undo, redo: articles.redo,
     // Accounts
     accountsList: accounts.accountsList, selectedAccountDetail: accounts.selectedAccountDetail, isAccountLoading: accounts.isAccountLoading,
+    showTrash: accounts.showTrash, toggleShowTrash: accounts.toggleShowTrash, trashAccount: accounts.trashAccount, restoreAccount: accounts.restoreAccount,
     fetchAccounts: accounts.fetchAccounts, selectAccount: accounts.selectAccount, toggleAccountWhitelist: accounts.toggleAccountWhitelist,
     updateAccount: accounts.updateAccount, mergeAccounts: accounts.mergeAccounts, saveAvatarImage: accounts.saveAvatarImage,
     fetchAvailableAvatars: accounts.fetchAvailableAvatars, showAccountPosts, showAccountMedia,
@@ -61,6 +62,7 @@ export function useAdminDatabase() {
     mediaPage: media.mediaPage, mediaLimit: media.mediaLimit, fetchMedia: media.fetchMedia, setMediaAccount: media.setMediaAccount,
     setMediaStatusFilter: media.setMediaStatusFilter, setMediaTypeFilter: media.setMediaTypeFilter, setMediaPage: media.setMediaPage,
     setMediaLimit: media.setMediaLimit, retryMedia: media.retryMedia, purgeMedia: media.purgeMedia, purgeMediaByStatus: media.purgeMediaByStatus,
+    trashMedia: media.trashMedia, restoreMedia: media.restoreMedia,
     openInExplorer: media.openInExplorer, openWithDefaultApp: media.openWithDefaultApp, toggleBookmark: media.toggleBookmark,
     startMediaDownload, startMediaPoll, startMediaEscalate, startSmartRecovery, startThunderEscalate, requeueMedia, reconcileStashMedia, fetchStashMetadata, updateStashMetadata,
   };

@@ -1,7 +1,10 @@
-// models/media.go (100行以下)
+// models/media.go (100行以下 - SPEC-PRINCIPLE-001)
 package models
 
-import "database/sql"
+import (
+	"database/sql"
+	"time"
+)
 
 // Media represents media table (Stashapp Mapping and 3-Stage Recovery status)
 type Media struct {
@@ -17,6 +20,10 @@ type Media struct {
 	StashImageID   sql.NullString `gorm:"index;column:stash_image_id;type:text" json:"stash_image_id"`
 	IsBookmarked   bool           `gorm:"column:is_bookmarked;type:boolean;default:false" json:"is_bookmarked"`
 	MediaQuality   string         `gorm:"column:media_quality;type:text;default:''" json:"media_quality"`
+	IsTrash        bool           `gorm:"index;column:is_trash;type:boolean;not null;default:false" json:"is_trash"`
+	TrashedBy      string         `gorm:"column:trashed_by;type:text" json:"trashed_by,omitempty"`
+	TrashReason    string         `gorm:"column:trash_reason;type:text" json:"trash_reason,omitempty"`
+	TrashedAt      *time.Time     `gorm:"column:trashed_at;type:datetime" json:"trashed_at,omitempty"`
 }
 
 // BuildRenderMedia converts a DB Media record to frontend RenderMedia with normalized URLs and status
@@ -28,8 +35,6 @@ func BuildRenderMedia(m Media) RenderMedia {
 func BuildRenderMediaWithContext(m Media, platform, username string) RenderMedia {
 	var mediaURLs RenderMediaURLs
 	mediaURLs.Original = m.DownloadURL
-	effectiveStatus := m.DownloadStatus
-
 	if m.DownloadStatus == "COMPLETED" {
 		if m.StashSceneID.Valid && m.StashSceneID.String != "" {
 			mediaURLs.Stream = "/stash-proxy/scene/" + m.StashSceneID.String + "/stream"
@@ -41,25 +46,19 @@ func BuildRenderMediaWithContext(m Media, platform, username string) RenderMedia
 			mediaURLs.Thumbnail = "/stash-proxy/image/" + m.StashImageID.String + "/thumbnail"
 		} else {
 			localPath := "/media/" + m.MediaID
-			if platform != "" && username != "" {
-				localPath = "/media-local/" + platform + "/" + username + "/" + m.MediaID
-			}
+			if platform != "" && username != "" { localPath = "/media-local/" + platform + "/" + username + "/" + m.MediaID }
 			if m.Type == "video" || m.Type == "gif" {
-				mediaURLs.Stream = localPath
-				mediaURLs.Thumbnail = localPath
-				mediaURLs.Preview = localPath
+				mediaURLs.Stream = localPath; mediaURLs.Thumbnail = localPath; mediaURLs.Preview = localPath
 			} else {
-				mediaURLs.Image = localPath
-				mediaURLs.Thumbnail = localPath
+				mediaURLs.Image = localPath; mediaURLs.Thumbnail = localPath
 			}
 		}
 	}
-
 	return RenderMedia{
-		ID: m.MediaID, Type: m.Type, DownloadStatus: effectiveStatus,
-		FailedReason: m.FailedReason.String, URLs: mediaURLs, Width: m.Width, Height: m.Height,
-		StashSceneID: m.StashSceneID.String, StashImageID: m.StashImageID.String,
+		ID: m.MediaID, Type: m.Type, DownloadStatus: m.DownloadStatus, FailedReason: m.FailedReason.String,
+		URLs: mediaURLs, Width: m.Width, Height: m.Height, StashSceneID: m.StashSceneID.String, StashImageID: m.StashImageID.String,
 		IsBookmarked: m.IsBookmarked, DownloadURL: m.DownloadURL, MediaQuality: m.MediaQuality,
+		IsTrash: m.IsTrash, TrashedBy: m.TrashedBy, TrashReason: m.TrashReason,
 	}
 }
 
@@ -71,8 +70,6 @@ func MapMediaToRenderMedia(mediaList []Media) []RenderMedia {
 // MapMediaToRenderMediaWithContext converts slice of Media with context
 func MapMediaToRenderMediaWithContext(mediaList []Media, platform, username string) []RenderMedia {
 	result := make([]RenderMedia, 0, len(mediaList))
-	for _, m := range mediaList {
-		result = append(result, BuildRenderMediaWithContext(m, platform, username))
-	}
+	for _, m := range mediaList { result = append(result, BuildRenderMediaWithContext(m, platform, username)) }
 	return result
 }

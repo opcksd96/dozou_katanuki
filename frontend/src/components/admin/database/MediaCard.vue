@@ -6,7 +6,7 @@ import Avatar from '../../article/Avatar.vue';
 
 const props = withDefaults(defineProps<{ media: any; compact?: boolean }>(), { compact: false });
 const emit = defineEmits<{
-  (e: 'click', m: any): void; (e: 'retry', id: string): void; (e: 'purge', id: string): void;
+  (e: 'click', m: any): void; (e: 'retry', id: string): void; (e: 'trash', m: any): void; (e: 'restore', id: string): void;
   (e: 'openExplorer', id: string): void; (e: 'openDefault', id: string): void; (e: 'toggleBookmark', id: string): void;
   (e: 'viewPost', articleId: string): void; (e: 'viewPostTimeline', articleId: string): void;
 }>();
@@ -29,14 +29,15 @@ const openStash = () => {
 </script>
 
 <template>
-  <div class="bg-slate-900/95 rounded-xl p-3 flex flex-col space-y-2 group shadow-lg hover:shadow-2xl transition-all cursor-pointer border border-slate-800 hover:border-slate-600 select-none" @click="emit('click', media)" @mouseenter="isHovered = true" @mouseleave="isHovered = false">
+  <div class="bg-slate-900/95 rounded-xl p-3 flex flex-col space-y-2 group shadow-lg hover:shadow-2xl transition-all cursor-pointer border border-slate-800 hover:border-slate-600 select-none" :class="media.is_trash ? 'border-rose-900/50 bg-rose-950/20' : ''" @click="emit('click', media)" @mouseenter="isHovered = true" @mouseleave="isHovered = false">
     <div :class="[compact ? 'h-36' : 'h-52', 'bg-black/90 rounded-lg overflow-hidden flex items-center justify-center relative select-none w-full']">
       <video v-if="isVideo && media.urls?.preview && isHovered" :src="media.urls.preview" autoplay muted loop playsinline class="w-full h-full object-contain" />
       <img v-else-if="media.urls?.thumbnail && !imgFailed" :src="media.urls.thumbnail" :alt="media.media_id" class="w-full h-full object-contain group-hover:scale-105 transition-transform" loading="lazy" @error="imgFailed = true" />
       <div v-else class="text-slate-500 text-xs font-mono font-bold">{{ isVideo ? '🎬 VIDEO' : '🖼️ IMAGE' }}</div>
 
       <button @click.stop="emit('toggleBookmark', media.media_id || media.id)" class="absolute top-2 left-2 p-1 rounded bg-black/80 text-xs cursor-pointer">{{ media.is_bookmarked ? '⭐' : '☆' }}</button>
-      <span class="absolute top-2 right-2 px-2 py-0.5 rounded text-[10px] font-mono font-bold" :class="{
+      <span v-if="media.is_trash" class="absolute top-2 right-2 px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-rose-950 text-rose-300 border border-rose-700/60">🗑️ ゴミ箱</span>
+      <span v-else class="absolute top-2 right-2 px-2 py-0.5 rounded text-[10px] font-mono font-bold" :class="{
         'bg-emerald-950 text-emerald-300 border border-emerald-700/50': media.download_status === 'COMPLETED',
         'bg-purple-950 text-purple-300 border border-purple-700/50': media.download_status === 'OUTSOURCED',
         'bg-amber-950 text-amber-300 border border-amber-600/60': media.download_status === 'RETAINED',
@@ -53,7 +54,8 @@ const openStash = () => {
 
     <div class="space-y-1 flex-1 min-w-0 font-sans text-xs">
       <div class="font-bold text-slate-100 truncate font-mono" :title="formattedTitle">{{ formattedTitle }}</div>
-      <div v-if="!compact && (media.full_text || media.full_text_ja)" class="text-slate-200 line-clamp-2 leading-relaxed bg-slate-950 p-1.5 rounded border border-slate-800 select-text">{{ media.full_text_ja || media.full_text }}</div>
+      <div v-if="media.trash_reason" class="text-[11px] text-rose-300 bg-rose-950/40 px-1.5 py-0.5 rounded border border-rose-900/50">理由: {{ media.trash_reason }}</div>
+      <div v-else-if="!compact && (media.full_text || media.full_text_ja)" class="text-slate-200 line-clamp-2 leading-relaxed bg-slate-950 p-1.5 rounded border border-slate-800 select-text">{{ media.full_text_ja || media.full_text }}</div>
       <div class="flex items-center justify-between text-slate-400 font-mono text-[11px] pt-1">
         <div class="flex items-center gap-1 truncate"><Avatar :avatar-url="media.avatar_url" :handle="media.username" size-class="w-4 h-4" /><span class="truncate">@{{ media.username }}</span></div>
         <span>{{ media.tweet_date || '-' }}</span>
@@ -67,8 +69,9 @@ const openStash = () => {
         <button v-if="stashDirectUrl" @click.stop="openStash" class="p-1 bg-purple-950 hover:bg-purple-900 text-purple-300 rounded active:scale-95 cursor-pointer" title="Stash WebUI">🎛️</button>
       </div>
       <div class="flex gap-1">
-        <button @click="emit('retry', media.media_id || media.id)" class="p-1 bg-blue-950 hover:bg-blue-900 text-blue-300 rounded active:scale-95 cursor-pointer" title="リトライ">🔄</button>
-        <button @click="emit('purge', media.media_id || media.id)" class="p-1 bg-rose-950 hover:bg-rose-900 text-rose-300 rounded active:scale-95 cursor-pointer" title="削除">🗑️</button>
+        <button v-if="!media.is_trash" @click="emit('retry', media.media_id || media.id)" class="p-1 bg-blue-950 hover:bg-blue-900 text-blue-300 rounded active:scale-95 cursor-pointer" title="リトライ">🔄</button>
+        <button v-if="media.is_trash" @click="emit('restore', media.media_id || media.id)" class="px-2 py-0.5 bg-emerald-700 hover:bg-emerald-600 text-white font-bold rounded text-[11px] active:scale-95 cursor-pointer" title="ゴミ箱から復元">♻️ 復元</button>
+        <button v-else @click="emit('trash', media)" class="p-1 bg-rose-950 hover:bg-rose-900 text-rose-300 rounded active:scale-95 cursor-pointer" title="ゴミ箱へ移動">🗑️</button>
       </div>
     </div>
   </div>
