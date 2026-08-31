@@ -7,6 +7,8 @@ import { useArticleDetail } from './composables/useArticleDetail';
 import { useSkin } from './composables/useSkin';
 import { useKeyboardNavigation } from './composables/useKeyboardNavigation';
 import { useKeyboardReload } from './composables/useKeyboardReload';
+import { useTheme } from './composables/useTheme';
+import { useExternalAppsHealth } from './composables/useExternalAppsHealth';
 import GlobalAppBar from './components/layout/GlobalAppBar.vue';
 import AccountScopeSelector from './components/timeline/AccountScopeSelector.vue';
 import AccountHeroHeader from './components/timeline/AccountHeroHeader.vue';
@@ -17,20 +19,15 @@ import AdminModal from './components/admin/AdminModal.vue';
 import KeyboardShortcutModal from './components/layout/KeyboardShortcutModal.vue';
 import ToastContainer from './components/layout/ToastContainer.vue';
 import { Loader2, Box } from 'lucide-vue-next';
-import { useTheme } from './composables/useTheme';
 
 const isAdminOpen = ref(false), activeArticleId = ref<string | null>(null);
 const { initTheme } = useTheme();
-const {
-  articles, accounts, selectedAccount, currentFilter, searchQuery, systemLang,
-  loading, hasMore, renderKey, isStashReady, selectAccount, setFilter, setSearchQuery, clearSearchQuery,
-  toggleLike, retryMedia, loadMore, reloadAll,
-} = useTimeline();
-
+const { articles, accounts, selectedAccount, currentFilter, searchQuery, systemLang, loading, hasMore, renderKey, isStashReady, selectAccount, setFilter, setSearchQuery, clearSearchQuery, toggleLike, retryMedia, loadMore, reloadAll } = useTimeline();
 const { detail, loading: detailLoading, fetchDetail, clearDetail } = useArticleDetail();
 const { activeMedia, activeArticle, hasNext, hasPrev, openMedia, closeMedia, nextMedia, prevMedia } = useMediaOverlay();
 const { loadSkin } = useSkin();
 useKeyboardReload();
+useExternalAppsHealth();
 
 const currentAccountObj = computed(() => accounts.value.find((a) => a.numeric_id === selectedAccount.value) || null);
 const currentNavItems = computed(() => (activeArticleId.value && detail.value) ? [detail.value.article, ...(detail.value.thread || [])] : articles.value);
@@ -38,17 +35,16 @@ const openDetail = (id: string) => { activeArticleId.value = id; fetchDetail(id)
 const closeDetail = () => { activeArticleId.value = null; clearDetail(); };
 
 const { focusedIndex, isHelpOpen } = useKeyboardNavigation({
-  getItems: () => currentNavItems.value,
-  onSelectArticle: openDetail, onToggleLike: toggleLike,
+  getItems: () => currentNavItems.value, onSelectArticle: openDetail, onToggleLike: toggleLike,
   onOpenMedia: (art) => { if (art.media?.length) openMedia(art.media[0], art.media, art); },
-  onBack: closeDetail, isDetailView: () => !!activeArticleId.value,
-  isOverlayOpen: () => !!activeMedia.value, isAdminOpen: () => isAdminOpen.value, openAdmin: () => { isAdminOpen.value = true; },
+  onBack: closeDetail, isDetailView: () => !activeArticleId.value,
+  isOverlayOpen: () => !activeMedia.value, isAdminOpen: () => isAdminOpen.value, openAdmin: () => { isAdminOpen.value = true; },
 });
 
 const focusedId = computed(() => (focusedIndex.value >= 0 && focusedIndex.value < currentNavItems.value.length) ? currentNavItems.value[focusedIndex.value].id : null);
 onMounted(() => {
-  initTheme();
-  loadSkin('twitter');
+  initTheme(); loadSkin('twitter');
+  if (sessionStorage.getItem('admin_auto_open_tab')) { isAdminOpen.value = true; }
   try { if ((window as any)?.runtime?.EventsOnMultiple) (window as any).runtime.EventsOnMultiple('open:admin', () => { isAdminOpen.value = true; }, -1); } catch {}
 });
 </script>
@@ -71,19 +67,13 @@ onMounted(() => {
             <div class="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-blue-500 animate-ping"></div>
           </div>
           <div class="space-y-2 max-w-sm">
-            <h2 class="text-base font-bold text-slate-100 flex items-center justify-center gap-2">
-              <Loader2 class="w-4 h-4 animate-spin text-blue-400" />
-              Stash メディアサーバー接続確認中...
-            </h2>
+            <h2 class="text-base font-bold text-slate-100 flex items-center justify-center gap-2"><Loader2 class="w-4 h-4 animate-spin text-blue-400" />Stash メディアサーバー接続確認中...</h2>
             <p class="text-xs text-slate-400 font-mono">ポート9999疎通プロービング中</p>
           </div>
         </div>
         <!-- タイムライン / 詳細 -->
         <div v-else-if="activeArticleId">
-          <div v-if="detailLoading && !detail" class="p-12 text-center text-slate-500 font-mono flex items-center justify-center gap-2">
-            <Loader2 class="w-4 h-4 animate-spin text-blue-400" />
-            <span>詳細データを読み込み中...</span>
-          </div>
+          <div v-if="detailLoading && !detail" class="p-12 text-center text-slate-500 font-mono flex items-center justify-center gap-2"><Loader2 class="w-4 h-4 animate-spin text-blue-400" /><span>詳細データを読み込み中...</span></div>
           <ArticleDetailView v-else-if="detail" :article="detail.article" :thread="detail.thread" :target-lang="systemLang" :loading="detailLoading" :focused-article-id="focusedId || undefined" @back="closeDetail" @select-article="openDetail" @toggle-like="toggleLike" @retry-media="retryMedia" @click-tag="(t) => { closeDetail(); setSearchQuery('#' + t); }" @click-mention="(m) => { closeDetail(); setSearchQuery('@' + m); }" @click-media="(m, l, a) => openMedia(m, l, a)" />
         </div>
         <TimelineContainer v-else :articles="articles" :current-filter="currentFilter" :search-query="searchQuery" :system-lang="systemLang" :loading="loading" :has-more="hasMore" :focused-article-id="focusedId" @filter="setFilter" @clear-search="clearSearchQuery" @load-more="loadMore" @open-detail="openDetail" @toggle-like="toggleLike" @retry-media="retryMedia" @open-media="(m, l, a) => openMedia(m, l, a)" @click-tag="(t) => setSearchQuery('#' + t)" @click-mention="(m) => setSearchQuery('@' + m)" />

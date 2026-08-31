@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>メディアダウンロードパイプライン 完全自律＆ワンストップ設計図</title>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <script>
+    mermaid.initialize({ startOnLoad: true, theme: 'dark', securityLevel: 'loose' });
+  </script>
+  <style>
+    body {
+      background-color: #020617;
+      color: #f8fafc;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      padding: 24px;
+      margin: 0;
+    }
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    h1 {
+      font-size: 20px;
+      border-bottom: 1px solid #1e293b;
+      padding-bottom: 8px;
+      color: #f1f5f9;
+    }
+    h2 {
+      font-size: 16px;
+      margin-top: 24px;
+      color: #cbd5e1;
+    }
+    .mermaid-box {
+      background: #0f172a;
+      border: 1px solid #1e293b;
+      border-radius: 12px;
+      padding: 20px;
+      margin: 16px 0;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
+      display: flex;
+      justify-content: center;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 12px;
+      font-size: 13px;
+    }
+    th, td {
+      border: 1px solid #334155;
+      padding: 10px 12px;
+      text-align: left;
+    }
+    th {
+      background-color: #1e293b;
+      color: #94a3b8;
+    }
+    tr:nth-child(even) {
+      background-color: #0f172a;
+    }
+    .badge-auto {
+      background: #064e3b;
+      color: #6ee7b7;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-weight: bold;
+      font-size: 11px;
+    }
+    .badge-commander {
+      background: #701a75;
+      color: #f5d0fe;
+      padding: 3px 8px;
+      border-radius: 6px;
+      font-weight: bold;
+      font-size: 12px;
+      border: 1px solid #c026d3;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🏛️ 完全自律パイプライン ＆ ワンストップ司令塔（新設計）</h1>
+    
+    <h2>1. フロースルー・オートメーション ＆ ワンストップ介入</h2>
+    <div class="mermaid-box">
+      <pre class="mermaid">
+flowchart TD
+    subgraph AUTO["🤖【 完全自律オートメーション層 (人間ノータッチ) 】"]
+        A["メディア発見 (Sotwe/Wayback)"] -->|自動| B["第1次 通常DL (Motrix/HTTP)"]
+        B -->|成功| C["COMPLETED (救出完了)"]
+        B -->|404/失敗/タイムアウト| D["⚡ 自動エスカレーション (迅雷 P2SP網)"]
+        
+        D -->|Top3多重化間欠投入| E["迅雷スロット管理 (12並列/3秒間隔)"]
+        E -->|どれか1つ成功| F["他候補を即時取り下げ (Reaper)"]
+        F --> C
+        
+        C -->|自動回収 ＆ 再配置| G["{owner}/X(Twitter)/_assets"]
+        G -->|自動連携| H["Stash スキャン ➔ VTT/サムネイル生成 ➔ ツイートメタデータ充填"]
+        
+        E -->|全候補全滅・リソース枯渇| I["迅雷キュー取り下げ ➔ RETAINED 退避"]
+    end
+
+    subgraph COMMANDER["👑【 唯一の人間介入点：ワンストップ・リキュー司令塔 】"]
+        I -->|集約| J{"👤 司令官の戦略的リキュー判断"}
+        J -->|戦略A| K["🏛️ Wayback CDX 深度探索リキュー<br>(別タイムスタンプ魚拓の探索)"]
+        J -->|戦略B| L["🌐 外部救出リキュー<br>(yt-dlp / 別プロキシ経由)"]
+        J -->|戦略C| M["🛑 完全探索断念<br>(DEAD_404 確定)"]
+        
+        K --> D
+        L --> D
+    end
+
+    style AUTO fill:#020617,stroke:#1e293b,color:#94a3b8
+    style COMMANDER fill:#1e1035,stroke:#a21caf,color:#f5d0fe
+      </pre>
+    </div>
+
+    <h2>2. 責務の明確化：95%の自動化と、5%の高度な意思決定</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>レイヤー</th>
+          <th>区分</th>
+          <th>対象処理</th>
+          <th>動作内容・司令官のメリット</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>採取〜第1次DL</td>
+          <td><span class="badge-auto">🤖 完全自動</span></td>
+          <td>Sotwe/Wayback ➔ Motrix</td>
+          <td>人間が何もしなくても勝手に通常ダウンロードを試行</td>
+        </tr>
+        <tr>
+          <td>救出エスカレーション</td>
+          <td><span class="badge-auto">🤖 完全自動</span></td>
+          <td>Motrix失敗 ➔ 迅雷投入</td>
+          <td><strong>【新設計】</strong> 人間の承認を待たず、失敗した瞬間に迅雷 Top3 候補へ自動移行</td>
+        </tr>
+        <tr>
+          <td>P2SP 重複解消</td>
+          <td><span class="badge-auto">🤖 完全自動</span></td>
+          <td>1候補成功時の刈り取り</td>
+          <td>最高画質が落ちたら他候補を自動キャンセル</td>
+        </tr>
+        <tr>
+          <td>ファイル配置・Stash</td>
+          <td><span class="badge-auto">🤖 完全自動</span></td>
+          <td>後処理パイプライン</td>
+          <td>アカウントフォルダ移動・VTTプレビュー・メタデータ充填まで自動完結</td>
+        </tr>
+        <tr>
+          <td><strong>全滅メディアのリキュー</strong></td>
+          <td><span class="badge-commander">👑 ワンストップ介入</span></td>
+          <td><strong>RETAINED の戦略的リキュー</strong></td>
+          <td><strong>すべての手段が尽きたメディアだけが司令塔に届く。司令官は「魚拓深度探索」「外部リキュー」「断念」の戦略を選ぶだけ！</strong></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</body>
+</html>

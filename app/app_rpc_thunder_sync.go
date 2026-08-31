@@ -5,9 +5,11 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"dozou_katanuki/models"
 )
 
-// SyncThunderDownloads は迅雷フォルダおよびルート直下の完了ファイルをアカウント所定フォルダへ移動・DB同期します
+// SyncThunderDownloads は迅雷フォルダおよび _escalate の完了ファイルをアカウント所定フォルダへ移動・DB同期・Stash連携します
 func (a *App) SyncThunderDownloads(customDir string) (int, error) {
 	tempDir := customDir
 	if tempDir == "" {
@@ -20,14 +22,13 @@ func (a *App) SyncThunderDownloads(customDir string) (int, error) {
 	destRoot := a.getMediaDownloadDir()
 	syncedCount := 0
 
-	// 1. 迅雷テンポラリフォルダのスキャン＆移動
-	if count, err := a.processDirectoryFiles(tempDir, destRoot); err == nil {
-		syncedCount += count
-	}
+	if count, err := a.processDirectoryFiles(tempDir, destRoot); err == nil { syncedCount += count }
+	if count, err := a.processDirectoryFiles(destRoot, destRoot); err == nil { syncedCount += count }
+	escalateDir := filepath.Join(destRoot, "_escalate")
+	if count, err := a.processDirectoryFiles(escalateDir, destRoot); err == nil { syncedCount += count }
 
-	// 2. 直下 (destRoot) に置かれてしまったファイルの所定アカウントフォルダへの再配置
-	if count, err := a.processDirectoryFiles(destRoot, destRoot); err == nil {
-		syncedCount += count
+	if syncedCount > 0 {
+		a.TriggerStashFullPipeline()
 	}
 
 	return syncedCount, nil
@@ -42,17 +43,12 @@ func (a *App) processDirectoryFiles(srcDir, destRoot string) (int, error) {
 		if entry.IsDir() { continue }
 		name := entry.Name()
 		ext := strings.ToLower(filepath.Ext(name))
-
-		if ext != ".jpg" && ext != ".jpeg" && ext != ".png" && ext != ".webp" && ext != ".mp4" && ext != ".webm" {
-			continue
-		}
+		if ext != ".jpg" && ext != ".jpeg" && ext != ".png" && ext != ".webp" && ext != ".mp4" && ext != ".webm" { continue }
 
 		srcPath := filepath.Join(srcDir, name)
 		mediaID := resolveMediaIDFromFileName(name)
 		destFileName := mediaID
-		if !strings.HasSuffix(strings.ToLower(destFileName), ext) {
-			destFileName = destFileName + ext
-		}
+		if !strings.HasSuffix(strings.ToLower(destFileName), ext) { destFileName = destFileName + ext }
 
 		targetSubDir := filepath.Join(destRoot, "_escalate")
 		if a.Repo != nil {
@@ -67,8 +63,9 @@ func (a *App) processDirectoryFiles(srcDir, destRoot string) (int, error) {
 
 		if err := moveFileSafe(srcPath, destPath); err == nil {
 			if a.Repo != nil {
-				_ = a.Repo.UpdateMediaMetadata(mediaID, "COMPLETED", "", "", "")
 				count++
+				// 【新SSOT】全ステージ協調刈り取り ＆ Stash自動パイプライン連携
+				go a.CoordinateTaskCompletion(mediaID, name, models.StageThunder)
 			}
 		}
 	}

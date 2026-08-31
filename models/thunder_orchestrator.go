@@ -6,9 +6,13 @@ import "time"
 type ThunderResolutionType string
 
 const (
-	ResolutionOrig        ThunderResolutionType = "orig"
-	ResolutionLarge       ThunderResolutionType = "large"
-	ResolutionWaybackOrig ThunderResolutionType = "wayback_orig"
+	ResolutionOrig         ThunderResolutionType = "orig"
+	ResolutionColonOrig    ThunderResolutionType = "colon_orig"
+	ResolutionPlain        ThunderResolutionType = "plain"
+	ResolutionLarge        ThunderResolutionType = "large"
+	ResolutionWaybackPlain ThunderResolutionType = "wayback_plain"
+	ResolutionWaybackColon ThunderResolutionType = "wayback_colon"
+	ResolutionWaybackOrig  ThunderResolutionType = "wayback_orig"
 )
 
 // ThunderOrchestratorTask はオーケストレーターが管理する単一ジョブです

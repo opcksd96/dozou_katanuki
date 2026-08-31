@@ -1,4 +1,4 @@
-// main.go (100行以下)
+// main.go (100行以下 - SPEC-PRINCIPLE-001)
 package main
 
 import (
@@ -24,6 +24,8 @@ import (
 //go:embed all:frontend/dist
 var assets embed.FS
 
+const MainBuildRevision = "main-20260829-0800"
+
 func main() {
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
@@ -35,9 +37,7 @@ func main() {
 	}()
 
 	stashURL, err := url.Parse("http://127.0.0.1:9999")
-	if err != nil {
-		println("Stash URL Parse Error:", err.Error())
-	}
+	if err != nil { println("Stash URL Parse Error:", err.Error()) }
 
 	unifiedHandler := middleware.NewUnifiedHandler("./assets", stashURL)
 	appInstance := app.NewApp(unifiedHandler, assets)
@@ -45,16 +45,12 @@ func main() {
 	appMenu := menu.NewMenu()
 	toolsMenu := appMenu.AddSubmenu("設定・管理 (Admin)")
 	toolsMenu.AddText("⚙️ 設定・Admin Board...", keys.CmdOrCtrl(","), func(_ *menu.CallbackData) {
-		if appInstance.Ctx != nil {
-			runtime.EventsEmit(appInstance.Ctx, "open:admin")
-		}
+		if appInstance.Ctx != nil { runtime.EventsEmit(appInstance.Ctx, "open:admin") }
 	})
 
 	viewMenu := appMenu.AddSubmenu("表示 (View)")
 	viewMenu.AddText("再読み込み (Reload)", keys.CmdOrCtrl("r"), func(_ *menu.CallbackData) {
-		if appInstance.Ctx != nil {
-			runtime.WindowReload(appInstance.Ctx)
-		}
+		if appInstance.Ctx != nil { runtime.WindowReload(appInstance.Ctx) }
 	})
 
 	err = wails.Run(&options.App{
@@ -81,7 +77,5 @@ func main() {
 		Bind: []interface{}{appInstance},
 	})
 
-	if err != nil {
-		println("Error:", err.Error())
-	}
+	if err != nil { println("Error:", err.Error()) }
 }

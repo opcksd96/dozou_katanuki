@@ -1,4 +1,4 @@
-// app/app.go (100行以下)
+// app/app.go (100行以下 - SPEC-PRINCIPLE-001)
 package app
 
 import (
@@ -10,6 +10,11 @@ import (
 
 	"dozou_katanuki/driver"
 	"dozou_katanuki/middleware"
+)
+
+const (
+	AppVersion    = "v2.5.0"
+	BuildRevision = "rev-20260829-0800"
 )
 
 type App struct {
@@ -31,10 +36,12 @@ func NewApp(handler *middleware.UnifiedHandler, distFS fs.FS) *App {
 	return &App{UnifiedHandler: handler, DistFS: distFS, Ready: make(chan struct{})}
 }
 
+func (a *App) GetAppVersion() string {
+	return fmt.Sprintf("%s (%s)", AppVersion, BuildRevision)
+}
+
 func (a *App) IsStashReady() bool {
-	if a.StashProber != nil {
-		return a.StashProber.IsConnected()
-	}
+	if a.StashProber != nil { return a.StashProber.IsConnected() }
 	return false
 }
 

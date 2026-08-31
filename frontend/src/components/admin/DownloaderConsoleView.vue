@@ -20,7 +20,7 @@ const formatSpeed = (b: number) => (!b || b === 0 ? '0 B/s' : b < 1048576 ? `${(
 </script>
 
 <template>
-  <div class="h-full flex flex-col p-3 sm:p-4 space-y-3 bg-slate-950 text-slate-100 overflow-y-auto font-sans max-w-6xl mx-auto">
+  <div class="h-full w-full flex flex-col p-3 sm:p-4 space-y-3 bg-slate-950 text-slate-100 overflow-y-auto font-sans">
     <div class="flex items-center justify-between border-b border-slate-800 pb-2">
       <div class="flex items-center gap-2"><span class="text-xl">🚀</span><div><h2 class="text-sm font-bold text-slate-100">Motrix / Aria2 キュー統合管理</h2><p class="text-[10px] text-slate-400 font-mono">OUTSOURCED キューの遠隔制御・安全退避パージ</p></div></div>
       <button @click="fetchQueue" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded text-xs cursor-pointer">🔄 更新</button>

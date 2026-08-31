@@ -10,15 +10,16 @@ import AdminMobileMenu from './AdminMobileMenu.vue';
 import PluginHubView from './PluginHubView.vue';
 import RelationExplorerView from './RelationExplorerView.vue';
 import ConfigPortal from './ConfigPortal.vue';
-import DownloaderConsoleView from './DownloaderConsoleView.vue';
-import ThunderOrchestratorView from './ThunderOrchestratorView.vue';
+import PipelineConsoleView from './PipelineConsoleView.vue';
 import AuditReportView from './AuditReportView.vue';
 import SystemConsoleView from './SystemConsoleView.vue';
 import DatabaseView from './DatabaseView.vue';
 
 const props = defineProps<{ isOpen: boolean }>();
 const emit = defineEmits<{ (e: 'close'): void; (e: 'whitelistUpdated'): void; (e: 'jumpToTimelinePost', articleId: string): void; }>();
-const activeTab = ref<AdminTabId>('plugins'), isMobileNavOpen = ref(false), isStashOnline = ref(false);
+const initialTab = (sessionStorage.getItem('admin_auto_open_tab') as AdminTabId) || 'plugins';
+sessionStorage.removeItem('admin_auto_open_tab');
+const activeTab = ref<AdminTabId>(initialTab), isMobileNavOpen = ref(false), isStashOnline = ref(false);
 const salvageForm = reactive({ platform: 'twitter', account: '', source: 'all', limit: 0 }), importForm = reactive({ warcPath: '', offline: true }), selectedPlatform = ref('twitter');
 const admin = useAdmin();
 let unoffStash: (() => void) | null = null;
@@ -32,19 +33,11 @@ const openStashWeb = () => {
   try { BrowserOpenURL('http://127.0.0.1:9999/'); }
   catch { window.open('http://127.0.0.1:9999/', '_blank'); }
 };
-const refreshCurrentTab = (tab: AdminTabId) => {
-  checkStash();
-  try {
-    if (tab === 'plugins') { admin.fetchActiveJob?.(); admin.fetchSkinCSS?.(selectedPlatform.value || 'twitter'); }
-    else if (tab === 'config') admin.fetchConfig?.();
-    else if (tab === 'accounts') admin.fetchAccounts?.();
-    else if (tab === 'posts') { admin.fetchAccounts?.(); admin.searchArticles?.(); }
-    else if (tab === 'media') { admin.fetchAccounts?.(); admin.fetchMedia?.(); }
-  } catch (_) {}
+const handleGlobalHardReload = () => {
+  sessionStorage.setItem('admin_auto_open_tab', activeTab.value);
+  window.location.reload();
 };
-watch(() => props.isOpen, (open) => { (open ? (refreshCurrentTab(activeTab.value), document.body.style.overflow = 'hidden') : document.body.style.overflow = ''); }, { immediate: true });
-watch(activeTab, (tab) => { if (props.isOpen) refreshCurrentTab(tab); });
-watch(selectedPlatform, (p) => { salvageForm.platform = p; if (activeTab.value === 'plugins') refreshCurrentTab('plugins'); });
+watch(() => props.isOpen, (open) => { if (open) { checkStash(); document.body.style.overflow = 'hidden'; } else document.body.style.overflow = ''; }, { immediate: true });
 onMounted(() => {
   window.addEventListener('keydown', handleKey);
   try { if ((window as any)?.runtime?.EventsOnMultiple) unoffStash = EventsOn('stash:ready', (ready: boolean) => { isStashOnline.value = !!ready; }); } catch {}
@@ -61,12 +54,12 @@ onUnmounted(() => { window.removeEventListener('keydown', handleKey); if (unoffS
         <h2 class="text-xs font-bold text-slate-100 truncate">Admin Governance Portal</h2>
       </div>
       <div class="flex items-center gap-1.5 wails-no-drag shrink-0">
-        <button @click="openStashWeb" class="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700/80 text-[11px] font-mono transition-all cursor-pointer active:scale-95 group" title="Stash Web UI を開く (http://127.0.0.1:9999/)">
+        <button @click="openStashWeb" class="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700/80 text-[11px] font-mono transition-all cursor-pointer active:scale-95 group" title="Stash Web UI を開く">
           <span :class="['w-1.5 h-1.5 rounded-full', isStashOnline ? 'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]' : 'bg-amber-500']"></span>
-          <span :class="isOnline ? 'text-slate-300 group-hover:text-white' : 'text-slate-500'" class="flex items-center gap-1"><Server class="w-3 h-3 text-slate-400" />Stash</span>
+          <span class="text-slate-400 group-hover:text-white flex items-center gap-1"><Server class="w-3 h-3" />Stash</span>
           <ExternalLink class="w-2.5 h-2.5 text-slate-500 group-hover:text-blue-400 ml-0.5" />
         </button>
-        <button @click="refreshCurrentTab(activeTab)" class="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-semibold border border-slate-700 cursor-pointer active:scale-95 flex items-center gap-1.5" title="現在のタブを再読み込み">
+        <button @click="handleGlobalHardReload" class="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-semibold border border-slate-700 cursor-pointer active:scale-95 flex items-center gap-1.5" title="現在のタブを保持して再読み込み">
           <RefreshCw class="w-3.5 h-3.5" /><span class="hidden sm:inline">再読込</span>
         </button>
         <button @click="close" class="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-semibold border border-slate-700 cursor-pointer active:scale-95">
@@ -83,8 +76,7 @@ onUnmounted(() => { window.removeEventListener('keydown', handleKey); if (unoffS
       <AdminNavSidebar :active-tab="activeTab" @select="(t) => activeTab = t" />
       <main class="flex-1 min-h-0 overflow-y-auto p-2 sm:p-3 bg-slate-950 flex flex-col">
         <PluginHubView v-if="activeTab === 'plugins'" :admin="admin" :salvage-form="salvageForm" :import-form="importForm" v-model:selected-platform="selectedPlatform" @start-salvage="admin.startSalvage(salvageForm.platform, salvageForm.account, salvageForm.limit, salvageForm.source)" @start-import="admin.startManualImport(importForm.warcPath, importForm.offline)" />
-        <DownloaderConsoleView v-else-if="activeTab === 'downloaders'" class="overflow-y-auto flex-1" :admin="admin" />
-        <ThunderOrchestratorView v-else-if="activeTab === 'thunder'" class="overflow-y-auto flex-1" :admin="admin" />
+        <PipelineConsoleView v-else-if="activeTab === 'pipeline'" class="overflow-y-auto flex-1" @jump-to-media="(mId) => { activeTab = 'media'; admin.fetchMedia?.(); }" />
         <AuditReportView v-else-if="activeTab === 'audit'" class="overflow-y-auto flex-1" :restoring="admin.isJobRunning?.value ?? admin.isJobRunning" @trigger-restore="(resetDB) => { admin.triggerRestore('', resetDB); activeTab = 'plugins'; }" />
         <SystemConsoleView v-else-if="activeTab === 'console'" class="flex-1 min-h-0" />
         <RelationExplorerView v-else-if="activeTab === 'explorer'" class="overflow-y-auto flex-1" />

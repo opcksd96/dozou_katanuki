@@ -9,7 +9,8 @@ import (
 
 var allowedTables = map[string]bool{
 	"accounts": true, "account_profile_histories": true, "articles": true,
-	"media": true, "url_redirects": true, "whitelists": true,
+	"media": true, "url_redirects": true, "whitelists": true, "thunder_tasks": true,
+	"download_tasks": true,
 }
 
 func (r *Repository) GetAccountDetail(numericID string) (*models.AccountDetailResult, error) {

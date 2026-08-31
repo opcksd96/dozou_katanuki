@@ -20,35 +20,20 @@ func getMotrixConfigs() []motrixConfig {
 	var cfgs []motrixConfig
 	appdata := os.Getenv("APPDATA")
 	if appdata != "" {
-		// 1. Motrix Next (system.json / config.json)
 		if data, err := os.ReadFile(filepath.Join(appdata, "com.motrix.next", "system.json")); err == nil {
 			var sys map[string]interface{}
 			if json.Unmarshal(data, &sys) == nil {
 				port := fmt.Sprintf("%v", sys["rpc-listen-port"])
 				sec := fmt.Sprintf("%v", sys["rpc-secret"])
 				if port != "" && port != "<nil>" {
+					if sec == "<nil>" { sec = "" }
 					cfgs = append(cfgs, motrixConfig{Endpoint: "http://127.0.0.1:" + port + "/jsonrpc", Secret: sec})
 				}
 			}
 		}
-		// 2. Motrix (settings.json)
-		if data, err := os.ReadFile(filepath.Join(appdata, "Motrix", "settings.json")); err == nil {
-			var m struct {
-				Engine struct {
-					RpcPort   int    `json:"rpcPort"`
-					RpcSecret string `json:"rpcSecret"`
-				} `json:"engine"`
-			}
-			if json.Unmarshal(data, &m) == nil && m.Engine.RpcPort > 0 {
-				cfgs = append(cfgs, motrixConfig{
-					Endpoint: fmt.Sprintf("http://127.0.0.1:%d/jsonrpc", m.Engine.RpcPort),
-					Secret:   m.Engine.RpcSecret,
-				})
-			}
-		}
 	}
-	// デフォルトフォールバック (29100, 16800, 6800)
 	cfgs = append(cfgs,
+		motrixConfig{Endpoint: "http://127.0.0.1:29100/jsonrpc", Secret: "YyCGmFuwCnHvF5Bi"},
 		motrixConfig{Endpoint: "http://127.0.0.1:29100/jsonrpc", Secret: ""},
 		motrixConfig{Endpoint: "http://127.0.0.1:16800/jsonrpc", Secret: ""},
 		motrixConfig{Endpoint: "http://127.0.0.1:6800/jsonrpc", Secret: ""},
@@ -57,7 +42,8 @@ func getMotrixConfigs() []motrixConfig {
 }
 
 func callMotrixRPC(method string, params []interface{}) ([]byte, error) {
-	client := &http.Client{Timeout: 2 * time.Second}
+	client := &http.Client{Timeout: 3 * time.Second}
+	var lastErr error
 	for _, cfg := range getMotrixConfigs() {
 		var rpcParams []interface{}
 		if cfg.Secret != "" && cfg.Secret != "<nil>" {
@@ -70,15 +56,33 @@ func callMotrixRPC(method string, params []interface{}) ([]byte, error) {
 			"jsonrpc": "2.0", "id": "dozou", "method": method, "params": rpcParams,
 		})
 		resp, err := client.Post(cfg.Endpoint, "application/json", bytes.NewReader(payload))
-		if err == nil && resp.StatusCode == 200 {
-			buf := new(bytes.Buffer)
-			buf.ReadFrom(resp.Body)
-			resp.Body.Close()
-			return buf.Bytes(), nil
+		if err != nil {
+			lastErr = err
+			continue
 		}
-		if resp != nil {
-			resp.Body.Close()
+		buf := new(bytes.Buffer)
+		_, _ = buf.ReadFrom(resp.Body)
+		resp.Body.Close()
+
+		if resp.StatusCode == 200 {
+			var rpcResp struct {
+				Result interface{} `json:"result"`
+				Error  interface{} `json:"error"`
+			}
+			if json.Unmarshal(buf.Bytes(), &rpcResp) == nil {
+				if rpcResp.Error != nil {
+					lastErr = fmt.Errorf("rpc error: %v", rpcResp.Error)
+					continue
+				}
+				if rpcResp.Result != nil {
+					return buf.Bytes(), nil
+				}
+			}
 		}
+		lastErr = fmt.Errorf("status %d: %s", resp.StatusCode, buf.String())
 	}
-	return nil, fmt.Errorf("motrix offline or unauthorized")
+	if lastErr != nil {
+		return nil, lastErr
+	}
+	return nil, fmt.Errorf("motrix offline")
 }

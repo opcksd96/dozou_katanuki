@@ -10,12 +10,9 @@ func (a *App) StartThunderOrchestrator(maxSlots, intervalSec int) (models.Thunde
 	orchState.mu.Lock()
 	defer orchState.mu.Unlock()
 
-	if orchState.isRunning {
-		return a.getOrchestratorStatusLocked(), nil
-	}
-
+	if orchState.isRunning { return a.getOrchestratorStatusLocked(), nil }
 	if maxSlots <= 0 { maxSlots = 12 }
-	if intervalSec <= 0 { intervalSec = 5 }
+	if intervalSec <= 0 { intervalSec = 3 }
 	orchState.config.MaxConcurrentSlots = maxSlots
 	orchState.config.IntervalSeconds = intervalSec
 
@@ -25,43 +22,33 @@ func (a *App) StartThunderOrchestrator(maxSlots, intervalSec int) (models.Thunde
 	}
 
 	orchState.queue = a.buildThunderOrchestratorTasks()
-	orchState.isRunning = true
-	orchState.isPaused = false
-	orchState.stopCh = make(chan struct{})
-	orchState.pauseCh = make(chan struct{})
-	orchState.resumeCh = make(chan struct{})
+	orchState.isRunning, orchState.isPaused = true, false
+	orchState.stopCh, orchState.pauseCh, orchState.resumeCh = make(chan struct{}), make(chan struct{}), make(chan struct{})
 	orchState.processedMap = make(map[string]bool)
 
 	go a.runThunderOrchestrationWorker()
 	return a.getOrchestratorStatusLocked(), nil
 }
 
-// ResetAndRebuildThunderQueue は動画等のステータスを RETAINED へ差し戻してキューを再構築します
+// isThunderOrchestratorRunning はオーケストレータが稼働中かを返します
+func (a *App) isThunderOrchestratorRunning() bool {
+	orchState.mu.Lock()
+	defer orchState.mu.Unlock()
+	return orchState.isRunning && !orchState.isPaused
+}
+
+// ResetAndRebuildThunderQueue はステータスを RETAINED へ差し戻してキューを再構築します
 func (a *App) ResetAndRebuildThunderQueue(resetVideos bool) (models.ThunderOrchestratorStatus, error) {
 	orchState.mu.Lock()
 	defer orchState.mu.Unlock()
-
-	if orchState.isRunning {
-		orchState.isRunning = false
-		orchState.isPaused = false
-		close(orchState.stopCh)
-	}
-
+	if orchState.isRunning { orchState.isRunning, orchState.isPaused = false, false; close(orchState.stopCh) }
 	if a.Repo != nil {
-		if resetVideos {
-			_, _ = a.Repo.ResetVideosToRetained()
-		} else {
-			_, _ = a.Repo.ResetAllFailedToRetained()
-		}
+		if resetVideos { _, _ = a.Repo.ResetVideosToRetained() } else { _, _ = a.Repo.ResetAllFailedToRetained() }
 	}
-
 	maxSlots := orchState.config.MaxConcurrentSlots
 	if maxSlots <= 0 { maxSlots = 12 }
 	orchState.slots = make([]models.ThunderOrchestratorSlot, maxSlots)
-	for i := 0; i < maxSlots; i++ {
-		orchState.slots[i] = models.ThunderOrchestratorSlot{Index: i, IsOccupied: false}
-	}
-
+	for i := 0; i < maxSlots; i++ { orchState.slots[i] = models.ThunderOrchestratorSlot{Index: i, IsOccupied: false} }
 	orchState.queue = a.buildThunderOrchestratorTasks()
 	orchState.recentTasks = nil
 	return a.getOrchestratorStatusLocked(), nil
@@ -90,8 +77,7 @@ func (a *App) StopThunderOrchestrator() bool {
 	orchState.mu.Lock()
 	defer orchState.mu.Unlock()
 	if !orchState.isRunning { return false }
-	orchState.isRunning = false
-	orchState.isPaused = false
+	orchState.isRunning, orchState.isPaused = false, false
 	close(orchState.stopCh)
 	return true
 }

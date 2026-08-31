@@ -24,6 +24,10 @@ type Media struct {
 	TrashedBy      string         `gorm:"column:trashed_by;type:text" json:"trashed_by,omitempty"`
 	TrashReason    string         `gorm:"column:trash_reason;type:text" json:"trash_reason,omitempty"`
 	TrashedAt      *time.Time     `gorm:"column:trashed_at;type:datetime" json:"trashed_at,omitempty"`
+	RequestsAt     *time.Time     `gorm:"column:requests_at;type:datetime" json:"requests_at,omitempty"`
+	MotrixAt       *time.Time     `gorm:"column:motrix_at;type:datetime" json:"motrix_at,omitempty"`
+	ThunderAt      *time.Time     `gorm:"column:thunder_at;type:datetime" json:"thunder_at,omitempty"`
+	StashAt        *time.Time     `gorm:"column:stash_at;type:datetime" json:"stash_at,omitempty"`
 }
 
 // BuildRenderMedia converts a DB Media record to frontend RenderMedia with normalized URLs and status

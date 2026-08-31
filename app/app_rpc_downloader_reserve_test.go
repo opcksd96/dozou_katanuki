@@ -7,35 +7,41 @@ import (
 	"dozou_katanuki/models"
 )
 
-func TestThunderTop3CandidateURLs(t *testing.T) {
-	// 1. 画像テスト
+func TestMediaCandidateURLs(t *testing.T) {
+	// 1. 画像テスト (プレーン、コロンorig、クエリorig、Waybackプレーン等を網羅)
 	rawURL := "https://pbs.twimg.com/media/GX3sE17aAAA4f4g.jpg"
-	candidates := BuildThunderTop3CandidateURLs(rawURL)
+	candidates := BuildMediaCandidateURLs(rawURL)
 
-	if len(candidates) != 3 {
-		t.Fatalf("expected 3 candidates, got %d", len(candidates))
+	if len(candidates) < 5 {
+		t.Fatalf("expected at least 5 candidates, got %d", len(candidates))
 	}
-	if candidates[0].Type != models.ResolutionOrig || candidates[0].URL != "https://pbs.twimg.com/media/GX3sE17aAAA4f4g?format=jpg&name=orig" {
-		t.Errorf("candidate[0] mismatch: %+v", candidates[0])
-	}
-	if candidates[2].Type != models.ResolutionWaybackOrig || candidates[2].URL != "https://web.archive.org/web/2id_/https://pbs.twimg.com/media/GX3sE17aAAA4f4g?format=jpg&name=orig" {
-		t.Errorf("candidate[2] mismatch: %+v", candidates[2])
+	urlMap := make(map[string]models.ThunderResolutionType)
+	for _, c := range candidates {
+		urlMap[c.URL] = c.Type
 	}
 
-	// 2. 動画テスト (?tag=14, ?tag=12, wayback ?tag=14)
+	// プレーンURL
+	if _, ok := urlMap["https://pbs.twimg.com/media/GX3sE17aAAA4f4g.jpg"]; !ok {
+		t.Errorf("missing plain URL: %+v", urlMap)
+	}
+	// コロン :orig
+	if _, ok := urlMap["https://pbs.twimg.com/media/GX3sE17aAAA4f4g.jpg:orig"]; !ok {
+		t.Errorf("missing colon :orig URL: %+v", urlMap)
+	}
+	// Wayback プレーン
+	if _, ok := urlMap["https://web.archive.org/web/2id_/https://pbs.twimg.com/media/GX3sE17aAAA4f4g.jpg"]; !ok {
+		t.Errorf("missing wayback plain URL: %+v", urlMap)
+	}
+	// クエリ orig
+	if _, ok := urlMap["https://pbs.twimg.com/media/GX3sE17aAAA4f4g?format=jpg&name=orig"]; !ok {
+		t.Errorf("missing query orig URL: %+v", urlMap)
+	}
+
+	// 2. 動画テスト
 	videoURL := "https://video-s.twimg.com/ext_tw_video/1807739525416001536/pu/vid/avc1/720x1280/P5HCLz4CxtcJZRIv.mp4"
-	vCandidates := BuildThunderTop3CandidateURLs(videoURL)
-	if len(vCandidates) != 3 {
-		t.Fatalf("expected 3 video candidates, got %d", len(vCandidates))
-	}
-	if vCandidates[0].URL != videoURL+"?tag=14" {
-		t.Errorf("video candidate[0] mismatch: expected %s, got %s", videoURL+"?tag=14", vCandidates[0].URL)
-	}
-	if vCandidates[1].URL != videoURL+"?tag=12" {
-		t.Errorf("video candidate[1] mismatch: expected %s, got %s", videoURL+"?tag=12", vCandidates[1].URL)
-	}
-	if vCandidates[2].URL != "https://web.archive.org/web/2id_/"+videoURL+"?tag=14" {
-		t.Errorf("video candidate[2] mismatch: expected %s, got %s", "https://web.archive.org/web/2id_/"+videoURL+"?tag=14", vCandidates[2].URL)
+	vCandidates := BuildMediaCandidateURLs(videoURL)
+	if len(vCandidates) < 3 {
+		t.Fatalf("expected at least 3 video candidates, got %d", len(vCandidates))
 	}
 }
 

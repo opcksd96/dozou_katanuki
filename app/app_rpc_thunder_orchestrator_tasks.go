@@ -11,18 +11,19 @@ import (
 
 func (a *App) buildThunderOrchestratorTasks() []*models.ThunderOrchestratorTask {
 	var tasks []*models.ThunderOrchestratorTask
-	if a.Repo == nil {
-		return tasks
-	}
+	if a.Repo == nil { return tasks }
+
 	var allItems []models.MediaScanItem
-	for _, st := range []string{"OUTSOURCED", "RETAINED", "ESCALATED"} {
+	for _, st := range []string{"QUEUED", "OUTSOURCED", "RETAINED", "ESCALATED"} {
 		items, _, _, err := a.Repo.FetchRawMediaItems("", st, "", 1000, 0)
 		if err == nil && len(items) > 0 {
 			allItems = append(allItems, items...)
 		}
 	}
 
+	var dTasks []models.DownloadTask
 	seenMedia := make(map[string]bool)
+
 	for _, item := range allItems {
 		m := item.Media
 		if m.DownloadURL == "" || seenMedia[m.MediaID] { continue }
@@ -33,19 +34,38 @@ func (a *App) buildThunderOrchestratorTasks() []*models.ThunderOrchestratorTask 
 		if m.Type == "video" || strings.Contains(m.DownloadURL, ".mp4") || strings.HasSuffix(strings.ToLower(m.MediaID), ".mp4") {
 			ext = ".mp4"
 		}
-		candidates := BuildThunderTop3CandidateURLs(m.DownloadURL)
+		candidates := BuildMediaCandidateURLs(m.DownloadURL)
 		for _, c := range candidates {
+			tID := fmt.Sprintf("%s-%s", cleanID, c.Type)
+			fileName := fmt.Sprintf("%s_%s%s", cleanID, c.Type, ext)
+
 			tasks = append(tasks, &models.ThunderOrchestratorTask{
-				ID:             fmt.Sprintf("%s-%s", cleanID, c.Type),
+				ID:             tID,
 				MediaID:        m.MediaID,
 				ArticleID:      m.ArticleID,
 				ResolutionType: c.Type,
 				URL:            c.URL,
-				FileName:       fmt.Sprintf("%s_%s%s", cleanID, c.Type, ext),
+				FileName:       fileName,
 				Status:         "pending",
 				SlotIndex:      -1,
 			})
+
+			dTasks = append(dTasks, models.DownloadTask{
+				ID:             fmt.Sprintf("%s-thunder-%s", cleanID, c.Type),
+				MediaID:        m.MediaID,
+				ArticleID:      m.ArticleID,
+				Stage:          models.StageThunder,
+				ResolutionType: string(c.Type),
+				URL:            c.URL,
+				FileName:       fileName,
+				Status:         models.TaskPending,
+			})
 		}
 	}
+
+	if len(dTasks) > 0 {
+		_ = a.Repo.BatchUpsertDownloadTasks(dTasks)
+	}
+
 	return tasks
 }
