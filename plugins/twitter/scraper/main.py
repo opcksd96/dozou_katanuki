@@ -50,7 +50,7 @@ def run_auto_salvage(platform: str, account: str, limit: int, db_path: str, stor
         post["full_text"] = ftext
         if trans:
             t = trans.translate_article(ftext); post["lang"], post["full_text_ja"], post["full_text_en"], post["full_text_zh"] = t.get("lang", "ja"), t.get("ja"), t.get("en"), t.get("zh")
-        else: post["lang"], post["full_text_ja"] = "ja", ftext
+        else: post["lang"], post["full_text_ja"] = None, None
         return p, {"status": "OK", "url": uri, "id": post.get("id"), "media": len(p.get("media", [])), "ms": int((time.time() - t0)*1000)}
 
     buffer, journal, saved_new, saved_merged, done = [], [], 0, 0, 0

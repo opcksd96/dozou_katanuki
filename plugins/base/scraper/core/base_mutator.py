@@ -60,7 +60,7 @@ class BaseMutator:
             sdom, raw_wb = post.get("source_domain") or ("sotwe.com" if "sotwe" in sname else ("archive.org" if "wayback" in sname else "x.com")), post.get("wayback_url", "")
             wb_u, orig_url = (raw_wb if "web.archive.org" in raw_wb else ""), (post.get("original_url") or (raw_wb if ("x.com" in raw_wb or "twitter.com" in raw_wb) else f"https://x.com/{u_name}/status/{post_id}"))
             sotwe_u = post.get("sotwe_url") or (f"https://www.sotwe.com/tweet/{post_id}" if "sotwe" in sname else None)
-            articles.append((post_id, acc_id, str(post.get("conversation_id") or post_id), post.get("reply_to_id") or post.get("reply_to_tweet_id"), post.get("reply_to_handle"), c_at, ftext, lang, ja or ftext, en, zh, via, 0, 0, wb_u, sname, sdom, orig_url, sotwe_u, post.get("nitter_url"), post.get("twistalker_url")))
+            articles.append((post_id, acc_id, str(post.get("conversation_id") or post_id), post.get("reply_to_id") or post.get("reply_to_tweet_id"), post.get("reply_to_handle"), c_at, ftext, lang, ja, en, zh, via, 0, 0, wb_u, sname, sdom, orig_url, sotwe_u, post.get("nitter_url"), post.get("twistalker_url")))
             t_urls_json = json.dumps([u for u in [orig_url, sotwe_u, wb_u] if u], ensure_ascii=False)
             is_wl = (not wl_set) or (u_name in wl_set)
             for m in m_list:

@@ -29,6 +29,7 @@ const emit = defineEmits<{
   (e: 'requeueFailed'): void; (e: 'reconcileStash'): void; (e: 'openExplorer', id: string): void; (e: 'openDefault', id: string): void;
   (e: 'toggleBookmark', id: string): void; (e: 'cancelJob', id: string): void;
   (e: 'batchTrashMedia', mediaIds: string[], reason?: string): void; (e: 'batchRestoreMedia', mediaIds: string[]): void;
+  (e: 'batchRevertToQueued', mediaIds: string[]): void;
 }>();
 
 const viewMode = ref<'large' | 'compact' | 'table'>('large');
@@ -42,8 +43,8 @@ const openStash = () => {
 };
 
 const handleBatchRetry = () => { selectedIds.value.forEach(id => emit('retryMedia', id)); clearSelection(); };
-const handleBatchThunder = () => {
-  (props.mediaItems || []).filter(m => selectedIds.value.has(m.media_id || m.id)).forEach(m => emit('escalateThunder', m));
+const handleBatchRevertToQueued = () => {
+  emit('batchRevertToQueued', Array.from(selectedIds.value));
   clearSelection();
 };
 const handleBatchTrash = () => { emit('batchTrashMedia', Array.from(selectedIds.value), '一括退避'); clearSelection(); };
@@ -67,13 +68,13 @@ onMounted(() => emit('fetch'));
     />
     <MediaBatchToolbar
       :selected-count="selectedCount" :is-trash-view="statusFilter === 'TRASH'" :total="total"
-      @batch-retry="handleBatchRetry" @batch-thunder="handleBatchThunder" @batch-trash="handleBatchTrash"
+      @batch-retry="handleBatchRetry" @batch-revert-to-queued="handleBatchRevertToQueued" @batch-trash="handleBatchTrash"
       @batch-restore="handleBatchRestore" @select-all="selectAll(mediaItems)" @clear-selection="clearSelection"
     />
     <MediaQueueStatus :stats="queueStats" :active-job="activeJob" :status-filter="statusFilter" @update:status-filter="emit('update:statusFilter', $event)" />
     <div class="flex-1 min-h-0 overflow-y-auto">
-      <MediaTableView v-if="viewMode === 'table'" :items="mediaItems" :selected-ids="selectedIds" @select="toggleSelect($event.media_id || $event.id)" @toggle-select="toggleSelect" @toggle-select-all="() => selectedIds.size === mediaItems.length ? clearSelection() : selectAll(mediaItems)" @retry="emit('retryMedia', $event)" @purge="emit('purgeMedia', $event)" @open-explorer="emit('openExplorer', $event)" @open-default="emit('openDefault', $event)" @toggle-bookmark="emit('toggleBookmark', $event)" @escalate-thunder="emit('escalateThunder', $event)" />
-      <MediaGrid v-else :media-items="mediaItems" :selected-ids="selectedIds" :loading="loading" :search-query="searchQuery" :only-bookmarked="onlyBookmarked" @toggle-select="toggleSelect" @retry-media="emit('retryMedia', $event)" @trash-media="openTrashModal" @restore-media="emit('restoreMedia', $event)" @purge-media="emit('purgeMedia', $event)" @toggle-bookmark="emit('toggleBookmark', $event)" @open-explorer="emit('openExplorer', $event)" @open-default="emit('openDefault', $event)" @save-metadata="emit('saveMetadata', $event)" @escalate-thunder="emit('escalateThunder', $event)" @view-post="emit('viewPost', $event)" @view-post-timeline="emit('viewPostTimeline', $event)" />
+      <MediaTableView v-if="viewMode === 'table'" :items="mediaItems" :selected-ids="selectedIds" @select="toggleSelect($event.media_id || $event.id)" @toggle-select="toggleSelect" @toggle-select-all="() => selectedIds.size === mediaItems.length ? clearSelection() : selectAll(mediaItems)" @retry="emit('retryMedia', $event)" @purge="emit('purgeMedia', $event)" @open-explorer="emit('openExplorer', $event)" @open-default="emit('openDefault', $event)" @toggle-bookmark="emit('toggleBookmark', $event)" />
+      <MediaGrid v-else :media-items="mediaItems" :selected-ids="selectedIds" :loading="loading" :search-query="searchQuery" :only-bookmarked="onlyBookmarked" @toggle-select="toggleSelect" @retry-media="emit('retryMedia', $event)" @trash-media="openTrashModal" @restore-media="emit('restoreMedia', $event)" @purge-media="emit('purgeMedia', $event)" @toggle-bookmark="emit('toggleBookmark', $event)" @open-explorer="emit('openExplorer', $event)" @open-default="emit('openDefault', $event)" @save-metadata="emit('saveMetadata', $event)" @view-post="emit('viewPost', $event)" @view-post-timeline="emit('viewPostTimeline', $event)" />
     </div>
     <MediaPaginationBar :page="page" :limit="limit" :total="total" @update:page="emit('update:page', $event)" @update:limit="emit('update:limit', $event)" />
     <MediaTrashModal :show="showTrashModal" :media-item="selectedMediaForTrash" @close="showTrashModal = false" @confirm="(p) => emit('trashMedia', p)" />

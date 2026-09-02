@@ -8,7 +8,7 @@ defineProps<{
 
 const emit = defineEmits<{
   (e: 'batchRetry'): void;
-  (e: 'batchThunder'): void;
+  (e: 'batchRevertToQueued'): void;
   (e: 'batchTrash'): void;
   (e: 'batchRestore'): void;
   (e: 'selectAll'): void;
@@ -33,11 +33,11 @@ const emit = defineEmits<{
           <span>🔄</span> 一括リトライ ({{ selectedCount }})
         </button>
         <button
-          @click="emit('batchThunder')"
+          @click="emit('batchRevertToQueued')"
           class="px-2.5 py-1 bg-amber-950/80 hover:bg-amber-900 border border-amber-600/60 text-amber-300 hover:text-white font-bold rounded-lg flex items-center gap-1 cursor-pointer transition-colors shadow active:scale-95"
-          title="選択したメディアを迅雷へ一括投入"
+          title="選択したメディアを QUEUED に差し戻し"
         >
-          <span>⚡</span> 迅雷一括投入 ({{ selectedCount }})
+          <span>🧹</span> QUEUEDへ差し戻し ({{ selectedCount }})
         </button>
         <button
           @click="emit('batchTrash')"

@@ -27,8 +27,8 @@ const { toasts, removeToast } = useToast();
           'bg-rose-950/90 border-rose-500/50 text-rose-200 shadow-rose-950/50': toast.type === 'error'
         }"
       >
-        <span class="truncate">{{ toast.message }}</span>
-        <button type="button" class="text-white/60 hover:text-white text-xs">✕</button>
+        <span class="break-words whitespace-pre-wrap text-[11px] leading-relaxed">{{ toast.message }}</span>
+        <button type="button" class="text-white/60 hover:text-white text-xs shrink-0 self-start mt-0.5">✕</button>
       </div>
     </TransitionGroup>
   </div>

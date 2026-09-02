@@ -15,6 +15,8 @@ let unoff: (() => void) | null = null;
 
 const checkStash = async () => {
   try {
+    const getApp = (window as any)?.go?.app?.App || (window as any)?.go?.main?.App;
+    if (getApp?.IsStashReady && await getApp.IsStashReady()) { localOnline.value = true; return; }
     const res = await fetch('/stash-proxy/', { method: 'HEAD' });
     localOnline.value = res.ok || res.status === 401 || res.status === 404;
   } catch { localOnline.value = false; }

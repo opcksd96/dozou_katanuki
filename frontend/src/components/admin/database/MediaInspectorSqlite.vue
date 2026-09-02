@@ -6,7 +6,7 @@ const props = defineProps<{ media: any; editStatus: string; editReason: string }
 
 const emit = defineEmits<{
   (e: 'update:editStatus', val: string): void; (e: 'update:editReason', val: string): void;
-  (e: 'save'): void; (e: 'retry'): void; (e: 'purge'): void; (e: 'escalateThunder'): void;
+  (e: 'save'): void; (e: 'retry'): void; (e: 'purge'): void;
   (e: 'viewPost'): void; (e: 'viewPostTimeline'): void; (e: 'openExplorer'): void; (e: 'openDefault'): void;
 }>();
 
@@ -57,7 +57,6 @@ const tweetUrls = computed(() => {
 
     <div class="flex flex-wrap gap-1.5 pt-1">
       <button @click="emit('save')" class="flex-1 min-w-[70px] py-1.5 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded text-xs active:scale-95 cursor-pointer">💾 更新</button>
-      <button v-if="media.download_status !== 'COMPLETED'" @click="emit('escalateThunder')" class="px-2.5 py-1.5 bg-amber-600 hover:bg-amber-500 text-white font-bold rounded text-xs active:scale-95 cursor-pointer" title="迅雷へエスカレーション投入">⚡ 迅雷昇格</button>
       <button @click="emit('retry')" class="px-2 py-1.5 bg-blue-950 hover:bg-blue-900 text-blue-300 border border-blue-700/60 rounded text-xs active:scale-95 cursor-pointer">🔄</button>
       <button @click="emit('purge')" class="px-2 py-1.5 bg-red-950 hover:bg-red-900 text-red-300 border border-red-700/60 rounded text-xs active:scale-95 cursor-pointer">🗑️</button>
     </div>

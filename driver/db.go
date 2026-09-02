@@ -65,6 +65,9 @@ func InitDB(dbPath string) (*gorm.DB, error) {
 		"ALTER TABLE media ADD COLUMN account_id TEXT;",
 		"CREATE INDEX IF NOT EXISTS idx_media_account ON media(account_id);",
 		"UPDATE media SET account_id = (SELECT account_id FROM articles WHERE articles.id = media.article_id) WHERE (account_id IS NULL OR account_id = '') AND EXISTS (SELECT 1 FROM articles WHERE articles.id = media.article_id);",
+		"UPDATE accounts SET is_trash = 0 WHERE is_trash IS NULL;",
+		"UPDATE articles SET is_trash = 0 WHERE is_trash IS NULL;",
+		"UPDATE media SET is_trash = 0 WHERE is_trash IS NULL;",
 	}
 	for _, mSql := range migrations { _ = db.Exec(mSql).Error }
 

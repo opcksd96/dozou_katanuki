@@ -8,7 +8,7 @@ const props = withDefaults(defineProps<{ media: any; compact?: boolean; selected
 const emit = defineEmits<{
   (e: 'click', m: any): void; (e: 'retry', id: string): void; (e: 'trash', m: any): void; (e: 'restore', id: string): void;
   (e: 'openExplorer', id: string): void; (e: 'openDefault', id: string): void; (e: 'toggleBookmark', id: string): void;
-  (e: 'viewPost', articleId: string): void; (e: 'viewPostTimeline', articleId: string): void; (e: 'escalateThunder', m: any): void;
+  (e: 'viewPost', articleId: string): void; (e: 'viewPostTimeline', articleId: string): void;
   (e: 'toggleSelect', id: string): void;
 }>();
 
@@ -17,7 +17,7 @@ const isWails = computed(() => typeof window !== 'undefined' && !!((window as an
 const isVideo = computed(() => { const t = props.media.type?.toLowerCase(); return t === 'video' || t === 'gif' || !!props.media.stash_scene_id; });
 const formattedTitle = computed(() => props.media.title || `X (@${props.media.username || 'unknown'}): Tweet ${props.media.article_id || props.media.media_id || props.media.id}`);
 const stashDirectUrl = computed(() => {
-  const host = typeof window !== 'undefined' && window.location?.hostname ? window.location.hostname : '127.0.0.1';
+  const host = (typeof window !== 'undefined' && window.location?.hostname && window.location.hostname !== 'wails.localhost') ? window.location.hostname : '127.0.0.1';
   if (props.media.stash_scene_id) return `http://${host}:9999/scenes/${props.media.stash_scene_id}`;
   if (props.media.stash_image_id) return `http://${host}:9999/images/${props.media.stash_image_id}`;
   return null;
@@ -74,7 +74,6 @@ const openStash = () => {
         <button v-if="stashDirectUrl" @click.stop="openStash" class="p-1 bg-purple-950 hover:bg-purple-900 text-purple-300 rounded active:scale-95 cursor-pointer" title="Stash WebUI">🎛️</button>
       </div>
       <div class="flex gap-1">
-        <button v-if="!media.is_trash && media.download_status !== 'COMPLETED'" @click="emit('escalateThunder', media)" class="px-1.5 py-0.5 bg-amber-600/90 hover:bg-amber-500 text-white rounded text-[10px] font-bold active:scale-95 cursor-pointer" title="⚡ 迅雷へエスカレーション">⚡</button>
         <button v-if="!media.is_trash" @click="emit('retry', media.media_id || media.id)" class="p-1 bg-blue-950 hover:bg-blue-900 text-blue-300 rounded active:scale-95 cursor-pointer" title="リトライ">🔄</button>
         <button v-if="media.is_trash" @click="emit('restore', media.media_id || media.id)" class="px-2 py-0.5 bg-emerald-700 hover:bg-emerald-600 text-white font-bold rounded text-[11px] active:scale-95 cursor-pointer" title="ゴミ箱から復元">♻️ 復元</button>
         <button v-else @click="emit('trash', media)" class="p-1 bg-rose-950 hover:bg-rose-900 text-rose-300 rounded active:scale-95 cursor-pointer" title="ゴミ箱へ移動">🗑️</button>

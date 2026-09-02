@@ -43,26 +43,5 @@ export function useDownloaderBatchOps(onRefresh?: () => Promise<void>) {
     }
   };
 
-  const batchEscalateToThunder = async (tasks: Array<{ gid: string; url?: string }>) => {
-    if (selection.selectedGids.value.size === 0) return;
-    isOperating.value = true;
-    try {
-      const getApp = () => (window as any)?.go?.app?.App;
-      let count = 0;
-      for (const t of tasks) {
-        if (selection.selectedGids.value.has(t.gid) && t.url) {
-          if (await getApp()?.EscalateToThunder?.('', t.url)) count++;
-        }
-      }
-      addToast(`⚡ ${count} 件を迅雷へエスカレーション投入しました`, 'success', 4000);
-      selection.clearSelection();
-      if (onRefresh) await onRefresh();
-    } catch {
-      addToast('❌ 迅雷への投入に失敗しました', 'error', 3000);
-    } finally {
-      isOperating.value = false;
-    }
-  };
-
-  return { ...selection, isOperating, batchControl, batchSafePurge, batchEscalateToThunder };
+  return { ...selection, isOperating, batchControl, batchSafePurge };
 }

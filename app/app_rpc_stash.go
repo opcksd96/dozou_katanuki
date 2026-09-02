@@ -53,11 +53,5 @@ func getFloat(m map[string]interface{}, key string) float64 {
 }
 
 func (a *App) isStashServerOnline() bool {
-	client := &http.Client{Timeout: 800 * time.Millisecond}
-	resp, err := client.Get(a.getStashGraphQLEndpoint())
-	if err == nil && resp != nil {
-		_ = resp.Body.Close()
-		return resp.StatusCode == 200 || resp.StatusCode == 400 || resp.StatusCode == 405
-	}
-	return false
+	return a.IsStashReady()
 }

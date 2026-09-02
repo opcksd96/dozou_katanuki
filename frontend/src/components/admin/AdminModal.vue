@@ -26,8 +26,11 @@ let unoffStash: (() => void) | null = null;
 const close = () => emit('close');
 const handleKey = (e: KeyboardEvent) => { if (e.key === 'Escape' && props.isOpen) close(); };
 const checkStash = async () => {
-  try { const r = await fetch('/stash-proxy/', { method: 'HEAD' }); isStashOnline.value = r.ok || r.status === 401 || r.status === 404; }
-  catch { isStashOnline.value = false; }
+  try {
+    const getApp = (window as any)?.go?.app?.App || (window as any)?.go?.main?.App;
+    if (getApp?.IsStashReady && await getApp.IsStashReady()) { isStashOnline.value = true; return; }
+    const r = await fetch('/stash-proxy/', { method: 'HEAD' }); isStashOnline.value = r.ok || r.status === 401 || r.status === 404;
+  } catch { isStashOnline.value = false; }
 };
 const openStashWeb = () => {
   try { BrowserOpenURL('http://127.0.0.1:9999/'); }

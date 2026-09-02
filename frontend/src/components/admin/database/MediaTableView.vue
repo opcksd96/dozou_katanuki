@@ -6,7 +6,7 @@ const props = defineProps<{ items: any[]; selectedIds?: Set<string> }>();
 const emit = defineEmits<{
   (e: 'select', m: any): void; (e: 'retry', mediaId: string): void; (e: 'purge', mediaId: string): void;
   (e: 'openExplorer', mediaId: string): void; (e: 'openDefault', mediaId: string): void; (e: 'copy', media: any): void; (e: 'toggleBookmark', mediaId: string): void;
-  (e: 'escalateThunder', m: any): void; (e: 'toggleSelect', id: string): void; (e: 'toggleSelectAll'): void;
+  (e: 'toggleSelect', id: string): void; (e: 'toggleSelectAll'): void;
 }>();
 
 const parseUrls = (val: any) => {
@@ -79,7 +79,6 @@ const parseUrls = (val: any) => {
           <td class="p-2 text-right space-x-1" @click.stop>
             <button @click.stop="emit('openExplorer', m.media_id || m.id)" class="p-1 bg-slate-900 hover:bg-slate-800 text-slate-300 rounded text-xs" title="エクスプローラー">📂</button>
             <button @click.stop="emit('openDefault', m.media_id || m.id)" class="p-1 bg-slate-900 hover:bg-slate-800 text-slate-300 rounded text-xs" title="既定アプリ">🚀</button>
-            <button v-if="m.download_status !== 'COMPLETED'" @click="emit('escalateThunder', m)" class="p-1 bg-amber-600/90 hover:bg-amber-500 text-white rounded text-xs font-bold" title="⚡ 迅雷へエスカレーション">⚡</button>
             <button @click="emit('retry', m.media_id || m.id)" class="p-1 bg-blue-950/80 hover:bg-blue-900 border border-blue-700/60 text-blue-300 rounded text-xs" title="リトライ">🔄</button>
             <button @click="emit('purge', m.media_id || m.id)" class="p-1 bg-rose-950/80 hover:bg-rose-900 border border-rose-700/60 text-rose-300 rounded text-xs" title="DBからパージ">🗑️</button>
           </td>

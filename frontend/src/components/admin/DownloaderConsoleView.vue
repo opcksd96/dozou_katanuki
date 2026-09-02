@@ -63,7 +63,6 @@ const formatSpeed = (b: number) => (!b || b === 0 ? '0 B/s' : b < 1048576 ? `${(
         <button @click="batchControl('pause')" :disabled="selectedCount === 0 || isOperating" class="px-2 py-0.5 bg-amber-900/80 hover:bg-amber-800 text-amber-200 rounded text-[10px] font-bold cursor-pointer disabled:opacity-30">⏸️ 停止</button>
         <button @click="batchControl('unpause')" :disabled="selectedCount === 0 || isOperating" class="px-2 py-0.5 bg-blue-900/80 hover:bg-blue-800 text-blue-200 rounded text-[10px] font-bold cursor-pointer disabled:opacity-30">▶️ 再開</button>
         <button @click="batchSafePurge" :disabled="selectedCount === 0 || isOperating" class="px-2 py-0.5 bg-emerald-900/80 hover:bg-emerald-800 text-emerald-200 rounded text-[10px] font-bold cursor-pointer disabled:opacity-30">🛡️ 退避削除</button>
-        <button @click="batchEscalateToThunder(currentList)" :disabled="selectedCount === 0 || isOperating" class="px-2 py-0.5 bg-purple-900/80 hover:bg-purple-800 text-purple-200 rounded text-[10px] font-bold cursor-pointer disabled:opacity-30">⚡ 迅雷転送</button>
       </div>
     </div>
 

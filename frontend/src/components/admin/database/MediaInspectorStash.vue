@@ -22,7 +22,7 @@ const emit = defineEmits<{
   (e: 'undo'): void;
 }>();
 
-const currentHostname = computed(() => (typeof window !== 'undefined' && window.location?.hostname) ? window.location.hostname : '127.0.0.1');
+const currentHostname = computed(() => (typeof window !== 'undefined' && window.location?.hostname && window.location.hostname !== 'wails.localhost') ? window.location.hostname : '127.0.0.1');
 const stashDirectUrl = computed(() => {
   if (props.media.stash_scene_id) return `http://${currentHostname.value}:9999/scenes/${props.media.stash_scene_id}`;
   if (props.media.stash_image_id) return `http://${currentHostname.value}:9999/images/${props.media.stash_image_id}`;

@@ -28,6 +28,12 @@ func (a *App) runThunderOrchestrationWorker() {
 			// 迅雷の既存タスク一覧（ファイル名）を取得して重複投入を防止
 			existingFileMap := a.fetchExistingThunderFilesMap()
 
+			// 同時実行数の上限チェック（スロット制限）
+			if len(existingFileMap) >= orchState.config.MaxConcurrentSlots {
+				orchState.mu.Unlock()
+				continue
+			}
+
 			var nextTask *models.ThunderOrchestratorTask
 			for _, t := range orchState.queue {
 				if t.Status == "pending" {

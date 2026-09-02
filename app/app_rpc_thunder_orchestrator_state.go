@@ -23,15 +23,15 @@ type thunderOrchestratorState struct {
 
 var orchState = &thunderOrchestratorState{
 	config: models.ThunderOrchestratorConfig{
-		MaxConcurrentSlots: 12,
+		MaxConcurrentSlots: 3,
 		IntervalSeconds:    5,
 		TopResolutionsOnly: true,
 	},
-	slots: make([]models.ThunderOrchestratorSlot, 12),
+	slots: make([]models.ThunderOrchestratorSlot, 3),
 }
 
 func init() {
-	for i := 0; i < 12; i++ {
+	for i := 0; i < 3; i++ {
 		orchState.slots[i] = models.ThunderOrchestratorSlot{Index: i, IsOccupied: false}
 	}
 }

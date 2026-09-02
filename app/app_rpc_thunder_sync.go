@@ -10,7 +10,7 @@ import (
 	"dozou_katanuki/models"
 )
 
-// SyncThunderDownloads は迅雷フォルダおよび _escalate の完了ファイルをアカウント所定フォルダへコピー・DB同期・Stash連携します
+// SyncThunderDownloads は迅雷フォルダおよび _escalate の完了ファイルをアカウント所定フォルダへ移動・DB同期・Stash連携します
 func (a *App) SyncThunderDownloads(customDir string) (int, error) {
 	tempDir := customDir
 	if tempDir == "" {
@@ -57,8 +57,7 @@ func (a *App) processDirectoryFiles(srcDir, destRoot string) (int, error) {
 
 		if srcPath == destPath { continue }
 
-		if err := copyFileSafe(srcPath, destPath); err == nil {
-			if strings.Contains(srcPath, "_escalate") && srcPath != destPath { _ = os.Remove(srcPath) }
+		if err := moveFileSafe(srcPath, destPath); err == nil {
 			if a.Repo != nil {
 				count++
 				a.AppendPipelineLog("THUNDER", "SUCCESS", fmt.Sprintf("⚡ 迅雷完了回収: %s -> %s", name, destPath))

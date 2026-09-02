@@ -49,7 +49,7 @@ func (r *Repository) GetTableRecords(tableName string, limit, offset int, search
 func (r *Repository) ListAccounts() ([]models.Account, error) {
 	var accs []models.Account
 	err := r.db.Select("accounts.*, (SELECT count(*) FROM articles WHERE articles.account_id = accounts.numeric_id) as post_count").
-		Where("accounts.is_trash = 0 OR accounts.is_trash IS NULL").
+		Where("accounts.is_trash = 0").
 		Order("is_whitelist DESC, username ASC").Find(&accs).Error
 	return accs, err
 }

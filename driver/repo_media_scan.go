@@ -31,7 +31,7 @@ func (r *Repository) FetchRawMediaItems(accountID, status, mediaType string, lim
 			Joins("LEFT JOIN accounts ON accounts.numeric_id = articles.account_id")
 		if accountID != "" && accountID != "all" { q = q.Where("accounts.numeric_id = ? OR accounts.username = ? OR articles.account_id = ?", accountID, accountID, accountID) }
 		if status == "TRASH" || status == "trash" { q = q.Where("media.is_trash = ?", true) } else {
-			q = q.Where("(media.is_trash = 0 OR media.is_trash IS NULL) AND (articles.is_trash = 0 OR articles.is_trash IS NULL)")
+			q = q.Where("media.is_trash = 0 AND articles.is_trash = 0")
 			if status != "" && status != "all" { q = q.Where("media.download_status = ?", status) }
 		}
 		if mediaType == "image" { q = q.Where("media.type = 'image'") } else if mediaType == "video" { q = q.Where("media.type != 'image'") }
@@ -43,8 +43,7 @@ func (r *Repository) FetchRawMediaItems(accountID, status, mediaType string, lim
 	_ = newQ().Where("media.type = 'image'").Count(&stats.ImageCount).Error
 	stats.VideoCount = stats.TotalCount - stats.ImageCount
 
-	var total int64
-	if err := newQ().Count(&total).Error; err != nil { return nil, 0, stats, err }
+	total := stats.TotalCount
 	if limit <= 0 { limit = 24 }
 
 	var rows []mediaScanRow
