@@ -6,6 +6,8 @@ import (
 	"io"
 	"net/http"
 	"os"
+
+	"dozou_katanuki/driver"
 )
 
 type FetchResult struct {
@@ -37,12 +39,17 @@ func (a *App) tryDirectFetchDetailed(client *http.Client, url, destPath string) 
 	if err != nil {
 		return FetchResult{Success: false, StatusCode: resp.StatusCode, ErrorMsg: fmt.Sprintf("ファイル作成失敗: %v", err)}
 	}
-	defer out.Close()
 
 	n, err := io.Copy(out, resp.Body)
+	_ = out.Close()
 	if err != nil || n < 512 {
-		_ = os.Remove(destPath)
+		_ = driver.MoveToRecycleBin(destPath)
 		return FetchResult{Success: false, StatusCode: resp.StatusCode, Bytes: n, ErrorMsg: "データ不完全/空ファイル"}
+	}
+
+	if errVal := driver.ValidateMediaFile(destPath); errVal != nil {
+		_ = driver.MoveToRecycleBin(destPath)
+		return FetchResult{Success: false, StatusCode: resp.StatusCode, Bytes: n, ErrorMsg: errVal.Error()}
 	}
 
 	return FetchResult{Success: true, StatusCode: 200, Bytes: n}

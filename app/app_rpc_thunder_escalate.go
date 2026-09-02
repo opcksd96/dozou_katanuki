@@ -81,13 +81,14 @@ func (a *App) EscalateToThunder(mediaID string, downloadURL string) (bool, error
 		return true, nil
 	}
 
-	destDir := a.getMediaDownloadDir()
-	started := AddTaskViaThunderCOM(downloadURL, mediaID, destDir)
-	if started && mediaID != "" && a.Repo != nil {
-		_ = a.Repo.UpdateMediaMetadata(mediaID, "ESCALATED", "", "", "Thunder P2SP エスカレーション投入")
-		a.AppendPipelineLog("THUNDER", "SUCCESS", fmt.Sprintf("⚡ 迅雷投入成功: %s", mediaID))
+	if mediaID != "" && a.Repo != nil {
+		_ = a.Repo.UpdateMediaMetadata(mediaID, "ESCALATED", "", "", "迅雷オーケストレーター投入待機 (3スロット制御)")
+		a.AppendPipelineLog("THUNDER", "INFO", fmt.Sprintf("⚡ 迅雷キュー登録: %s (自律オーケストレーターへ委託)", mediaID))
+		if !a.isThunderOrchestratorRunning() {
+			_, _ = a.StartThunderOrchestrator(3, 4)
+		}
 	}
-	return started, nil
+	return true, nil
 }
 
 func (a *App) getMediaDownloadDir() string {

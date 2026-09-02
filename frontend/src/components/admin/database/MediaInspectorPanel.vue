@@ -53,10 +53,15 @@ watch(() => props.media, (m) => {
 }, { immediate: true });
 
 const handleSaveSqlite = () => {
+  const finalReason = editStatus.value === 'QUEUED' ? '' : editReason.value.trim();
+  if (props.media) {
+    props.media.download_status = editStatus.value;
+    props.media.failed_reason = finalReason;
+  }
   emit('saveMetadata', {
     mediaId: props.media.media_id || props.media.id, downloadStatus: editStatus.value,
     stashSceneId: props.media.stash_scene_id || '', stashImageId: props.media.stash_image_id || '',
-    failedReason: editReason.value.trim(),
+    failedReason: finalReason,
   });
 };
 

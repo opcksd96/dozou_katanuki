@@ -24,42 +24,37 @@ func (a *App) TriggerStashGenerate(sceneIDs, imageIDs []string) (bool, error) {
 	return err == nil, err
 }
 
-// TriggerStashScenePipeline は動画専用のパイプライン（スキャン ➔ VTT/Preview生成 ➔ バインド）を実行します
+// TriggerStashPipelineForPaths は指定パス（または全体）に対してスキャンからバインドまでを順序正しく実行します
+func (a *App) TriggerStashPipelineForPaths(paths []string) {
+	go func() {
+		// 1. スキャン（多重呼び出しを避けて1回だけ発行）
+		_, _ = a.TriggerStashScan(paths)
+		time.Sleep(3 * time.Second)
+
+		// 2. 生成タスク (Thumbnails, Previews, Sprites)
+		_, _ = a.TriggerStashGenerate(nil, nil)
+
+		// 3. バインド（スキャンの非同期完了ラグを吸収するためインターバル付きで試行）
+		for i := 0; i < 4; i++ {
+			time.Sleep(2 * time.Second)
+			total, _ := a.ReconcileStashMedia()
+			if total > 0 { break }
+		}
+	}()
+}
+
+// TriggerStashScenePipeline は動画パイプラインを順序正しく実行します
 func (a *App) TriggerStashScenePipeline() {
-	go func() {
-		// 1. スキャン
-		_, _ = a.TriggerStashScan(nil)
-		time.Sleep(3 * time.Second)
-
-		// 2. 動画特有の生成物 (VTT/Preview)
-		_, _ = a.TriggerStashGenerate(nil, []string{}) // trigger for scenes if nil
-		time.Sleep(2 * time.Second)
-
-		// 3. 動画専用の逆引きバインド (variants対応)
-		_, _ = a.ReconcileStashScenes()
-	}()
+	a.TriggerStashPipelineForPaths(nil)
 }
 
-// TriggerStashImagePipeline は画像専用のパイプライン（スキャン ➔ Image生成 ➔ バインド）を実行します
+// TriggerStashImagePipeline は画像パイプラインを順序正しく実行します
 func (a *App) TriggerStashImagePipeline() {
-	go func() {
-		// 1. スキャン
-		_, _ = a.TriggerStashScan(nil)
-		time.Sleep(3 * time.Second)
-
-		// 2. 画像特有の生成物 (Thumbnails)
-		_, _ = a.TriggerStashGenerate([]string{}, nil) // trigger for images if nil
-		time.Sleep(2 * time.Second)
-
-		// 3. 画像専用の逆引きバインド
-		_, _ = a.ReconcileStashImages()
-	}()
+	a.TriggerStashPipelineForPaths(nil)
 }
 
-// TriggerStashAllPipelines は互換性のために両方のパイプラインを順に呼び出します
+// TriggerStashAllPipelines は互換性のために全体スキャン＆照合を実行します
 func (a *App) TriggerStashAllPipelines() {
-	a.TriggerStashScenePipeline()
-	// Note: since they are goroutines, they run concurrently.
-	// But they both call scan, which might be redundant. For simplicity, we just trigger them.
-	a.TriggerStashImagePipeline()
+	a.TriggerStashPipelineForPaths(nil)
 }
+

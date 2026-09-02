@@ -67,7 +67,14 @@ func (a *App) executeAutonomousPipelineCycle() {
 	// 2. Motrix (OUTSOURCED) の完了同期を自動実行
 	_, _ = a.SyncCompletedDownloads()
 
-	// 3. 迅雷ダウンロード完了の回収 ＆ Stash自動連携
+	// 3. ESCALATED がありオーケストレータ未稼働なら迅雷自律投入を開始
+	var eCount int64
+	_ = db.Model(&models_Media{}).Where("download_status = 'ESCALATED' AND (is_trash = 0 OR is_trash IS NULL)").Count(&eCount).Error
+	if eCount > 0 && !a.isThunderOrchestratorRunning() {
+		_, _ = a.StartThunderOrchestrator(3, 4)
+	}
+
+	// 4. 迅雷ダウンロード完了の回収 ＆ Stash自動連携
 	_, _ = a.SyncThunderDownloads("")
 }
 

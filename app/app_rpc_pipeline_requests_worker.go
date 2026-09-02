@@ -42,6 +42,7 @@ func (a *App) ProcessQueuedViaRequests() (*PipelineRunResult, error) {
 	}()
 	return &PipelineRunResult{QueuedTotal: total, IsStarted: true}, nil
 }
+
 func (a *App) processQueuedWorker(medias []models.Media) {
 	client, destRoot := &http.Client{Timeout: 8 * time.Second}, a.getMediaDownloadDir()
 	ok, outsourced, escalated, total := 0, 0, 0, len(medias)
@@ -73,7 +74,6 @@ func (a *App) processQueuedWorker(medias []models.Media) {
 			time.Sleep(100 * time.Millisecond)
 		}
 		time.Sleep(200 * time.Millisecond)
-
 		if !fetched {
 			if gid, err := a.AddMotrixDownload(urls, targetDir, m.MediaID); err == nil && gid != "" {
 				_ = a.Repo.UpdateMediaMetadata(m.MediaID, "OUTSOURCED", "", "", fmt.Sprintf("Motrix Next移管 (GID: %s)", gid))
@@ -89,4 +89,11 @@ func (a *App) processQueuedWorker(medias []models.Media) {
 		}
 	}
 	a.AppendPipelineLog("REQUESTS", "SUCCESS", fmt.Sprintf("Requests完了: 成功 %d / Motrix移管 %d / 迅雷直接 %d (総計 %d)", ok, outsourced, escalated, total))
+	if outsourced > 0 || escalated > 0 {
+		go func() {
+			time.Sleep(2 * time.Second)
+			_, _ = a.SyncCompletedDownloads()
+			if escalated > 0 && !a.isThunderOrchestratorRunning() { _, _ = a.StartThunderOrchestrator(3, 4) }
+		}()
+	}
 }

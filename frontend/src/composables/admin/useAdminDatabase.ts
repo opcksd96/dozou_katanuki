@@ -64,8 +64,9 @@ export function useAdminDatabase() {
     mediaPage: media.mediaPage, mediaLimit: media.mediaLimit, fetchMedia: media.fetchMedia, setMediaAccount: media.setMediaAccount,
     setMediaStatusFilter: media.setMediaStatusFilter, setMediaTypeFilter: media.setMediaTypeFilter, setMediaPage: media.setMediaPage,
     setMediaLimit: media.setMediaLimit, retryMedia: media.retryMedia, purgeMedia: media.purgeMedia, purgeMediaByStatus: media.purgeMediaByStatus,
-    trashMedia: media.trashMedia, restoreMedia: media.restoreMedia, escalateMediaToThunder: media.escalateMediaToThunder,
-    openInExplorer: media.openInExplorer, openWithDefaultApp: media.openWithDefaultApp, toggleBookmark: media.toggleBookmark,
+    trashMedia: media.trashMedia, restoreMedia: media.restoreMedia, batchTrashMedia: media.batchTrashMedia, batchRestoreMedia: media.batchRestoreMedia,
+    batchRevertToQueued: media.batchRevertToQueued, updateMediaMetadata: media.updateMediaMetadata,
+    escalateMediaToThunder: media.escalateMediaToThunder, openInExplorer: media.openInExplorer, openWithDefaultApp: media.openWithDefaultApp, toggleBookmark: media.toggleBookmark,
     startMediaDownload, startMediaPoll, startMediaEscalate, startSmartRecovery, startThunderEscalate, requeueMedia, reconcileStashMedia, fetchStashMetadata, updateStashMetadata,
   };
 }

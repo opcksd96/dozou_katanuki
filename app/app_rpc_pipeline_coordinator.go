@@ -7,19 +7,23 @@ import (
 	"dozou_katanuki/models"
 )
 
-// ExpandMediaCandidateTasks は 1つのメディアに対して原本URLを持つ1つのタスクレコードを生成します
+// ExpandMediaCandidateTasks は 1つのメディアに対して原本URLおよび候補URLを展開してタスクレコード群を生成します
 func ExpandMediaCandidateTasks(m models.Media, stage models.PipelineStage) []models.DownloadTask {
 	if m.MediaID == "" { return nil }
-	return []models.DownloadTask{
-		{
-			MediaID:   m.MediaID,
-			ArticleID: m.ArticleID,
-			URL:       m.DownloadURL,
-			FileName:  m.MediaID,
-			Stage:     stage,
-			Status:    models.TaskPending,
-		},
+	candidates := BuildCandidateURLsFromMediaWithArticle(m.MediaID, m.DownloadURL, m.Type, m.ArticleID)
+	if len(candidates) == 0 {
+		return []models.DownloadTask{
+			{MediaID: m.MediaID, ArticleID: m.ArticleID, URL: m.DownloadURL, FileName: m.MediaID, Stage: stage, Status: models.TaskPending},
+		}
 	}
+	tasks := make([]models.DownloadTask, 0, len(candidates))
+	for _, c := range candidates {
+		if c.URL == "" { continue }
+		tasks = append(tasks, models.DownloadTask{
+			MediaID: m.MediaID, ArticleID: m.ArticleID, URL: c.URL, FileName: m.MediaID, Stage: stage, Status: models.TaskPending,
+		})
+	}
+	return tasks
 }
 
 // CoordinateTaskCompletion は 完了時の記録とStashパイプラインを実行します
@@ -54,6 +58,7 @@ func (a *App) CoordinateTaskDepletion(fileName string, currentStage models.Pipel
 		if m, err := a.Repo.GetMediaByID(mediaID); err == nil && m != nil {
 			tasks := ExpandMediaCandidateTasks(*m, models.StageThunder)
 			_ = a.Repo.BatchUpsertDownloadTasks(tasks)
+			_, _ = a.EscalateToThunder(m.MediaID, m.DownloadURL)
 		}
 	case models.StageThunder:
 		// 迅雷も全滅 ➔ RETAINED (長期待機) へ退避

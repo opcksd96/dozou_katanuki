@@ -3,6 +3,8 @@ package app
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 	"time"
 
 	"dozou_katanuki/models"
@@ -10,7 +12,7 @@ import (
 
 func (a *App) runThunderOrchestrationWorker() {
 	interval := time.Duration(orchState.config.IntervalSeconds) * time.Second
-	if interval <= 0 { interval = 3 * time.Second }
+	if interval <= 0 { interval = 4 * time.Second }
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 
@@ -25,11 +27,25 @@ func (a *App) runThunderOrchestrationWorker() {
 				continue
 			}
 
-			// 迅雷の既存タスク一覧（ファイル名）を取得して重複投入を防止
 			existingFileMap := a.fetchExistingThunderFilesMap()
+			destDir := a.getMediaDownloadDir()
 
-			// 同時実行数の上限チェック（スロット制限）
-			if len(existingFileMap) >= orchState.config.MaxConcurrentSlots {
+			runningCount := 0
+			for _, t := range orchState.queue {
+				if t.Status == "running" {
+					if fi, err := os.Stat(filepath.Join(destDir, t.FileName)); err == nil && fi.Size() > 0 {
+						t.Status = "completed"
+					} else if len(existingFileMap) > 0 && !existingFileMap[t.FileName] {
+						t.Status = "depleted"
+					} else {
+						runningCount++
+					}
+				}
+			}
+
+			maxSlots := orchState.config.MaxConcurrentSlots
+			if maxSlots <= 0 || maxSlots > 3 { maxSlots = 3 }
+			if runningCount >= maxSlots || len(existingFileMap) >= maxSlots {
 				orchState.mu.Unlock()
 				continue
 			}
@@ -47,7 +63,7 @@ func (a *App) runThunderOrchestrationWorker() {
 			}
 
 			if nextTask == nil {
-				orchState.isRunning = false
+				if runningCount == 0 { orchState.isRunning = false }
 				orchState.mu.Unlock()
 				continue
 			}
@@ -57,34 +73,26 @@ func (a *App) runThunderOrchestrationWorker() {
 		}
 	}
 }
-
 func (a *App) fetchExistingThunderFilesMap() map[string]bool {
 	m := make(map[string]bool)
-	st := a.GetThunderCDPStatus()
-	for _, t := range st.CapturedTasks {
+	for _, t := range a.GetThunderCDPStatus().CapturedTasks {
 		if t.FileName != "" { m[t.FileName] = true }
 	}
 	return m
 }
-
 func (a *App) dispatchTaskDirectly(task *models.ThunderOrchestratorTask) {
 	now := time.Now()
 	task.Status = "running"
 	task.DispatchedAt = &now
 	orchState.processedMap[task.ID] = true
-
 	if a.Repo != nil && task.MediaID != "" {
 		_ = a.Repo.UpdateMediaMetadata(task.MediaID, "ESCALATED", "", "", fmt.Sprintf("迅雷投入中 (%s)", task.ResolutionType))
 		_ = a.Repo.MarkThunderTaskRunning(task.ID)
 	}
-
 	destDir := a.getMediaDownloadDir()
 	go func(t *models.ThunderOrchestratorTask, dest string) {
 		_ = AddTaskViaThunderCOM(t.URL, t.FileName, dest)
 	}(task, destDir)
-
 	orchState.recentTasks = append([]models.ThunderOrchestratorTask{*task}, orchState.recentTasks...)
-	if len(orchState.recentTasks) > 30 {
-		orchState.recentTasks = orchState.recentTasks[:30]
-	}
+	if len(orchState.recentTasks) > 30 { orchState.recentTasks = orchState.recentTasks[:30] }
 }

@@ -11,8 +11,8 @@ func (a *App) StartThunderOrchestrator(maxSlots, intervalSec int) (models.Thunde
 	defer orchState.mu.Unlock()
 
 	if orchState.isRunning { return a.getOrchestratorStatusLocked(), nil }
-	if maxSlots <= 0 { maxSlots = 12 }
-	if intervalSec <= 0 { intervalSec = 3 }
+	if maxSlots <= 0 || maxSlots > 3 { maxSlots = 3 }
+	if intervalSec <= 0 { intervalSec = 4 }
 	orchState.config.MaxConcurrentSlots = maxSlots
 	orchState.config.IntervalSeconds = intervalSec
 
@@ -26,6 +26,7 @@ func (a *App) StartThunderOrchestrator(maxSlots, intervalSec int) (models.Thunde
 	orchState.stopCh, orchState.pauseCh, orchState.resumeCh = make(chan struct{}), make(chan struct{}), make(chan struct{})
 	orchState.processedMap = make(map[string]bool)
 
+	go a.StartThunderCDPAdaptivePoller()
 	go a.runThunderOrchestrationWorker()
 	return a.getOrchestratorStatusLocked(), nil
 }

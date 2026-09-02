@@ -56,7 +56,16 @@ func (a *App) PurgeMediaByStatus(status, accountID string) (int64, error) {
 // UpdateMediaMetadata は指定されたメディアのメタデータを更新する Wails バインドメソッドです
 func (a *App) UpdateMediaMetadata(mediaID, downloadStatus, stashSceneID, stashImageID, failedReason string) error {
 	if err := a.WaitForReady(); err != nil { return err }
-	return a.Repo.UpdateMediaMetadata(mediaID, downloadStatus, stashSceneID, stashImageID, failedReason)
+	if downloadStatus == "QUEUED" { failedReason = "" }
+	if err := a.Repo.UpdateMediaMetadata(mediaID, downloadStatus, stashSceneID, stashImageID, failedReason); err != nil {
+		return err
+	}
+	if downloadStatus == "QUEUED" {
+		_, _ = a.ResetSpecificMediasToQueued([]string{mediaID})
+	} else if a.Repo != nil && a.Repo.DB() != nil {
+		_ = a.Repo.DB().Where("media_id = ?", mediaID).Delete(&models.DownloadTask{}).Error
+	}
+	return nil
 }
 
 // ListAllAccounts は登録済みアカウント一覧を取得する Wails バインドメソッドです

@@ -14,11 +14,8 @@ func (r *Repository) ResetMediaStatus(mediaID string) error {
 }
 
 func (r *Repository) UpdateMediaMetadata(mediaID, downloadStatus, stashSceneID, stashImageID, failedReason string) error {
-	updates := map[string]interface{}{
-		"download_status": downloadStatus, "failed_reason": nil,
-		"stash_scene_id": nil, "stash_image_id": nil,
-	}
-	if failedReason != "" { updates["failed_reason"] = failedReason }
+	updates := map[string]interface{}{"download_status": downloadStatus}
+	if failedReason != "" { updates["failed_reason"] = failedReason } else { updates["failed_reason"] = nil }
 	if stashSceneID != "" { updates["stash_scene_id"] = stashSceneID }
 	if stashImageID != "" { updates["stash_image_id"] = stashImageID }
 	return r.db.Model(&models.Media{}).Where("media_id = ?", mediaID).Updates(updates).Error

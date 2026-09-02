@@ -14,6 +14,9 @@ func (r *Repository) RegisterCompletedMediaFile(filePath string) error {
 	if filePath == "" {
 		return fmt.Errorf("empty file path")
 	}
+	if err := ValidateMediaFile(filePath); err != nil {
+		return err
+	}
 	base := filepath.Base(filePath)
 	cleanID := strings.TrimSuffix(base, filepath.Ext(base))
 

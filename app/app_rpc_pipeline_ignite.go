@@ -37,12 +37,15 @@ func (a *App) IgnitePipeline() (*PipelineIgniteResult, error) {
 		_, _ = a.ProcessQueuedViaRequests()
 	}
 
-	// 2. ESCALATED メディアがあれば第3ステージ (迅雷オーケストレーター) を発火
-	if eCount > 0 {
-		_, _ = a.StartThunderOrchestrator(12, 3)
+	// 2. Motrix (OUTSOURCED) の完了同期をキック
+	_, _ = a.SyncCompletedDownloads()
+
+	// 3. ESCALATED メディアがあれば第3ステージ (迅雷オーケストレーター) を発火
+	if eCount > 0 && !a.isThunderOrchestratorRunning() {
+		_, _ = a.StartThunderOrchestrator(3, 4)
 	}
 
-	// 3. 完了済み未同期があれば第4ステージ (Stash) を同期
+	// 4. 完了済み未同期があれば第4ステージ (Stash) を同期
 	go func() {
 		_, _ = a.SyncThunderDownloads("")
 	}()

@@ -17,10 +17,9 @@ func (a *App) ResetSpecificMediasToQueued(mediaIDs []string) (int64, error) {
 	}
 	db := a.Repo.DB()
 
-	// 1. 対象メディアを QUEUED にリセット (COMPLETED以外)
+	// 1. 対象メディアを QUEUED にリセット (個別明示指定のためCOMPLETED含む)
 	res := db.Model(&models.Media{}).
-		Where("id IN ? OR media_id IN ?", mediaIDs, mediaIDs).
-		Where("download_status != 'COMPLETED'").
+		Where("media_id IN ?", mediaIDs).
 		Updates(map[string]interface{}{
 			"download_status": "QUEUED",
 			"failed_reason":   nil,
@@ -36,7 +35,7 @@ func (a *App) ResetSpecificMediasToQueued(mediaIDs []string) (int64, error) {
 	// 2. 指定されたメディアIDに関連する旧汚染タスクを一掃
 	// まずメディアの実体を取得
 	var targetMedias []models.Media
-	_ = db.Where("id IN ? OR media_id IN ?", mediaIDs, mediaIDs).
+	_ = db.Where("media_id IN ?", mediaIDs).
 		Where("download_status = 'QUEUED'").Find(&targetMedias).Error
 
 	var targetMediaIDs []string
@@ -62,6 +61,11 @@ func (a *App) ResetSpecificMediasToQueued(mediaIDs []string) (int64, error) {
 	}
 
 	a.AppendPipelineLog("SYSTEM", "INFO", fmt.Sprintf("バッチ差し戻し: %d 件のメディアを QUEUED に差し戻し、%d 件の正規タスクを再構築", count, len(allTasks)))
+
+	// 4. パイプラインを自動点火して処理を開始
+	go func() {
+		_, _ = a.IgnitePipeline()
+	}()
 
 	return count, nil
 }

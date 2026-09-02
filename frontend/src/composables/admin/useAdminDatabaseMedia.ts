@@ -45,7 +45,6 @@ export function useAdminDatabaseMedia() {
       addToast('♻️ メディアを復元しました', 'success', 2500); await fetchMedia(); return true;
     } catch (e: any) { addToast(`復元失敗: ${e?.message || e}`, 'error', 3500); return false; }
   };
-
   const batchTrashMedia = async (mediaIds: string[], reason = '一括整理') => {
     if (!mediaIds?.length) return false;
     try {
@@ -53,7 +52,6 @@ export function useAdminDatabaseMedia() {
       addToast(`🗑️ ${mediaIds.length}件のメディアをゴミ箱へ移動しました`, 'info', 2500); await fetchMedia(); return true;
     } catch (e: any) { addToast(`一括退避失敗: ${e?.message || e}`, 'error', 3500); return false; }
   };
-
   const batchRestoreMedia = async (mediaIds: string[]) => {
     if (!mediaIds?.length) return false;
     try {
@@ -61,14 +59,12 @@ export function useAdminDatabaseMedia() {
       addToast(`♻️ ${mediaIds.length}件のメディアを復元しました`, 'success', 2500); await fetchMedia(); return true;
     } catch (e: any) { addToast(`一括復元失敗: ${e?.message || e}`, 'error', 3500); return false; }
   };
-
   const updateMediaMetadata = async (mediaId: string, downloadStatus: string, stashSceneId: string, stashImageId: string, failedReason: string) => {
     try {
       if (getApp()?.UpdateMediaMetadata) await getApp().UpdateMediaMetadata(mediaId, downloadStatus, stashSceneId, stashImageId, failedReason);
       addToast(`💾 メタデータを更新しました [${downloadStatus}]`, 'success', 2500); await fetchMedia(); return true;
     } catch (e: any) { addToast(`更新失敗: ${e?.message || e}`, 'error', 4000); return false; }
   };
-
   const toggleBookmark = async (mId: string) => {
     try {
       const res = (await getApp()?.ToggleMediaBookmark?.(mId)) ?? false;
@@ -91,13 +87,10 @@ export function useAdminDatabaseMedia() {
     batchRevertToQueued: async (mediaIds: string[]) => {
       if (!mediaIds?.length) return false;
       try {
-        if (getApp()?.ResetSpecificMediasToQueued) await getApp().ResetSpecificMediasToQueued(mediaIds);
-        addToast(`🧹 ${mediaIds.length}件のメディアを QUEUED に差し戻し、タスクを再構築しました`, 'success', 3000);
+        const count = (await getApp()?.ResetSpecificMediasToQueued?.(mediaIds)) ?? mediaIds.length;
+        addToast(`🧹 ${count}件のメディアを QUEUED に差し戻し、タスクを再構築しました`, 'success', 3000);
         await fetchMedia(); return true;
-      } catch (e: any) {
-        addToast(`一括差し戻し失敗: ${e?.message || e}`, 'error', 3500);
-        return false;
-      }
+      } catch (e: any) { addToast(`一括差し戻し失敗: ${e?.message || e}`, 'error', 3500); return false; }
     },
     retryMedia: async (mId: string) => { try { await getApp()?.RetryMediaDownload?.(mId); addToast(`🔄 再ダウンロードを発行`, 'info', 3000); await fetchMedia(); } catch (e: any) { addToast(`リトライ失敗: ${e?.message || e}`, 'error', 3500); } },
     openInExplorer: async (mId: string) => { try { await getApp()?.OpenInExplorer?.(mId); addToast('📂 フォルダ表示', 'info', 2000); } catch { addToast('フォルダ表示失敗', 'warning', 3000); } },

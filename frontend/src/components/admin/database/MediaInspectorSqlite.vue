@@ -20,6 +20,11 @@ const tweetUrls = computed(() => {
   }
   return [];
 });
+const onStatusChange = (e: Event) => {
+  const val = (e.target as HTMLSelectElement).value;
+  emit('update:editStatus', val);
+  if (val === 'QUEUED') emit('update:editReason', '');
+};
 </script>
 
 <template>
@@ -44,7 +49,7 @@ const tweetUrls = computed(() => {
 
     <div class="space-y-1">
       <label class="text-[10px] text-slate-400">ステータス</label>
-      <select :value="editStatus" @change="emit('update:editStatus', ($event.target as HTMLSelectElement).value)" class="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-slate-200 text-xs cursor-pointer">
+      <select :value="editStatus" @change="onStatusChange" class="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-slate-200 text-xs cursor-pointer">
         <option value="COMPLETED">COMPLETED</option><option value="QUEUED">QUEUED</option><option value="OUTSOURCED">OUTSOURCED</option>
         <option value="ESCALATED">ESCALATED</option><option value="RETAINED">RETAINED</option><option value="DEAD_404">DEAD_404</option><option value="FAILED">FAILED</option><option value="EXCLUDED">EXCLUDED</option>
       </select>
