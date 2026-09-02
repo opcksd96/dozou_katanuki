@@ -1,5 +1,5 @@
 # plugins/twitter/scraper/parsers/sotwe_parser.py (SPEC-PLUGIN-001 / 100行以下)
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 from bs4 import BeautifulSoup
 try:
     from plugins.twitter.scraper.parsers.sotwe_extractors import (
@@ -10,17 +10,23 @@ except ImportError:
         normalize_vue_tweet, parse_iso_datetime, get_filename_from_url, build_streamsaver_url
     )
 
-def parse_sotwe_vue_tweets(vue_records: List[Dict[str, Any]], default_account: str) -> List[Dict[str, Any]]:
-    """ブラウザ内のVueオブジェクト配列を直接標準スキーマへ変換"""
+def parse_sotwe_vue_tweets(vue_records: List[Dict[str, Any]], default_account: str, whitelist: Any = None) -> List[Dict[str, Any]]:
+    """ブラウザ内のVueオブジェクト配列を直接標準スキーマへ変換（対象アカウント/ホワイトリスト厳密フィルタ）"""
     results, seen_ids = [], set()
+    norm_acc = (default_account or "").lower().lstrip("@").strip()
+    wl_set = {str(w).lower().lstrip("@").strip() for w in whitelist} if whitelist else set()
     for item in (vue_records or []):
         t_id = str(item.get("id") or item.get("id_str") or "")
-        if t_id and t_id not in seen_ids:
-            seen_ids.add(t_id)
-            results.append(normalize_vue_tweet(item, default_account))
+        if not t_id or t_id in seen_ids: continue
+        u_info = item.get("user") or {}
+        author = str(u_info.get("screenName") or u_info.get("screen_name") or u_info.get("username") or default_account or "").lower().lstrip("@").strip()
+        if norm_acc and author != norm_acc and (author not in wl_set):
+            continue
+        seen_ids.add(t_id)
+        results.append(normalize_vue_tweet(item, default_account))
     return results
 
-def parse_sotwe_html_tweets(html_str: str, default_account: str) -> List[Dict[str, Any]]:
+def parse_sotwe_html_tweets(html_str: str, default_account: str, whitelist: Any = None) -> List[Dict[str, Any]]:
     """Sotwe HTMLから全カードを抽出（HTMLフォールバック用）"""
     if not html_str: return []
     soup = BeautifulSoup(html_str, "html.parser")
@@ -31,11 +37,16 @@ def parse_sotwe_html_tweets(html_str: str, default_account: str) -> List[Dict[st
     header_av_el = soup.select_one(".profile-avatar img, .v-avatar img")
     page_av = header_av_el["src"].replace("_normal.", ".") if header_av_el and header_av_el.get("src") else ""
 
+    norm_acc = (default_account or "").lower().lstrip("@").strip()
+    wl_set = {str(w).lower().lstrip("@").strip() for w in whitelist} if whitelist else set()
     cards, results, seen_ids = soup.select("div.tweet-card"), [], set()
     for idx, card in enumerate(cards):
-        is_repost, is_pinned = bool(card.select_one(".v-card__title .fa-retweet")), bool(card.select_one(".pinned-text, .pinned-icon"))
         profile_link = card.select_one(".tweet-profile a[href^='/']")
         author_user = profile_link["href"].strip("/").split("/")[0] if (profile_link and profile_link.get("href")) else default_account
+        author_lower = author_user.lower().lstrip("@").strip()
+        if norm_acc and author_lower != norm_acc and (author_lower not in wl_set):
+            continue
+        is_repost, is_pinned = bool(card.select_one(".v-card__title .fa-retweet")), bool(card.select_one(".pinned-text, .pinned-icon"))
         name_el = card.select_one(".tweet-profile--text span.font-weight-medium")
         display_name = name_el.get_text(strip=True) if name_el else page_name
         av_img = card.select_one(".v-avatar img, .tweet-profile img")
@@ -73,3 +84,4 @@ def parse_sotwe_html_tweets(html_str: str, default_account: str) -> List[Dict[st
             "media": media_list
         })
     return results
+

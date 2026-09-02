@@ -18,7 +18,7 @@ class TestDownloaderPipeline(unittest.TestCase):
             conn.execute("CREATE TABLE whitelists (id INTEGER PRIMARY KEY, type TEXT, value TEXT, is_active INTEGER);")
             conn.execute("CREATE TABLE accounts (numeric_id TEXT PRIMARY KEY, username TEXT, display_name TEXT);")
             conn.execute("CREATE TABLE articles (id TEXT PRIMARY KEY, account_id TEXT, wayback_url TEXT, full_text TEXT, full_text_ja TEXT, created_at TEXT);")
-            conn.execute("CREATE TABLE media (media_id TEXT PRIMARY KEY, article_id TEXT, type TEXT, download_url TEXT, download_status TEXT DEFAULT 'QUEUED', failed_reason TEXT, stash_scene_id TEXT, stash_image_id TEXT, media_quality TEXT DEFAULT '');")
+            conn.execute("CREATE TABLE media (media_id TEXT PRIMARY KEY, article_id TEXT, type TEXT, download_url TEXT, thumbnail_url TEXT, download_status TEXT DEFAULT 'QUEUED', failed_reason TEXT, stash_scene_id TEXT, stash_image_id TEXT, media_quality TEXT DEFAULT '');")
             conn.execute("INSERT INTO whitelists VALUES (1, 'account', 'alice', 1);")
             conn.execute("INSERT INTO accounts VALUES ('1001', 'alice', 'アリス'), ('1002', 'bob', 'ボブ');")
             conn.execute("INSERT INTO articles VALUES ('post_1', '1001', '', 'Hello world', 'こんにちは', '2025-01-22T10:00:00Z'), ('post_2', '1002', '', 'Secret', '', '2025-01-23T10:00:00Z');")

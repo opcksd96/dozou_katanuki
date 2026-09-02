@@ -81,6 +81,8 @@ const handleResetAll = async () => {
       </div>
     </div>
 
-    <div ref="logViewerRef"><PipelineLogViewer :logs="logs" :selected-stage="selectedLogStage" @select-stage="(s) => setLogStage(s)" /></div>
+    <div ref="logViewerRef" class="flex-1 flex flex-col min-h-0 pb-1">
+      <PipelineLogViewer class="flex-1 min-h-0" :logs="logs" :selected-stage="selectedLogStage" @select-stage="(s) => setLogStage(s)" />
+    </div>
   </div>
 </template>

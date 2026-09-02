@@ -20,6 +20,8 @@ type ThunderOrchestratorTask struct {
 	ID             string                `json:"id"`
 	MediaID        string                `json:"media_id"`
 	ArticleID      string                `json:"article_id"`
+	AccountID      string                `json:"account_id,omitempty"`
+	Username       string                `json:"username,omitempty"`
 	ResolutionType ThunderResolutionType `json:"resolution_type"`
 	URL            string                `json:"url"`
 	FileName       string                `json:"file_name"`

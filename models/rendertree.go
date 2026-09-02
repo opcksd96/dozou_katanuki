@@ -28,6 +28,12 @@ type RenderMediaURLs struct {
 	Original  string `json:"original,omitempty"`
 }
 
+type RenderMediaVariant struct {
+	VariantHash string `json:"variant_hash"`
+	DownloadURL string `json:"download_url"`
+	BitRate     int    `json:"bit_rate"`
+}
+
 type RenderMedia struct {
 	ID             string          `json:"id"`
 	Type           string          `json:"type"`
@@ -45,6 +51,7 @@ type RenderMedia struct {
 	IsTrash        bool            `json:"is_trash,omitempty"`
 	TrashedBy      string          `json:"trashed_by,omitempty"`
 	TrashReason    string          `json:"trash_reason,omitempty"`
+	Variants       []RenderMediaVariant `json:"variants,omitempty"`
 }
 
 type RenderMetrics struct {

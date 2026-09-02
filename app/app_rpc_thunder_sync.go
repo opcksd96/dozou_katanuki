@@ -2,6 +2,7 @@
 package app
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -9,7 +10,7 @@ import (
 	"dozou_katanuki/models"
 )
 
-// SyncThunderDownloads は迅雷フォルダおよび _escalate の完了ファイルをアカウント所定フォルダへ移動・DB同期・Stash連携します
+// SyncThunderDownloads は迅雷フォルダおよび _escalate の完了ファイルをアカウント所定フォルダへコピー・DB同期・Stash連携します
 func (a *App) SyncThunderDownloads(customDir string) (int, error) {
 	tempDir := customDir
 	if tempDir == "" {
@@ -19,18 +20,13 @@ func (a *App) SyncThunderDownloads(customDir string) (int, error) {
 	}
 	if tempDir == "" { tempDir = `D:\迅雷下载` }
 
-	destRoot := a.getMediaDownloadDir()
-	syncedCount := 0
-
-	if count, err := a.processDirectoryFiles(tempDir, destRoot); err == nil { syncedCount += count }
-	if count, err := a.processDirectoryFiles(destRoot, destRoot); err == nil { syncedCount += count }
+	destRoot, syncedCount := a.getMediaDownloadDir(), 0
+	if c, err := a.processDirectoryFiles(tempDir, destRoot); err == nil { syncedCount += c }
+	if c, err := a.processDirectoryFiles(destRoot, destRoot); err == nil { syncedCount += c }
 	escalateDir := filepath.Join(destRoot, "_escalate")
-	if count, err := a.processDirectoryFiles(escalateDir, destRoot); err == nil { syncedCount += count }
+	if c, err := a.processDirectoryFiles(escalateDir, destRoot); err == nil { syncedCount += c }
 
-	if syncedCount > 0 {
-		a.TriggerStashFullPipeline()
-	}
-
+	if syncedCount > 0 { a.TriggerStashAllPipelines() }
 	return syncedCount, nil
 }
 
@@ -52,20 +48,22 @@ func (a *App) processDirectoryFiles(srcDir, destRoot string) (int, error) {
 
 		targetSubDir := filepath.Join(destRoot, "_escalate")
 		if a.Repo != nil {
-			if owner, err := a.Repo.GetMediaOwnerUsername(mediaID); err == nil && owner != "" {
-				targetSubDir = filepath.Join(destRoot, owner, "X(Twitter)", "_assets")
-			}
+			owner, err := a.Repo.GetMediaOwnerUsername(mediaID)
+			if err != nil || owner == "" { owner, _ = a.Repo.GetMediaOwnerUsername(name) }
+			if owner != "" { targetSubDir = filepath.Join(destRoot, owner, "X(Twitter)", "_assets") }
 		}
 		_ = os.MkdirAll(targetSubDir, 0755)
 		destPath := filepath.Join(targetSubDir, destFileName)
 
 		if srcPath == destPath { continue }
 
-		if err := moveFileSafe(srcPath, destPath); err == nil {
+		if err := copyFileSafe(srcPath, destPath); err == nil {
+			if strings.Contains(srcPath, "_escalate") && srcPath != destPath { _ = os.Remove(srcPath) }
 			if a.Repo != nil {
 				count++
-				// 【新SSOT】全ステージ協調刈り取り ＆ Stash自動パイプライン連携
+				a.AppendPipelineLog("THUNDER", "SUCCESS", fmt.Sprintf("⚡ 迅雷完了回収: %s -> %s", name, destPath))
 				go a.CoordinateTaskCompletion(mediaID, name, models.StageThunder)
+				go a.ReapCompletedDuplicates(mediaID, name)
 			}
 		}
 	}
@@ -77,7 +75,21 @@ func resolveMediaIDFromFileName(name string) string {
 	ext := filepath.Ext(base)
 	noExt := strings.TrimSuffix(base, ext)
 
-	for _, sfx := range []string{"_orig", "_large", "_wayback_orig", "_wayback", ":orig", ":large"} {
+	// 重複連番 (1), (5) 等を除去
+	if idx := strings.LastIndex(noExt, "("); idx != -1 && strings.HasSuffix(noExt, ")") {
+		noExt = strings.TrimSpace(noExt[:idx])
+	}
+	// StreamSaver / 連番 _0, _0_0 等を除去
+	for strings.HasSuffix(noExt, "_0") || strings.HasSuffix(noExt, "_1") {
+		noExt = strings.TrimSuffix(strings.TrimSuffix(noExt, "_0"), "_1")
+	}
+
+	for _, sfx := range []string{
+		"_wayback_plain", "_wayback_colon", "_wayback_orig",
+		"_colon_orig", "_orig", "_large", "_plain",
+		"_wayback", ":orig", ":large",
+		"_motrix", "_requests", "_thunder",
+	} {
 		if strings.HasSuffix(noExt, sfx) {
 			noExt = strings.TrimSuffix(noExt, sfx)
 			break

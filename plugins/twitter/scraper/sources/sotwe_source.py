@@ -21,7 +21,8 @@ class SotweSource:
         return True
 
     def fetch_account(self, account: str, limit: int = 50, log_fn: Optional[Callable[[str], None]] = None) -> List[Dict[str, Any]]:
-        url = f"https://www.sotwe.com/{account}"
+        clean_acc = account.lstrip("@").strip()
+        url = f"https://www.sotwe.com/{clean_acc}"
         if log_fn: log_fn(f"[SotweSource:SB] Opening Web UI (Infinite Scroll): {url}")
         try:
             with SB(uc=True, headless=True) as sb:
@@ -46,13 +47,13 @@ class SotweSource:
                     last_count = current_count
 
                 raw_vue = sb.execute_script(VUE_EXTRACT_JS) or []
-                records = parse_sotwe_vue_tweets(raw_vue, account) if raw_vue else parse_sotwe_html_tweets(sb.get_page_source(), account)
+                records = parse_sotwe_vue_tweets(raw_vue, clean_acc) if raw_vue else parse_sotwe_html_tweets(sb.get_page_source(), clean_acc)
 
             result = records[:limit] if limit > 0 else records
             if result:
                 try:
                     c = WarcArchiver().archive_posts(result, platform="twitter")
-                    if log_fn: log_fn(f"[SotweSource:WARC] Dumped & enriched {c} posts to backups/dumps/twitter/{account}/")
+                    if log_fn: log_fn(f"[SotweSource:WARC] Dumped & enriched {c} posts to backups/dumps/twitter/{clean_acc}/")
                 except Exception as we:
                     if log_fn: log_fn(f"[SotweSource:WARC] Archival Warning: {we}")
 

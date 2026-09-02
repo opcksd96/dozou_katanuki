@@ -4,11 +4,13 @@ import { ref, onMounted } from 'vue';
 import { BrowserOpenURL } from '../../../../wailsjs/runtime/runtime';
 import MediaCockpitHeader from './MediaCockpitHeader.vue';
 import MediaToolbar from './MediaToolbar.vue';
+import MediaBatchToolbar from './MediaBatchToolbar.vue';
 import MediaPaginationBar from './MediaPaginationBar.vue';
 import MediaQueueStatus from './MediaQueueStatus.vue';
 import MediaGrid from './MediaGrid.vue';
 import MediaTableView from './MediaTableView.vue';
 import MediaTrashModal from './MediaTrashModal.vue';
+import { useMediaBatchOps } from '../../../composables/admin/useMediaBatchOps';
 
 const props = defineProps<{
   mediaItems: any[]; total: number; accounts: any[]; accountFilter: string; statusFilter: string;
@@ -26,16 +28,26 @@ const emit = defineEmits<{
   (e: 'startPoll'): void; (e: 'startEscalate'): void; (e: 'startSmartRecovery'): void; (e: 'startThunder'): void; (e: 'escalateThunder', m: any): void;
   (e: 'requeueFailed'): void; (e: 'reconcileStash'): void; (e: 'openExplorer', id: string): void; (e: 'openDefault', id: string): void;
   (e: 'toggleBookmark', id: string): void; (e: 'cancelJob', id: string): void;
+  (e: 'batchTrashMedia', mediaIds: string[], reason?: string): void; (e: 'batchRestoreMedia', mediaIds: string[]): void;
 }>();
 
 const viewMode = ref<'large' | 'compact' | 'table'>('large');
 const searchQuery = ref(''), onlyBookmarked = ref(false), showTrashModal = ref(false), selectedMediaForTrash = ref<any>(null);
+const { selectedIds, selectedCount, toggleSelect, selectAll, clearSelection } = useMediaBatchOps();
 
 const openTrashModal = (m: any) => { selectedMediaForTrash.value = m; showTrashModal.value = true; };
 const openStash = () => {
   const url = `http://127.0.0.1:${props.config?.network?.stash_port || 9999}`;
   try { BrowserOpenURL(url); } catch { window.open(url, '_blank', 'noopener,noreferrer'); }
 };
+
+const handleBatchRetry = () => { selectedIds.value.forEach(id => emit('retryMedia', id)); clearSelection(); };
+const handleBatchThunder = () => {
+  (props.mediaItems || []).filter(m => selectedIds.value.has(m.media_id || m.id)).forEach(m => emit('escalateThunder', m));
+  clearSelection();
+};
+const handleBatchTrash = () => { emit('batchTrashMedia', Array.from(selectedIds.value), '一括退避'); clearSelection(); };
+const handleBatchRestore = () => { emit('batchRestoreMedia', Array.from(selectedIds.value)); clearSelection(); };
 
 onMounted(() => emit('fetch'));
 </script>
@@ -53,10 +65,15 @@ onMounted(() => emit('fetch'));
       @open-stash="openStash" @start-smart-recovery="emit('startSmartRecovery')" @start-thunder="emit('startThunder')"
       @reconcile-stash="emit('reconcileStash')"
     />
+    <MediaBatchToolbar
+      :selected-count="selectedCount" :is-trash-view="statusFilter === 'TRASH'" :total="total"
+      @batch-retry="handleBatchRetry" @batch-thunder="handleBatchThunder" @batch-trash="handleBatchTrash"
+      @batch-restore="handleBatchRestore" @select-all="selectAll(mediaItems)" @clear-selection="clearSelection"
+    />
     <MediaQueueStatus :stats="queueStats" :active-job="activeJob" :status-filter="statusFilter" @update:status-filter="emit('update:statusFilter', $event)" />
     <div class="flex-1 min-h-0 overflow-y-auto">
-      <MediaTableView v-if="viewMode === 'table'" :items="mediaItems" @retry="emit('retryMedia', $event)" @purge="emit('purgeMedia', $event)" @open-explorer="emit('openExplorer', $event)" @open-default="emit('openDefault', $event)" @toggle-bookmark="emit('toggleBookmark', $event)" @escalate-thunder="emit('escalateThunder', $event)" />
-      <MediaGrid v-else :media-items="mediaItems" :loading="loading" :search-query="searchQuery" :only-bookmarked="onlyBookmarked" @retry-media="emit('retryMedia', $event)" @trash-media="openTrashModal" @restore-media="emit('restoreMedia', $event)" @purge-media="emit('purgeMedia', $event)" @toggle-bookmark="emit('toggleBookmark', $event)" @open-explorer="emit('openExplorer', $event)" @open-default="emit('openDefault', $event)" @save-metadata="emit('saveMetadata', $event)" @escalate-thunder="emit('escalateThunder', $event)" @view-post="emit('viewPost', $event)" @view-post-timeline="emit('viewPostTimeline', $event)" />
+      <MediaTableView v-if="viewMode === 'table'" :items="mediaItems" :selected-ids="selectedIds" @select="toggleSelect($event.media_id || $event.id)" @toggle-select="toggleSelect" @toggle-select-all="() => selectedIds.size === mediaItems.length ? clearSelection() : selectAll(mediaItems)" @retry="emit('retryMedia', $event)" @purge="emit('purgeMedia', $event)" @open-explorer="emit('openExplorer', $event)" @open-default="emit('openDefault', $event)" @toggle-bookmark="emit('toggleBookmark', $event)" @escalate-thunder="emit('escalateThunder', $event)" />
+      <MediaGrid v-else :media-items="mediaItems" :selected-ids="selectedIds" :loading="loading" :search-query="searchQuery" :only-bookmarked="onlyBookmarked" @toggle-select="toggleSelect" @retry-media="emit('retryMedia', $event)" @trash-media="openTrashModal" @restore-media="emit('restoreMedia', $event)" @purge-media="emit('purgeMedia', $event)" @toggle-bookmark="emit('toggleBookmark', $event)" @open-explorer="emit('openExplorer', $event)" @open-default="emit('openDefault', $event)" @save-metadata="emit('saveMetadata', $event)" @escalate-thunder="emit('escalateThunder', $event)" @view-post="emit('viewPost', $event)" @view-post-timeline="emit('viewPostTimeline', $event)" />
     </div>
     <MediaPaginationBar :page="page" :limit="limit" :total="total" @update:page="emit('update:page', $event)" @update:limit="emit('update:limit', $event)" />
     <MediaTrashModal :show="showTrashModal" :media-item="selectedMediaForTrash" @close="showTrashModal = false" @confirm="(p) => emit('trashMedia', p)" />

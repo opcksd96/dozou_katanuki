@@ -16,7 +16,7 @@ func (r *Repository) applyAccountFilter(query *gorm.DB, accountID string) *gorm.
 }
 
 func (r *Repository) FetchArticles(accountID, filter string, limit, offset int) ([]models.Article, error) {
-	query := r.db.Model(&models.Article{}).Preload("Account").Preload("Account.ProfileHistory").Preload("Media").Preload("UrlRedirects").Order("created_at DESC")
+	query := r.db.Model(&models.Article{}).Preload("Account").Preload("Account.ProfileHistory").Preload("Media").Preload("Media.Variants").Preload("UrlRedirects").Order("created_at DESC")
 	query = query.Where("is_trash = ? AND (is_repost = ? OR reply_to_handle IN (SELECT value FROM whitelists WHERE is_active = ?))", false, false, true)
 	query = r.applyAccountFilter(query, accountID)
 	switch filter {
@@ -47,7 +47,7 @@ func (r *Repository) UpsertArticleTx(art *models.Article) error {
 }
 
 func (r *Repository) SearchArticles(searchQuery, accountID, filter string, limit, offset int) ([]models.Article, int64, error) {
-	query := r.db.Model(&models.Article{}).Preload("Account").Preload("Account.ProfileHistory").Preload("Media").Preload("UrlRedirects")
+	query := r.db.Model(&models.Article{}).Preload("Account").Preload("Account.ProfileHistory").Preload("Media").Preload("Media.Variants").Preload("UrlRedirects")
 	if searchQuery != "" {
 		pat := "%" + searchQuery + "%"
 		query = query.Where("full_text LIKE ? OR full_text_ja LIKE ? OR full_text_en LIKE ? OR full_text_zh LIKE ? OR id LIKE ?", pat, pat, pat, pat, pat)
@@ -75,13 +75,13 @@ func (r *Repository) SearchArticles(searchQuery, accountID, filter string, limit
 
 func (r *Repository) GetArticleByID(id string) (*models.Article, error) {
 	var a models.Article
-	err := r.db.Preload("Account").Preload("Account.ProfileHistory").Preload("Media").Preload("UrlRedirects").Where("id = ?", id).First(&a).Error
+	err := r.db.Preload("Account").Preload("Account.ProfileHistory").Preload("Media").Preload("Media.Variants").Preload("UrlRedirects").Where("id = ?", id).First(&a).Error
 	return &a, err
 }
 
 func (r *Repository) GetArticlesByConversationID(convID string) ([]models.Article, error) {
 	var articles []models.Article
-	err := r.db.Preload("Account").Preload("Account.ProfileHistory").Preload("Media").Preload("UrlRedirects").Where("conversation_id = ?", convID).Order("created_at ASC").Find(&articles).Error
+	err := r.db.Preload("Account").Preload("Account.ProfileHistory").Preload("Media").Preload("Media.Variants").Preload("UrlRedirects").Where("conversation_id = ?", convID).Order("created_at ASC").Find(&articles).Error
 	return articles, err
 }
 

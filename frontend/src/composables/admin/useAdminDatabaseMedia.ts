@@ -46,6 +46,22 @@ export function useAdminDatabaseMedia() {
     } catch (e: any) { addToast(`復元失敗: ${e?.message || e}`, 'error', 3500); return false; }
   };
 
+  const batchTrashMedia = async (mediaIds: string[], reason = '一括整理') => {
+    if (!mediaIds?.length) return false;
+    try {
+      if (getApp()?.BatchTrashMedia) await getApp().BatchTrashMedia(mediaIds, reason);
+      addToast(`🗑️ ${mediaIds.length}件のメディアをゴミ箱へ移動しました`, 'info', 2500); await fetchMedia(); return true;
+    } catch (e: any) { addToast(`一括退避失敗: ${e?.message || e}`, 'error', 3500); return false; }
+  };
+
+  const batchRestoreMedia = async (mediaIds: string[]) => {
+    if (!mediaIds?.length) return false;
+    try {
+      if (getApp()?.BatchRestoreMedia) await getApp().BatchRestoreMedia(mediaIds);
+      addToast(`♻️ ${mediaIds.length}件のメディアを復元しました`, 'success', 2500); await fetchMedia(); return true;
+    } catch (e: any) { addToast(`一括復元失敗: ${e?.message || e}`, 'error', 3500); return false; }
+  };
+
   const updateMediaMetadata = async (mediaId: string, downloadStatus: string, stashSceneId: string, stashImageId: string, failedReason: string) => {
     try {
       if (getApp()?.UpdateMediaMetadata) await getApp().UpdateMediaMetadata(mediaId, downloadStatus, stashSceneId, stashImageId, failedReason);
@@ -71,7 +87,7 @@ export function useAdminDatabaseMedia() {
     setMediaAccount: (acc: string) => { mediaAccount.value = acc; mediaPage.value = 1; return fetchMedia(); },
     setMediaStatusFilter: (st: string) => { mediaStatusFilter.value = st; mediaPage.value = 1; return fetchMedia(); },
     setMediaTypeFilter: (t: 'all' | 'image' | 'video') => { mediaTypeFilter.value = t; mediaPage.value = 1; return fetchMedia(); },
-    trashMedia, restoreMedia, updateMediaMetadata, toggleBookmark,
+    trashMedia, restoreMedia, batchTrashMedia, batchRestoreMedia, updateMediaMetadata, toggleBookmark,
     escalateMediaToThunder: async (m: any) => {
       const mId = String(typeof m === 'object' ? (m.media_id || m.id) : m).trim();
       const url = String(typeof m === 'object' ? (m.download_url || m.url || '') : '').trim();

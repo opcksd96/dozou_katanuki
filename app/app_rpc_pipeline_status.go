@@ -39,10 +39,19 @@ func (a *App) GetPipelineOverview() (*PipelineOverviewResult, error) {
 	res.Checkpoints[1] = CheckpointStatus{Name: "Motrix Next / Aria2", Key: "motrix", IsOnline: mStat.IsOnline, ActiveCount: mStat.NumActive, StatusText: mText}
 
 	// 3. Thunder
-	thunderOnline := false
-	if _, err := FetchThunderMainRendererWSUrl(9222); err == nil { thunderOnline = true }
-	tText := "⏹️ STANDBY"
-	if orchState.isRunning { tText = "⚡ RUNNING" } else if thunderOnline { tText = "🟢 CONNECTED" }
+	thunderProc := isThunderProcessRunning()
+	thunderCDP := false
+	if _, err := FetchThunderMainRendererWSUrl(9222); err == nil { thunderCDP = true }
+	thunderOnline := thunderProc || thunderCDP
+
+	tText := "🔴 OFFLINE"
+	if orchState.isRunning {
+		tText = "⚡ RUNNING"
+	} else if thunderCDP {
+		tText = "⚡ CDP CONNECTED"
+	} else if thunderProc {
+		tText = "🟢 ONLINE"
+	}
 	res.Checkpoints[2] = CheckpointStatus{Name: "迅雷 (Thunder) P2SP", Key: "thunder", IsOnline: thunderOnline, ActiveCount: len(orchState.recentTasks), StatusText: tText}
 
 	// 4. Stash

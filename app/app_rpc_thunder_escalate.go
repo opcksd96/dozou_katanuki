@@ -40,7 +40,7 @@ func AddBatchTasksViaThunderCOM(tasks []ThunderCOMTask) bool {
 		cleanURL := strings.ReplaceAll(t.URL, "'", "''")
 		cleanFN := strings.ReplaceAll(fn, "'", "''")
 		cleanDest := strings.ReplaceAll(dest, "'", "''")
-		b.WriteString(fmt.Sprintf(`$a.AddTask('%s','%s','%s','','',2,0,5); `, cleanURL, cleanFN, cleanDest))
+		b.WriteString(fmt.Sprintf(`$a.AddTask('%s','%s','%s','','',1,0,5); `, cleanURL, cleanFN, cleanDest))
 	}
 	b.WriteString(`$a.CommitTasks(); exit 0 } }catch{} }; exit 1`)
 	cmd := exec.Command("powershell.exe", "-NoProfile", "-NonInteractive", "-WindowStyle", "Hidden", "-Command", b.String())
@@ -48,10 +48,18 @@ func AddBatchTasksViaThunderCOM(tasks []ThunderCOMTask) bool {
 	return cmd.Run() == nil
 }
 
-// LaunchThunder は Thunder.exe 単体を起動します
+// isThunderProcessRunning は Windows OS 上で Thunder.exe が稼働しているか判定します
+func isThunderProcessRunning() bool {
+	cmd := exec.Command("tasklist", "/FI", "IMAGENAME eq Thunder.exe", "/NH")
+	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true, CreationFlags: 0x08000000}
+	out, err := cmd.Output()
+	return err == nil && strings.Contains(strings.ToLower(string(out)), "thunder.exe")
+}
+
+// LaunchThunder は Thunder.exe を CDP デバッグポート 9222 を有効にして起動します
 func (a *App) LaunchThunder() (bool, error) {
 	if _, err := os.Stat(defaultThunderPath); err != nil { return false, err }
-	cmd := exec.Command(defaultThunderPath)
+	cmd := exec.Command(defaultThunderPath, "--remote-debugging-port=9222")
 	return cmd.Start() == nil, nil
 }
 
@@ -62,10 +70,22 @@ func (a *App) EscalateToThunder(mediaID string, downloadURL string) (bool, error
 	}
 	if downloadURL == "" { return false, fmt.Errorf("download url is required") }
 
+	check := a.CheckThunderEscalationEligibility(mediaID, downloadURL)
+	if !check.ShouldEscalate {
+		if check.ExistingStatus == "ALREADY_COMPLETED" && mediaID != "" && a.Repo != nil {
+			_ = a.Repo.UpdateMediaMetadata(mediaID, "COMPLETED", "", "", "実体検知による完了同期")
+		} else if (check.ExistingStatus == "ALREADY_IN_THUNDER" || check.ExistingStatus == "DOWNLOADING_XLTD") && mediaID != "" && a.Repo != nil {
+			_ = a.Repo.UpdateMediaMetadata(mediaID, "ESCALATED", "", "", check.Reason)
+		}
+		a.AppendPipelineLog("THUNDER", "INFO", fmt.Sprintf("⚡ 迅雷エスカレーション判定: スキップ (%s)", check.Reason))
+		return true, nil
+	}
+
 	destDir := a.getMediaDownloadDir()
 	started := AddTaskViaThunderCOM(downloadURL, mediaID, destDir)
 	if started && mediaID != "" && a.Repo != nil {
 		_ = a.Repo.UpdateMediaMetadata(mediaID, "ESCALATED", "", "", "Thunder P2SP エスカレーション投入")
+		a.AppendPipelineLog("THUNDER", "SUCCESS", fmt.Sprintf("⚡ 迅雷投入成功: %s", mediaID))
 	}
 	return started, nil
 }
@@ -75,11 +95,4 @@ func (a *App) getMediaDownloadDir() string {
 		return cfg.Storage.LocalMediaDir
 	}
 	return filepath.Join("blobs")
-}
-
-// GiveUpRetainedMedia はユーザーが明示的に諦めたタスクを DEAD_404 状態へ確定します
-func (a *App) GiveUpRetainedMedia(mediaID string) (bool, error) {
-	if mediaID == "" || a.Repo == nil { return false, fmt.Errorf("mediaID is required") }
-	err := a.Repo.UpdateMediaMetadata(mediaID, "DEAD_404", "", "", "ユーザーによる探索諦め (GIVE_UP)")
-	return err == nil, err
 }

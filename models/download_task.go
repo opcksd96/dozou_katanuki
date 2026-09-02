@@ -23,22 +23,22 @@ const (
 	TaskReaped    DownloadTaskStatus = "REAPED"
 )
 
-// DownloadTask は 全パイプラインステージ（Requests/Motrix/Thunder/Stash）で共通の子タスクモデルです
+// DownloadTask は 1メディア1行でライフサイクル・ステージ通過時刻を管理するタスクモデルです
 type DownloadTask struct {
-	ID             string             `gorm:"primaryKey" json:"id"` // {media_id}-{stage}-{resolution_type}
-	MediaID        string             `gorm:"index;not null" json:"media_id"`
-	ArticleID      string             `gorm:"index" json:"article_id"`
-	Stage          PipelineStage      `gorm:"index;not null" json:"stage"`
-	ResolutionType string             `gorm:"not null" json:"resolution_type"` // orig, large, medium, small, thumb, wayback_orig
-	URL            string             `gorm:"not null" json:"url"`
-	FileName       string             `gorm:"index;not null" json:"file_name"`
-	Status         DownloadTaskStatus `gorm:"index;default:'PENDING'" json:"status"`
-	FailedReason   string             `json:"failed_reason,omitempty"`
-	DispatchedAt   *time.Time         `json:"dispatched_at,omitempty"`
-	CompletedAt    *time.Time         `json:"completed_at,omitempty"`
-	ReapedAt       *time.Time         `json:"reaped_at,omitempty"`
-	CreatedAt      time.Time          `json:"created_at"`
-	UpdatedAt      time.Time          `json:"updated_at"`
+	MediaID      string             `gorm:"primaryKey;column:media_id" json:"media_id"`
+	ArticleID    string             `gorm:"index;column:article_id" json:"article_id"`
+	URL          string             `gorm:"column:url;not null" json:"url"` // 原本URL (Single Source of Truth)
+	FileName     string             `gorm:"column:file_name;not null" json:"file_name"`
+	Stage        PipelineStage      `gorm:"column:stage;index;default:'REQUESTS'" json:"stage"`
+	Status       DownloadTaskStatus `gorm:"column:status;index;default:'PENDING'" json:"status"`
+	FailedReason string             `gorm:"column:failed_reason" json:"failed_reason,omitempty"`
+	RequestsAt   *time.Time         `gorm:"column:requests_at" json:"requests_at,omitempty"`
+	MotrixAt     *time.Time         `gorm:"column:motrix_at" json:"motrix_at,omitempty"`
+	ThunderAt    *time.Time         `gorm:"column:thunder_at" json:"thunder_at,omitempty"`
+	StashAt      *time.Time         `gorm:"column:stash_at" json:"stash_at,omitempty"`
+	CompletedAt  *time.Time         `gorm:"column:completed_at" json:"completed_at,omitempty"`
+	CreatedAt    time.Time          `gorm:"column:created_at" json:"created_at"`
+	UpdatedAt    time.Time          `gorm:"column:updated_at" json:"updated_at"`
 }
 
 func (DownloadTask) TableName() string {

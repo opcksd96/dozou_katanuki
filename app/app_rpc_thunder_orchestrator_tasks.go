@@ -13,20 +13,16 @@ func (a *App) buildThunderOrchestratorTasks() []*models.ThunderOrchestratorTask 
 	var tasks []*models.ThunderOrchestratorTask
 	if a.Repo == nil { return tasks }
 
-	var allItems []models.MediaScanItem
-	for _, st := range []string{"QUEUED", "OUTSOURCED", "RETAINED", "ESCALATED"} {
-		items, _, _, err := a.Repo.FetchRawMediaItems("", st, "", 1000, 0)
-		if err == nil && len(items) > 0 {
-			allItems = append(allItems, items...)
-		}
-	}
+	// 迅雷オーケストレーターは ESCALATED のメディアのみを対象とする
+	items, _, _, err := a.Repo.FetchRawMediaItems("", "ESCALATED", "", 1000, 0)
+	if err != nil || len(items) == 0 { return tasks }
 
 	var dTasks []models.DownloadTask
 	seenMedia := make(map[string]bool)
 
-	for _, item := range allItems {
+	for _, item := range items {
 		m := item.Media
-		if m.DownloadURL == "" || seenMedia[m.MediaID] { continue }
+		if seenMedia[m.MediaID] || m.IsTrash { continue }
 		seenMedia[m.MediaID] = true
 
 		cleanID := strings.TrimSuffix(m.MediaID, filepath.Ext(m.MediaID))
@@ -34,7 +30,7 @@ func (a *App) buildThunderOrchestratorTasks() []*models.ThunderOrchestratorTask 
 		if m.Type == "video" || strings.Contains(m.DownloadURL, ".mp4") || strings.HasSuffix(strings.ToLower(m.MediaID), ".mp4") {
 			ext = ".mp4"
 		}
-		candidates := BuildMediaCandidateURLs(m.DownloadURL)
+		candidates := BuildCandidateURLsFromMediaWithArticle(m.MediaID, m.DownloadURL, m.Type, m.ArticleID)
 		for _, c := range candidates {
 			tID := fmt.Sprintf("%s-%s", cleanID, c.Type)
 			fileName := fmt.Sprintf("%s_%s%s", cleanID, c.Type, ext)
@@ -43,6 +39,8 @@ func (a *App) buildThunderOrchestratorTasks() []*models.ThunderOrchestratorTask 
 				ID:             tID,
 				MediaID:        m.MediaID,
 				ArticleID:      m.ArticleID,
+				AccountID:      item.AccountID,
+				Username:       item.Username,
 				ResolutionType: c.Type,
 				URL:            c.URL,
 				FileName:       fileName,
@@ -50,17 +48,15 @@ func (a *App) buildThunderOrchestratorTasks() []*models.ThunderOrchestratorTask 
 				SlotIndex:      -1,
 			})
 
-			dTasks = append(dTasks, models.DownloadTask{
-				ID:             fmt.Sprintf("%s-thunder-%s", cleanID, c.Type),
-				MediaID:        m.MediaID,
-				ArticleID:      m.ArticleID,
-				Stage:          models.StageThunder,
-				ResolutionType: string(c.Type),
-				URL:            c.URL,
-				FileName:       fileName,
-				Status:         models.TaskPending,
-			})
 		}
+		dTasks = append(dTasks, models.DownloadTask{
+			MediaID:   m.MediaID,
+			ArticleID: m.ArticleID,
+			Stage:     models.StageThunder,
+			URL:       m.DownloadURL,
+			FileName:  m.MediaID,
+			Status:    models.TaskPending,
+		})
 	}
 
 	if len(dTasks) > 0 {

@@ -3,6 +3,7 @@ package app
 
 import (
 	"fmt"
+	"path/filepath"
 	"strings"
 
 	"dozou_katanuki/models"
@@ -14,51 +15,52 @@ type CandidateURL struct {
 	URL  string
 }
 
-// BuildMediaCandidateURLs はメディアの全候補URL (orig, colon, plain, large, 各wayback) を網羅生成します
-func BuildMediaCandidateURLs(rawURL string) []CandidateURL {
-	if rawURL == "" {
-		return nil
+// BuildCandidateURLsFromMedia は 画像/動画の構造差を厳密に区別して候補URL群を網羅生成します
+func BuildCandidateURLsFromMedia(mediaID, downloadURL, mediaType string) []CandidateURL {
+	return BuildCandidateURLsFromMediaWithArticle(mediaID, downloadURL, mediaType, "")
+}
+
+// BuildCandidateURLsFromMediaWithArticle は article_id を活用した動画の正規階層トレイリング候補も生成します
+func BuildCandidateURLsFromMediaWithArticle(mediaID, downloadURL, mediaType, articleID string) []CandidateURL {
+	isVideo := mediaType == "video" || strings.Contains(downloadURL, ".mp4") || strings.HasSuffix(strings.ToLower(mediaID), ".mp4") || strings.Contains(downloadURL, "video")
+	cleanID := mediaID
+	if cleanID == "" { cleanID = filepath.Base(downloadURL) }
+	if idx := strings.Index(cleanID, "?"); idx != -1 { cleanID = cleanID[:idx] }
+	ext := filepath.Ext(cleanID)
+	rawID := strings.TrimSuffix(cleanID, ext)
+	for _, sfx := range []string{":orig", ":large", ":medium", ":small", ":thumb", ":tiny", "_motrix", "_requests", "_thunder", "_plain", "_orig", "_large"} {
+		rawID = strings.TrimSuffix(rawID, sfx)
 	}
 
-	base := rawURL
-	for _, sfx := range []string{":orig", ":large", ":medium", ":small", ":thumb", ":tiny", ":900x900", ":1200x1200"} {
-		if strings.HasSuffix(base, sfx) {
-			base = strings.TrimSuffix(base, sfx)
-			break
-		}
-	}
-	cleanBase := base
-	if idx := strings.Index(base, "?"); idx != -1 {
-		cleanBase = base[:idx]
-	}
-
-	isVideo := strings.Contains(base, "video") || strings.Contains(base, ".mp4") || strings.Contains(base, ".m3u8")
 	if isVideo {
-		tag14URL := cleanBase + "?tag=14"
-		tag12URL := cleanBase + "?tag=12"
-		return []CandidateURL{
-			{Type: models.ResolutionOrig, URL: tag14URL},
-			{Type: models.ResolutionLarge, URL: tag12URL},
-			{Type: models.ResolutionPlain, URL: cleanBase},
-			{Type: models.ResolutionWaybackOrig, URL: fmt.Sprintf("https://web.archive.org/web/2id_/%s", tag14URL)},
-			{Type: models.ResolutionWaybackPlain, URL: fmt.Sprintf("https://web.archive.org/web/2id_/%s", cleanBase)},
+		if ext == "" { ext = ".mp4"; cleanID = rawID + ext }
+		if downloadURL != "" && strings.Contains(downloadURL, "http") {
+			base := downloadURL
+			if idx := strings.Index(base, "?"); idx != -1 { base = base[:idx] }
+			tag14, tag12 := base+"?tag=14", base+"?tag=12"
+			return []CandidateURL{
+				{Type: models.ResolutionOrig, URL: tag14},
+				{Type: models.ResolutionLarge, URL: tag12},
+				{Type: models.ResolutionPlain, URL: base},
+				{Type: models.ResolutionWaybackOrig, URL: fmt.Sprintf("https://web.archive.org/web/2id_/%s", tag14)},
+				{Type: models.ResolutionWaybackPlain, URL: fmt.Sprintf("https://web.archive.org/web/2id_/%s", base)},
+			}
 		}
+		if articleID != "" {
+			// [仕様変更 2026-09-02]: 解像度の推測ループを削除 (Plan B)
+			// Twitterの動画は解像度ごとにファイル名(ハッシュ)が異なるため、同じcleanIDで解像度だけを
+			// 変更してURLを生成しても100% 404になります。これが429の原因でした。
+			// 正規のdownloadURLがない場合は推測を諦め、空リストを返します。
+			return []CandidateURL{}
+		}
+		return []CandidateURL{}
 	}
 
-	cleanNoExt := cleanBase
-	ext := ".jpg"
-	for _, e := range []string{".jpg", ".jpeg", ".png", ".webp"} {
-		if strings.HasSuffix(strings.ToLower(cleanNoExt), e) {
-			ext = e
-			cleanNoExt = cleanNoExt[:len(cleanNoExt)-len(e)]
-			break
-		}
-	}
-
-	plainURL := cleanNoExt + ext
+	if ext == "" { ext = ".jpg" }
+	plainURL := fmt.Sprintf("https://pbs.twimg.com/media/%s%s", rawID, ext)
 	colonOrigURL := plainURL + ":orig"
-	paramOrigURL := fmt.Sprintf("%s?format=%s&name=orig", cleanNoExt, strings.TrimPrefix(ext, "."))
-	paramLargeURL := fmt.Sprintf("%s?format=%s&name=large", cleanNoExt, strings.TrimPrefix(ext, "."))
+	paramOrigURL := fmt.Sprintf("https://pbs.twimg.com/media/%s?format=%s&name=orig", rawID, strings.TrimPrefix(ext, "."))
+	paramLargeURL := fmt.Sprintf("https://pbs.twimg.com/media/%s?format=%s&name=large", rawID, strings.TrimPrefix(ext, "."))
 
 	return []CandidateURL{
 		{Type: models.ResolutionOrig, URL: paramOrigURL},
@@ -71,7 +73,8 @@ func BuildMediaCandidateURLs(rawURL string) []CandidateURL {
 	}
 }
 
-// BuildThunderTop3CandidateURLs は後方互換性のためのエイリアスです
-func BuildThunderTop3CandidateURLs(rawURL string) []CandidateURL {
-	return BuildMediaCandidateURLs(rawURL)
+// BuildMediaCandidateURLs は後方互換用のラッパーです
+func BuildMediaCandidateURLs(rawURL string) []CandidateURL {
+	fn := filepath.Base(rawURL)
+	return BuildCandidateURLsFromMedia(fn, rawURL, "")
 }

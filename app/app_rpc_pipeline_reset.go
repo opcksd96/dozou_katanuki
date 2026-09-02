@@ -25,7 +25,11 @@ func (a *App) ResetAllToQueuedAndBootstrap() (int64, error) {
 	if res.Error != nil { return 0, res.Error }
 	count := res.RowsAffected
 
-	// 2. QUEUED メディア全件を取得して download_tasks に Top3 候補を展開登録
+	// 2. download_tasks の旧汚染タスクを一掃し、Motrix結果をパージ
+	_ = db.Exec("DELETE FROM download_tasks").Error
+	_, _ = callMotrixRPC("aria2.purgeDownloadResult", nil)
+
+	// 3. QUEUED メディア全件を取得して download_tasks に正規候補を展開登録
 	var queuedMedias []models.Media
 	_ = db.Where("download_status = 'QUEUED' AND (is_trash = 0 OR is_trash IS NULL)").Find(&queuedMedias).Error
 
@@ -39,7 +43,7 @@ func (a *App) ResetAllToQueuedAndBootstrap() (int64, error) {
 		_ = a.Repo.BatchUpsertDownloadTasks(allTasks)
 	}
 
-	a.AppendPipelineLog("SYSTEM", "INFO", fmt.Sprintf("パイプライン全件初期化: %d 件のメディアを QUEUED に差し戻し、%d 件のタスクを登録", count, len(allTasks)))
+	a.AppendPipelineLog("SYSTEM", "INFO", fmt.Sprintf("パイプライン全件初期化: %d 件のメディアを QUEUED に差し戻し、%d 件の正規タスクを再構築", count, len(allTasks)))
 
 	return count, nil
 }

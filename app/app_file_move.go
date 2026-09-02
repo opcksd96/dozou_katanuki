@@ -6,10 +6,8 @@ import (
 	"os"
 )
 
-func moveFileSafe(src, dst string) error {
-	if err := os.Rename(src, dst); err == nil {
-		return nil
-	}
+// copyFileSafe はソースファイルをコピーします（元ファイルは削除しません）
+func copyFileSafe(src, dst string) error {
 	s, err := os.Open(src)
 	if err != nil {
 		return err
@@ -22,10 +20,6 @@ func moveFileSafe(src, dst string) error {
 	}
 	defer d.Close()
 
-	if _, err := io.Copy(d, s); err != nil {
-		return err
-	}
-	s.Close()
-	_ = os.Remove(src)
-	return nil
+	_, err = io.Copy(d, s)
+	return err
 }

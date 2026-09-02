@@ -40,7 +40,7 @@ func (a *App) IsPipelineAutoEngineRunning() bool {
 }
 
 func (a *App) runContinuousPipelineLoop(stopCh chan struct{}) {
-	ticker := time.NewTicker(6 * time.Second)
+	ticker := time.NewTicker(12 * time.Second)
 	defer ticker.Stop()
 
 	for {
@@ -67,14 +67,7 @@ func (a *App) executeAutonomousPipelineCycle() {
 	// 2. Motrix (OUTSOURCED) の完了同期を自動実行
 	_, _ = a.SyncCompletedDownloads()
 
-	// 3. ESCALATED があれば 迅雷オーケストレーターを自動巡回
-	var eCount int64
-	_ = db.Model(&models_Media{}).Where("download_status = 'ESCALATED' AND (is_trash = 0 OR is_trash IS NULL)").Count(&eCount).Error
-	if eCount > 0 && !a.isThunderOrchestratorRunning() {
-		_, _ = a.StartThunderOrchestrator(12, 3)
-	}
-
-	// 4. 迅雷ダウンロード完了の回収 ＆ Stash自動連携
+	// 3. 迅雷ダウンロード完了の回収 ＆ Stash自動連携
 	_, _ = a.SyncThunderDownloads("")
 }
 

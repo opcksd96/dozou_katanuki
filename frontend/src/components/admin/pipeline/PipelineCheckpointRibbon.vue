@@ -2,26 +2,28 @@
 <script setup lang="ts">
 import { BrowserOpenURL } from '../../../../wailsjs/runtime/runtime';
 import { useThunderOrchestrator } from '../../../composables/admin/useThunderOrchestrator';
+import { useDownloaderConsole } from '../../../composables/admin/useDownloaderConsole';
 
 defineProps<{ checkpoints: any[] }>();
 const { launchThunder } = useThunderOrchestrator();
+const { launchMotrix } = useDownloaderConsole();
 
 const kickApp = (key: string) => {
   if (key === 'thunder') launchThunder();
   else if (key === 'stash') {
     try { BrowserOpenURL('http://127.0.0.1:9999/'); } catch { window.open('http://127.0.0.1:9999/', '_blank'); }
   } else if (key === 'motrix') {
-    try { BrowserOpenURL('motrix://'); } catch {}
+    launchMotrix();
   }
 };
 </script>
 
 <template>
-  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
+  <div class="flex items-stretch gap-2.5 overflow-x-auto pb-1 snap-x select-none">
     <div
       v-for="(cp, idx) in checkpoints || []"
       :key="cp.key"
-      class="p-3 bg-slate-900/90 border border-slate-800 rounded-2xl flex flex-col justify-between shadow-md relative overflow-hidden group hover:border-slate-700 transition"
+      class="p-3 bg-slate-900/90 border border-slate-800 rounded-2xl flex flex-col justify-between shadow-md relative overflow-hidden group hover:border-slate-700 transition flex-1 min-w-[210px] shrink-0 snap-start"
     >
       <div class="flex items-center justify-between gap-2">
         <div class="flex items-center gap-2">

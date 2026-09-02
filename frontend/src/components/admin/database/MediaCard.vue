@@ -4,11 +4,12 @@ import { ref, computed } from 'vue';
 import { BrowserOpenURL } from '../../../../wailsjs/runtime/runtime';
 import Avatar from '../../article/Avatar.vue';
 
-const props = withDefaults(defineProps<{ media: any; compact?: boolean }>(), { compact: false });
+const props = withDefaults(defineProps<{ media: any; compact?: boolean; selected?: boolean }>(), { compact: false, selected: false });
 const emit = defineEmits<{
   (e: 'click', m: any): void; (e: 'retry', id: string): void; (e: 'trash', m: any): void; (e: 'restore', id: string): void;
   (e: 'openExplorer', id: string): void; (e: 'openDefault', id: string): void; (e: 'toggleBookmark', id: string): void;
   (e: 'viewPost', articleId: string): void; (e: 'viewPostTimeline', articleId: string): void; (e: 'escalateThunder', m: any): void;
+  (e: 'toggleSelect', id: string): void;
 }>();
 
 const isHovered = ref(false), imgFailed = ref(false);
@@ -29,13 +30,16 @@ const openStash = () => {
 </script>
 
 <template>
-  <div class="bg-slate-900/95 rounded-xl p-3 flex flex-col space-y-2 group shadow-lg hover:shadow-2xl transition-all cursor-pointer border border-slate-800 hover:border-slate-600 select-none" :class="media.is_trash ? 'border-rose-900/50 bg-rose-950/20' : ''" @click="emit('click', media)" @mouseenter="isHovered = true" @mouseleave="isHovered = false">
+  <div class="bg-slate-900/95 rounded-xl p-3 flex flex-col space-y-2 group shadow-lg hover:shadow-2xl transition-all cursor-pointer border select-none relative" :class="[media.is_trash ? 'border-rose-900/50 bg-rose-950/20' : selected ? 'border-blue-500 ring-2 ring-blue-500/80 bg-blue-950/30' : 'border-slate-800 hover:border-slate-600']" @click="emit('click', media)" @mouseenter="isHovered = true" @mouseleave="isHovered = false">
     <div :class="[compact ? 'h-36' : 'h-52', 'bg-black/90 rounded-lg overflow-hidden flex items-center justify-center relative select-none w-full']">
       <video v-if="isVideo && media.urls?.preview && isHovered" :src="media.urls.preview" autoplay muted loop playsinline class="w-full h-full object-contain" />
       <img v-else-if="media.urls?.thumbnail && !imgFailed" :src="media.urls.thumbnail" :alt="media.media_id" class="w-full h-full object-contain group-hover:scale-105 transition-transform" loading="lazy" @error="imgFailed = true" />
       <div v-else class="text-slate-500 text-xs font-mono font-bold">{{ isVideo ? '🎬 VIDEO' : '🖼️ IMAGE' }}</div>
 
-      <button @click.stop="emit('toggleBookmark', media.media_id || media.id)" class="absolute top-2 left-2 p-1 rounded bg-black/80 text-xs cursor-pointer">{{ media.is_bookmarked ? '⭐' : '☆' }}</button>
+      <div class="absolute top-2 left-2 flex items-center gap-1.5 z-10" @click.stop>
+        <input type="checkbox" :checked="selected" @change="emit('toggleSelect', media.media_id || media.id)" class="w-4 h-4 rounded border-slate-700 bg-black/80 text-blue-600 focus:ring-0 cursor-pointer shadow" />
+        <button @click.stop="emit('toggleBookmark', media.media_id || media.id)" class="p-1 rounded bg-black/80 text-xs cursor-pointer hover:scale-110 transition-transform">{{ media.is_bookmarked ? '⭐' : '☆' }}</button>
+      </div>
       <span v-if="media.is_trash" class="absolute top-2 right-2 px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-rose-950 text-rose-300 border border-rose-700/60">🗑️ ゴミ箱</span>
       <span v-else class="absolute top-2 right-2 px-2 py-0.5 rounded text-[10px] font-mono font-bold" :class="{
         'bg-emerald-950 text-emerald-300 border border-emerald-700/50': media.download_status === 'COMPLETED',

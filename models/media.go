@@ -6,10 +6,20 @@ import (
 	"time"
 )
 
+// MediaVariant represents different resolutions/hashes for a single media item
+type MediaVariant struct {
+	VariantHash string `gorm:"primaryKey;column:variant_hash;type:text" json:"variant_hash"`
+	MediaID     string `gorm:"index;column:media_id;type:text;not null" json:"media_id"`
+	ArticleID   string `gorm:"index;column:article_id;type:text;not null" json:"article_id"`
+	DownloadURL string `gorm:"column:download_url;type:text;not null" json:"download_url"`
+	BitRate     int    `gorm:"column:bit_rate;type:integer" json:"bit_rate"`
+}
+
 // Media represents media table (Stashapp Mapping and 3-Stage Recovery status)
 type Media struct {
 	MediaID        string         `gorm:"primaryKey;column:media_id;type:text" json:"media_id"`
 	ArticleID      string         `gorm:"index;column:article_id;type:text;not null" json:"article_id"`
+	AccountID      string         `gorm:"index;column:account_id;type:text" json:"account_id,omitempty"`
 	Type           string         `gorm:"column:type;type:text;not null" json:"type"`
 	DownloadURL    string         `gorm:"column:download_url;type:text;not null" json:"download_url"`
 	Width          int            `gorm:"column:width;type:integer;not null" json:"width"`
@@ -24,10 +34,7 @@ type Media struct {
 	TrashedBy      string         `gorm:"column:trashed_by;type:text" json:"trashed_by,omitempty"`
 	TrashReason    string         `gorm:"column:trash_reason;type:text" json:"trash_reason,omitempty"`
 	TrashedAt      *time.Time     `gorm:"column:trashed_at;type:datetime" json:"trashed_at,omitempty"`
-	RequestsAt     *time.Time     `gorm:"column:requests_at;type:datetime" json:"requests_at,omitempty"`
-	MotrixAt       *time.Time     `gorm:"column:motrix_at;type:datetime" json:"motrix_at,omitempty"`
-	ThunderAt      *time.Time     `gorm:"column:thunder_at;type:datetime" json:"thunder_at,omitempty"`
-	StashAt        *time.Time     `gorm:"column:stash_at;type:datetime" json:"stash_at,omitempty"`
+	Variants       []MediaVariant `gorm:"foreignKey:MediaID" json:"variants,omitempty"`
 }
 
 // BuildRenderMedia converts a DB Media record to frontend RenderMedia with normalized URLs and status
@@ -58,11 +65,17 @@ func BuildRenderMediaWithContext(m Media, platform, username string) RenderMedia
 			}
 		}
 	}
+	var renderVariants []RenderMediaVariant
+	for _, v := range m.Variants {
+		renderVariants = append(renderVariants, RenderMediaVariant{
+			VariantHash: v.VariantHash, DownloadURL: v.DownloadURL, BitRate: v.BitRate,
+		})
+	}
 	return RenderMedia{
 		ID: m.MediaID, Type: m.Type, DownloadStatus: m.DownloadStatus, FailedReason: m.FailedReason.String,
 		URLs: mediaURLs, Width: m.Width, Height: m.Height, StashSceneID: m.StashSceneID.String, StashImageID: m.StashImageID.String,
 		IsBookmarked: m.IsBookmarked, DownloadURL: m.DownloadURL, MediaQuality: m.MediaQuality,
-		IsTrash: m.IsTrash, TrashedBy: m.TrashedBy, TrashReason: m.TrashReason,
+		IsTrash: m.IsTrash, TrashedBy: m.TrashedBy, TrashReason: m.TrashReason, Variants: renderVariants,
 	}
 }
 

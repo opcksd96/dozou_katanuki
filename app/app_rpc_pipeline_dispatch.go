@@ -4,7 +4,6 @@ package app
 import (
 	"fmt"
 	"path/filepath"
-	"strings"
 
 	"dozou_katanuki/models"
 )
@@ -25,26 +24,18 @@ func (a *App) DispatchQueuedToMotrix() (int, error) {
 	dispatched := 0
 
 	for _, m := range queuedMedias {
-		if m.DownloadURL == "" { continue }
-		candidates := BuildMediaCandidateURLs(m.DownloadURL)
+		candidates := BuildCandidateURLsFromMediaWithArticle(m.MediaID, m.DownloadURL, m.Type, m.ArticleID)
 		if len(candidates) == 0 { continue }
 
 		var urls []string
 		for _, c := range candidates { urls = append(urls, c.URL) }
-
-		cleanID := strings.TrimSuffix(m.MediaID, filepath.Ext(m.MediaID))
-		ext := ".jpg"
-		if m.Type == "video" || strings.Contains(m.DownloadURL, ".mp4") || strings.HasSuffix(strings.ToLower(m.MediaID), ".mp4") {
-			ext = ".mp4"
-		}
-		fileName := fmt.Sprintf("%s_motrix%s", cleanID, ext)
 
 		saveDir := filepath.Join(destRoot, "_motrix_temp")
 		if owner, err := a.Repo.GetMediaOwnerUsername(m.MediaID); err == nil && owner != "" {
 			saveDir = filepath.Join(destRoot, owner, "X(Twitter)", "_assets")
 		}
 
-		gid, err := a.AddMotrixDownload(urls, saveDir, fileName)
+		gid, err := a.AddMotrixDownload(urls, saveDir, m.MediaID)
 		if err == nil && gid != "" {
 			_ = a.Repo.UpdateMediaCheckpointTime(m.MediaID, models.StageMotrix)
 			_ = a.Repo.UpdateMediaMetadata(m.MediaID, "OUTSOURCED", "", "", fmt.Sprintf("Motrix投入済 (GID: %s)", gid))

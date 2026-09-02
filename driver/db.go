@@ -29,7 +29,7 @@ func InitDB(dbPath string) (*gorm.DB, error) {
 
 	err = db.AutoMigrate(
 		&models.Account{}, &models.AccountProfileHistory{},
-		&models.Article{}, &models.Media{},
+		&models.Article{}, &models.Media{}, &models.MediaVariant{}, &models.MediaExcluded{},
 		&models.UrlRedirect{}, &models.Whitelist{},
 		&models.DownloadReserve{}, &models.ThunderTask{},
 		&models.DownloadTask{},
@@ -58,9 +58,13 @@ func InitDB(dbPath string) (*gorm.DB, error) {
 		"CREATE UNIQUE INDEX IF NOT EXISTS idx_media_stash_scene ON media(stash_scene_id) WHERE stash_scene_id IS NOT NULL;",
 		"CREATE UNIQUE INDEX IF NOT EXISTS idx_media_stash_image ON media(stash_image_id) WHERE stash_image_id IS NOT NULL;",
 		"CREATE INDEX IF NOT EXISTS idx_media_status_type ON media(download_status, type);",
+		"CREATE INDEX IF NOT EXISTS idx_media_variants_media_id ON media_variants(media_id);",
 		"CREATE INDEX IF NOT EXISTS idx_whitelist_type_active ON whitelists(type, is_active);",
 		"CREATE INDEX IF NOT EXISTS idx_articles_is_trash ON articles(is_trash, created_at DESC);",
 		"CREATE INDEX IF NOT EXISTS idx_articles_trashed_by ON articles(trashed_by) WHERE is_trash = 1;",
+		"ALTER TABLE media ADD COLUMN account_id TEXT;",
+		"CREATE INDEX IF NOT EXISTS idx_media_account ON media(account_id);",
+		"UPDATE media SET account_id = (SELECT account_id FROM articles WHERE articles.id = media.article_id) WHERE (account_id IS NULL OR account_id = '') AND EXISTS (SELECT 1 FROM articles WHERE articles.id = media.article_id);",
 	}
 	for _, mSql := range migrations { _ = db.Exec(mSql).Error }
 

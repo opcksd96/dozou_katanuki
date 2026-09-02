@@ -29,7 +29,7 @@ const getLvlBadge = (lvl: string) => {
 </script>
 
 <template>
-  <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-3 flex flex-col space-y-2 shadow-lg overflow-hidden h-64">
+  <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-3 flex flex-col space-y-2 shadow-lg overflow-hidden flex-1 h-full min-h-[220px]">
     <div class="flex items-center justify-between border-b border-slate-800 pb-2">
       <div class="flex items-center gap-1 bg-slate-950 p-1 rounded-xl border border-slate-800/80 overflow-x-auto">
         <button

@@ -31,6 +31,12 @@ export function useDownloaderConsole() {
     finally { loading.value = false; }
   };
 
+  const launchMotrix = async () => {
+    const getApp = () => (window as any)?.go?.app?.App;
+    if (await getApp()?.LaunchMotrix?.()) addToast('🚀 Motrix を起動しました', 'success', 3000);
+    else addToast('❌ Motrix の起動に失敗しました', 'error', 3000);
+  };
+
   const launchThunder = async () => {
     const getApp = () => (window as any)?.go?.app?.App;
     if (await getApp()?.LaunchThunder?.()) addToast('⚡ Thunder.exe を起動しました', 'success', 3000);
@@ -68,5 +74,5 @@ export function useDownloaderConsole() {
   onMounted(() => startPolling());
   onUnmounted(() => stopPolling());
 
-  return { status, loading, fetchStatus, controlMotrix, launchThunder, escalateToThunder, giveUpRetained, startPolling, stopPolling };
+  return { status, loading, fetchStatus, controlMotrix, launchMotrix, launchThunder, escalateToThunder, giveUpRetained, startPolling, stopPolling };
 }
