@@ -2,6 +2,7 @@ package account
 
 import (
 	"context"
+	"dozou_katanuki/domain"
 	"dozou_katanuki/domain/account"
 )
 
@@ -14,6 +15,11 @@ func NewMergeAccountUseCase(repo account.AccountRepository) *MergeAccountUseCase
 }
 
 func (uc *MergeAccountUseCase) Execute(ctx context.Context, newAccountData *account.Account) (*account.Account, error) {
+	// Guard: This is a management operation, ensure caller has Admin scope.
+	if err := domain.EnsureAdmin(ctx); err != nil {
+		return nil, err
+	}
+
 	existing, err := uc.repo.GetByID(ctx, newAccountData.NumericID)
 	if err != nil {
 		// Assume not found, save as new

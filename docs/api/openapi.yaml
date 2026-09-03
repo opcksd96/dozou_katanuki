@@ -1,0 +1,114 @@
+openapi: 3.0.0
+info:
+  title: Dozou Katanuki - WebUI API
+  version: 1.0.0
+  description: |
+    API specifications for the WebUI interface (Read-Only access).
+    These endpoints are exposed over LAN and are filtered by Domain Scope (ScopeReadOnly).
+    Any operations that modify data (Admin Scope) are intentionally excluded from this API.
+
+servers:
+  - url: http://localhost:5175/api/v1
+    description: Local Web API server
+
+paths:
+  /timeline:
+    get:
+      summary: Get timeline articles
+      description: Retrieve a paginated list of timeline items.
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 1
+          description: Page number
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 20
+          description: Items per page
+      responses:
+        '200':
+          description: A paginated timeline response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TimelineResponseDTO'
+
+  /articles/{id}:
+    get:
+      summary: Get an article by ID
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          description: The article ID
+      responses:
+        '200':
+          description: Detailed article information
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TimelineItemDTO'
+        '404':
+          description: Article not found
+
+components:
+  schemas:
+    TimelineItemDTO:
+      type: object
+      properties:
+        id:
+          type: string
+        account_id:
+          type: string
+        account_name:
+          type: string
+        avatar_url:
+          type: string
+        content:
+          type: string
+        posted_at:
+          type: string
+          format: date-time
+        media_files:
+          type: array
+          items:
+            $ref: '#/components/schemas/MediaFileDTO'
+        source_url:
+          type: string
+        is_scraped:
+          type: boolean
+    
+    MediaFileDTO:
+      type: object
+      properties:
+        id:
+          type: string
+        media_type:
+          type: string
+          enum: [image, video]
+        thumbnail_url:
+          type: string
+        original_url:
+          type: string
+        local_path:
+          type: string
+          
+    TimelineResponseDTO:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/TimelineItemDTO'
+        total_count:
+          type: integer
+        page:
+          type: integer
+        limit:
+          type: integer
