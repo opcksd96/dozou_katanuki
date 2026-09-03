@@ -24,3 +24,41 @@ type AccountSchema struct {
 func (AccountSchema) TableName() string {
 	return "accounts"
 }
+
+// ToEntity converts GORM schema to pure Domain Entity
+func (s *AccountSchema) ToEntity() *entities.Account {
+	return &entities.Account{
+		NumericID:    s.NumericID,
+		Username:     s.Username,
+		DisplayName:  s.DisplayName,
+		AvatarURL:    s.AvatarURL,
+		AvatarBase64: s.AvatarBase64,
+		Description:  s.Description,
+		GroupName:    s.GroupName,
+		AliasOf:      s.AliasOf,
+		IsWhitelist:  s.IsWhitelist,
+		IsTrash:      s.IsTrash,
+		TrashedBy:    s.TrashedBy,
+		TrashReason:  s.TrashReason,
+		TrashedAt:    s.TrashedAt,
+		UpdatedAt:    s.UpdatedAt,
+	}
+}
+
+// FromEntity populates GORM schema from pure Domain Entity
+func (s *AccountSchema) FromEntity(e *entities.Account) {
+	s.NumericID = e.NumericID
+	s.Username = e.Username
+	s.DisplayName = e.DisplayName
+	s.AvatarURL = e.AvatarURL
+	s.AvatarBase64 = e.AvatarBase64
+	s.Description = e.Description
+	s.GroupName = e.GroupName
+	s.AliasOf = e.AliasOf
+	s.IsWhitelist = e.IsWhitelist
+	s.IsTrash = e.IsTrash
+	s.TrashedBy = e.TrashedBy
+	s.TrashReason = e.TrashReason
+	s.TrashedAt = e.TrashedAt
+	s.UpdatedAt = e.UpdatedAt
+}

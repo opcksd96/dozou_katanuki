@@ -11,7 +11,10 @@ export function usePipelineConsole() {
   const isAutoEngineRunning = ref(true);
   let pollTimer: any = null;
 
+  const isWails = () => typeof (window as any).go !== 'undefined';
+
   const fetchOverview = async () => {
+    if (!isWails()) return;
     try {
       const res = await GetPipelineOverview();
       if (res) overview.value = res;
@@ -20,6 +23,7 @@ export function usePipelineConsole() {
   };
 
   const fetchLogs = async (stageOverride?: string) => {
+    if (!isWails()) return;
     const stage = stageOverride ?? selectedLogStage.value;
     try {
       const res = await GetPipelineLogs(stage, 50);
@@ -33,6 +37,7 @@ export function usePipelineConsole() {
   };
 
   const toggleAutoEngine = async () => {
+    if (!isWails()) return;
     try {
       const next = !isAutoEngineRunning.value;
       isAutoEngineRunning.value = await TogglePipelineAutoEngine(next);
@@ -47,6 +52,7 @@ export function usePipelineConsole() {
   };
 
   const syncAndReconcile = async () => {
+    if (!isWails()) return;
     syncing.value = true;
     try {
       await SyncThunderDownloads('');
@@ -58,7 +64,7 @@ export function usePipelineConsole() {
   onMounted(() => {
     refreshAll();
     // 起動時に完全自動運転エンジンを自動着火
-    TogglePipelineAutoEngine(true).then((r) => { isAutoEngineRunning.value = r; }).catch(() => {});
+    if (isWails()) TogglePipelineAutoEngine(true).then((r) => { isAutoEngineRunning.value = r; }).catch(() => {});
     pollTimer = setInterval(() => {
       fetchOverview();
       fetchLogs();

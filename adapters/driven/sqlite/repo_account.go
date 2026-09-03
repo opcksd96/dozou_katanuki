@@ -2,7 +2,8 @@ package sqlite
 
 import (
 	"context"
-	"dozou_katanuki/domain/account"
+	"dozou_katanuki/domain/entities"
+	"dozou_katanuki/domain/ports"
 	"gorm.io/gorm"
 )
 
@@ -10,76 +11,36 @@ type AccountRepositoryImpl struct {
 	db *gorm.DB
 }
 
+// Compile-time assertion that AccountRepositoryImpl implements ports.AccountRepository
+var _ ports.AccountRepository = (*AccountRepositoryImpl)(nil)
+
 func NewAccountRepositoryImpl(db *gorm.DB) *AccountRepositoryImpl {
 	return &AccountRepositoryImpl{db: db}
 }
 
-func toDomain(schema *AccountSchema) *account.Account {
-	if schema == nil {
-		return nil
-	}
-	return &account.Account{
-		NumericID:    schema.NumericID,
-		Username:     schema.Username,
-		DisplayName:  schema.DisplayName,
-		AvatarURL:    schema.AvatarURL,
-		AvatarBase64: schema.AvatarBase64,
-		Description:  schema.Description,
-		GroupName:    schema.GroupName,
-		AliasOf:      schema.AliasOf,
-		IsWhitelist:  schema.IsWhitelist,
-		IsTrash:      schema.IsTrash,
-		TrashedBy:    schema.TrashedBy,
-		TrashReason:  schema.TrashReason,
-		TrashedAt:    schema.TrashedAt,
-		UpdatedAt:    schema.UpdatedAt,
-	}
-}
-
-func toSchema(entity *account.Account) *AccountSchema {
-	if entity == nil {
-		return nil
-	}
-	return &AccountSchema{
-		NumericID:    entity.NumericID,
-		Username:     entity.Username,
-		DisplayName:  entity.DisplayName,
-		AvatarURL:    entity.AvatarURL,
-		AvatarBase64: entity.AvatarBase64,
-		Description:  entity.Description,
-		GroupName:    entity.GroupName,
-		AliasOf:      entity.AliasOf,
-		IsWhitelist:  entity.IsWhitelist,
-		IsTrash:      entity.IsTrash,
-		TrashedBy:    entity.TrashedBy,
-		TrashReason:  entity.TrashReason,
-		TrashedAt:    entity.TrashedAt,
-		UpdatedAt:    entity.UpdatedAt,
-	}
-}
-
-func (r *AccountRepositoryImpl) Save(ctx context.Context, acc *account.Account) error {
-	schema := toSchema(acc)
+func (r *AccountRepositoryImpl) Save(ctx context.Context, acc *entities.Account) error {
+	schema := &AccountSchema{}
+	schema.FromEntity(acc)
 	return r.db.WithContext(ctx).Save(schema).Error
 }
 
-func (r *AccountRepositoryImpl) GetByID(ctx context.Context, numericID string) (*account.Account, error) {
+func (r *AccountRepositoryImpl) GetByNumericID(ctx context.Context, numericID string) (*entities.Account, error) {
 	var schema AccountSchema
 	if err := r.db.WithContext(ctx).Where("numeric_id = ?", numericID).First(&schema).Error; err != nil {
 		return nil, err
 	}
-	return toDomain(&schema), nil
+	return schema.ToEntity(), nil
 }
 
-func (r *AccountRepositoryImpl) GetByUsername(ctx context.Context, username string) (*account.Account, error) {
+func (r *AccountRepositoryImpl) GetByHandle(ctx context.Context, handle string) (*entities.Account, error) {
 	var schema AccountSchema
-	if err := r.db.WithContext(ctx).Where("username = ?", username).First(&schema).Error; err != nil {
+	if err := r.db.WithContext(ctx).Where("username = ?", handle).First(&schema).Error; err != nil {
 		return nil, err
 	}
-	return toDomain(&schema), nil
+	return schema.ToEntity(), nil
 }
 
-func (r *AccountRepositoryImpl) ListAll(ctx context.Context, includeTrash bool) ([]*account.Account, error) {
+func (r *AccountRepositoryImpl) ListAll(ctx context.Context, includeTrash bool) ([]*entities.Account, error) {
 	var schemas []AccountSchema
 	q := r.db.WithContext(ctx)
 	if !includeTrash {
@@ -89,14 +50,10 @@ func (r *AccountRepositoryImpl) ListAll(ctx context.Context, includeTrash bool) 
 		return nil, err
 	}
 	
-	result := make([]*account.Account, len(schemas))
+	result := make([]*entities.Account, len(schemas))
 	for i, s := range schemas {
 		schemaCopy := s
-		result[i] = toDomain(&schemaCopy)
+		result[i] = schemaCopy.ToEntity()
 	}
 	return result, nil
-}
-
-func (r *AccountRepositoryImpl) Delete(ctx context.Context, numericID string) error {
-	return r.db.WithContext(ctx).Where("numeric_id = ?", numericID).Delete(&AccountSchema{}).Error
 }
