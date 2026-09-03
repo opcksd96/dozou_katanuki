@@ -46,9 +46,10 @@ func (u *timelineUseCaseImpl) GetThread(ctx context.Context, conversationID stri
 		}
 		
 		rt := dto.RenderTree{
-			ID: art.ID, AccountID: art.AccountID, ConversationID: art.ConversationID,
+			ID: art.ID, ConversationID: art.ConversationID,
 			CreatedAt: art.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
-			FullText: art.FullText, Via: art.Via, IsRepost: art.IsRepost,
+			Content: dto.RenderContent{Original: art.FullText},
+			Author: dto.RenderAuthor{NumericID: art.AccountID}, // Minimal mapping for now
 			IsLiked: art.IsLiked, WaybackURL: art.WaybackURL, IsTrash: art.IsTrash,
 			Media: renderMedias,
 		}

@@ -1,7 +1,9 @@
 package sqlite
 
-import "time"
-
+import (
+	"time"
+	"dozou_katanuki/domain/entities"
+)
 // AccountSchema is the GORM-annotated struct used only for DB interactions
 type AccountSchema struct {
 	NumericID    string     `gorm:"primaryKey;column:numeric_id;type:text"`

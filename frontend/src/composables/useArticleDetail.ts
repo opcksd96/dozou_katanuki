@@ -18,7 +18,15 @@ export function useArticleDetail(platform: string = 'twitter') {
     try {
       if (typeof GetArticleDetail === 'function') {
         const res = await GetArticleDetail(platform, id);
-        detail.value = res;
+        // Map the new array format ([]dto.RenderTree) back to expected format
+        if (Array.isArray(res) && res.length > 0) {
+          detail.value = {
+            article: res[0],
+            thread: res.slice(1)
+          } as unknown as ArticleDetailResult;
+        } else {
+          detail.value = null;
+        }
       } else {
         error.value = 'GetArticleDetail is not available';
       }

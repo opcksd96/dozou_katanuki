@@ -16,6 +16,8 @@ import (
 	"github.com/wailsapp/wails/v2/pkg/options/assetserver"
 	"github.com/wailsapp/wails/v2/pkg/options/windows"
 	"github.com/wailsapp/wails/v2/pkg/runtime"
+
+	"dozou_katanuki/app"
 )
 
 //go:embed all:frontend/dist
@@ -43,6 +45,9 @@ func main() {
 	}()
 
 	uiApp := &UIApp{}
+	
+	// Create actual application logic core
+	kApp := app.NewApp(nil, nil) // FIXME: middleware initialization needed if not injected later
 	var appCtx context.Context
 
 	appMenu := menu.NewMenu()
@@ -70,9 +75,14 @@ func main() {
 		OnStartup: func(ctx context.Context) {
 			appCtx = ctx
 			uiApp.startup(ctx)
+			kApp.Startup(ctx)
 		},
 		OnDomReady: func(ctx context.Context) {
 			runtime.WindowShow(ctx)
+			kApp.DomReady(ctx)
+		},
+		OnShutdown: func(ctx context.Context) {
+			kApp.Shutdown(ctx)
 		},
 		Windows: &windows.Options{
 			Theme:                windows.Dark,
@@ -80,7 +90,10 @@ func main() {
 			WindowIsTranslucent:  true,
 			BackdropType:         windows.Mica,
 		},
-		Bind: []interface{}{uiApp},
+		Bind: []interface{}{
+			uiApp,
+			kApp,
+		},
 	})
 
 	if err != nil { println("Error:", err.Error()) }
