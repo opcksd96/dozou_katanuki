@@ -10,6 +10,10 @@ import (
 	"dozou_katanuki/driver"
 	"dozou_katanuki/middleware"
 	"dozou_katanuki/models"
+	
+	"dozou_katanuki/adapters/driven/sqlite"
+	"dozou_katanuki/application/account"
+	"dozou_katanuki/application/timeline"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
@@ -22,6 +26,15 @@ func (a *App) Startup(ctx context.Context) {
 	}
 
 	a.Repo = driver.NewRepository(db)
+	
+	// Initialize Hexagonal Architecture Ports/UseCases
+	accountRepo := sqlite.NewAccountRepositoryImpl(db)
+	articleRepo := sqlite.NewArticleRepositoryImpl(db)
+	mediaRepo := sqlite.NewMediaRepositoryImpl(db)
+	
+	a.AccountUseCase = account.NewAccountUseCase(accountRepo)
+	a.TimelineUseCase = timeline.NewTimelineUseCase(articleRepo, mediaRepo)
+	
 	a.TimelineService = middleware.NewTimelineService(a.Repo)
 	emitter := func(event string, data ...interface{}) {
 		if a.BroadcastService != nil {

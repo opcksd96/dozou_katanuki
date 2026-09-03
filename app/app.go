@@ -8,6 +8,8 @@ import (
 	"sync"
 	"time"
 
+	"dozou_katanuki/application/account"
+	"dozou_katanuki/application/timeline"
 	"dozou_katanuki/driver"
 	"dozou_katanuki/middleware"
 )
@@ -27,6 +29,8 @@ type App struct {
 	AuditService     *middleware.AuditService
 	BroadcastService *middleware.BroadcastService
 	UnifiedHandler   *middleware.UnifiedHandler
+	AccountUseCase   account.AccountUseCase
+	TimelineUseCase  timeline.TimelineUseCase
 	DistFS           fs.FS
 	Ready            chan struct{}
 	ReadyOnce        sync.Once

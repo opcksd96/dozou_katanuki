@@ -3,19 +3,22 @@ package app
 
 import (
 	"log"
-
+	
+	"dozou_katanuki/adapters/driving/dto"
 	"dozou_katanuki/models"
 )
 
 // GetAccounts は登録されている全アカウントのリストを供給する Wails バインドメソッドです
-func (a *App) GetAccounts(platform string) ([]models.RenderAuthor, error) {
+func (a *App) GetAccounts(platform string) ([]*dto.AccountDTO, error) {
 	if err := a.WaitForReady(); err != nil {
 		return nil, err
 	}
-	return a.TimelineService.GetAccounts(platform)
+	// Use Application Layer (UseCase)
+	return a.AccountUseCase.ListAllAccounts(a.Ctx)
 }
 
 // GetTimeline はフロントエンドへ RenderTree 配列を供給する Wails バインドメソッドです
+// FIXME: TimelineUseCase に本格的なクエリ機能を実装するまで、一時的に古いServiceを経由
 func (a *App) GetTimeline(platform, accountID, filter string, limit, offset int) ([]models.RenderTree, error) {
 	if err := a.WaitForReady(); err != nil {
 		return nil, err
@@ -27,9 +30,10 @@ func (a *App) GetTimeline(platform, accountID, filter string, limit, offset int)
 }
 
 // GetArticleDetail は指定された個別記事およびスレッド会話ツリーを取得する Wails バインドメソッドです
-func (a *App) GetArticleDetail(platform, id string) (*models.ArticleDetailResult, error) {
+func (a *App) GetArticleDetail(platform, id string) ([]dto.RenderTree, error) {
 	if err := a.WaitForReady(); err != nil {
 		return nil, err
 	}
-	return a.TimelineService.GetArticleDetail(platform, id)
+	// Use Application Layer (UseCase)
+	return a.TimelineUseCase.GetThread(a.Ctx, id)
 }
