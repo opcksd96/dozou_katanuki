@@ -14,7 +14,7 @@ func (a *App) ReconcileStashScenes() (int, error) {
 	if err := a.WaitForReady(); err != nil {
 		return 0, err
 	}
-	q := `query { allScenes { id title details files { path } } }`
+	q := `query { findScenes(filter: {sort: "created_at", direction: DESC, per_page: 200}) { scenes { id title details files { path } } } }`
 	data, err := a.queryStashGraphQL(q, nil)
 	if err != nil {
 		return 0, err
@@ -22,11 +22,13 @@ func (a *App) ReconcileStashScenes() (int, error) {
 
 	titleRegex := regexp.MustCompile(`^([A-Za-z0-9_]+)\s\(@([A-Za-z0-9_]+)\):\s([A-Za-z]+)\s([0-9]+)$`)
 	boundCount := 0
-	if scnList, ok := data["allScenes"].([]interface{}); ok {
-		for _, item := range scnList {
-			if m, ok := item.(map[string]interface{}); ok {
-				if a.bindStashScene(m, titleRegex) {
-					boundCount++
+	if findScenes, ok := data["findScenes"].(map[string]interface{}); ok {
+		if scnList, ok := findScenes["scenes"].([]interface{}); ok {
+			for _, item := range scnList {
+				if m, ok := item.(map[string]interface{}); ok {
+					if a.bindStashScene(m, titleRegex) {
+						boundCount++
+					}
 				}
 			}
 		}
@@ -39,7 +41,7 @@ func (a *App) ReconcileStashImages() (int, error) {
 	if err := a.WaitForReady(); err != nil {
 		return 0, err
 	}
-	q := `query { allImages { id title details files { path } } }`
+	q := `query { findImages(filter: {sort: "created_at", direction: DESC, per_page: 200}) { images { id title details files { path } } } }`
 	data, err := a.queryStashGraphQL(q, nil)
 	if err != nil {
 		return 0, err
@@ -47,11 +49,13 @@ func (a *App) ReconcileStashImages() (int, error) {
 
 	titleRegex := regexp.MustCompile(`^([A-Za-z0-9_]+)\s\(@([A-Za-z0-9_]+)\):\s([A-Za-z]+)\s([0-9]+)$`)
 	boundCount := 0
-	if imgList, ok := data["allImages"].([]interface{}); ok {
-		for _, item := range imgList {
-			if m, ok := item.(map[string]interface{}); ok {
-				if a.bindStashImage(m, titleRegex) {
-					boundCount++
+	if findImages, ok := data["findImages"].(map[string]interface{}); ok {
+		if imgList, ok := findImages["images"].([]interface{}); ok {
+			for _, item := range imgList {
+				if m, ok := item.(map[string]interface{}); ok {
+					if a.bindStashImage(m, titleRegex) {
+						boundCount++
+					}
 				}
 			}
 		}

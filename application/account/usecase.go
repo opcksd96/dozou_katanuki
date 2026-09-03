@@ -5,6 +5,9 @@ import (
 	"context"
 	"dozou_katanuki/adapters/driving/dto"
 	"dozou_katanuki/domain/ports"
+	"dozou_katanuki/middleware"
+	"dozou_katanuki/models"
+	"time"
 )
 
 type AccountUseCase interface {
@@ -31,7 +34,7 @@ func (u *accountUseCaseImpl) GetAccountOverview(ctx context.Context, handle stri
 		NumericID:   acc.NumericID,
 		Username:    acc.Username,
 		DisplayName: acc.DisplayName,
-		AvatarURL:   acc.AvatarURL,
+		AvatarURL:   middleware.ResolveAccountAvatar("twitter", time.Now(), models.Account{AvatarBase64: acc.AvatarBase64}),
 		Description: acc.Description,
 		GroupName:   acc.GroupName,
 		IsWhitelist: acc.IsWhitelist,
@@ -50,7 +53,7 @@ func (u *accountUseCaseImpl) ListAllAccounts(ctx context.Context) ([]*dto.Accoun
 			NumericID:   acc.NumericID,
 			Username:    acc.Username,
 			DisplayName: acc.DisplayName,
-			AvatarURL:   acc.AvatarURL,
+			AvatarURL:   middleware.ResolveAccountAvatar("twitter", time.Now(), models.Account{AvatarBase64: acc.AvatarBase64}),
 			Description: acc.Description,
 			GroupName:   acc.GroupName,
 			IsWhitelist: acc.IsWhitelist,

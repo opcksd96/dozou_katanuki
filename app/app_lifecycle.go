@@ -40,6 +40,9 @@ func (a *App) Startup(ctx context.Context) {
 	
 	a.TimelineService = middleware.NewTimelineService(a.Repo)
 	emitter := func(event string, data ...interface{}) {
+		if a.Ctx != nil && !a.IsHeadless {
+			runtime.EventsEmit(a.Ctx, event, data...)
+		}
 		if a.BroadcastService != nil {
 			a.BroadcastService.PushEvent(event, data...)
 		}
@@ -76,6 +79,9 @@ func (a *App) Startup(ctx context.Context) {
 }
 
 func (a *App) EmitEvent(eventName string, data ...interface{}) {
+	if a.Ctx != nil && !a.IsHeadless {
+		runtime.EventsEmit(a.Ctx, eventName, data...)
+	}
 	if a.BroadcastService != nil {
 		a.BroadcastService.PushEvent(eventName, data...)
 	}
@@ -86,8 +92,35 @@ func (a *App) schedulerStart(ctx context.Context, schedCfg models.SchedulerConfi
 	a.Scheduler.Start(ctx)
 }
 
+type adminUseCaseWrapper struct {
+	app *App
+}
+
+func (w *adminUseCaseWrapper) TogglePipelineAutoEngine(enable bool) (bool, error) {
+	return w.app.TogglePipelineAutoEngine(enable)
+}
+func (w *adminUseCaseWrapper) IsPipelineAutoEngineRunning() bool {
+	return w.app.IsPipelineAutoEngineRunning()
+}
+func (w *adminUseCaseWrapper) GetPipelineOverview() (interface{}, error) {
+	return w.app.GetPipelineOverview()
+}
+func (w *adminUseCaseWrapper) GetPipelineLogs(stage string, limit int) (interface{}, error) {
+	return w.app.GetPipelineLogs(stage, limit)
+}
+func (w *adminUseCaseWrapper) SyncThunderDownloads(req string) (interface{}, error) {
+	return w.app.SyncThunderDownloads(req)
+}
+func (w *adminUseCaseWrapper) ResetAllToQueuedAndBootstrap() (interface{}, error) {
+	return w.app.ResetAllToQueuedAndBootstrap()
+}
+func (w *adminUseCaseWrapper) IgnitePipeline() (interface{}, error) {
+	return w.app.IgnitePipeline()
+}
+
 func (a *App) broadcastStart(ctx context.Context, netCfg models.NetworkConfig, bcastCfg models.BroadcastConfig, emitter func(string, ...interface{})) {
 	a.BroadcastService = middleware.NewBroadcastService(netCfg, bcastCfg, a.UnifiedHandler, a.TimelineService, emitter)
+	a.BroadcastService.SetAdminUseCases(&adminUseCaseWrapper{app: a})
 	if a.DistFS != nil {
 		a.BroadcastService.SetDistFS(a.DistFS)
 	}

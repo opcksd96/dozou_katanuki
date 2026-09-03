@@ -34,6 +34,7 @@ type App struct {
 	DistFS           fs.FS
 	Ready            chan struct{}
 	ReadyOnce        sync.Once
+	IsHeadless       bool
 }
 
 func NewApp(handler *middleware.UnifiedHandler, distFS fs.FS) *App {

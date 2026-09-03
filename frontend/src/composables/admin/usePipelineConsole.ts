@@ -14,20 +14,34 @@ export function usePipelineConsole() {
   const isWails = () => typeof (window as any).go !== 'undefined';
 
   const fetchOverview = async () => {
-    if (!isWails()) return;
     try {
-      const res = await GetPipelineOverview();
-      if (res) overview.value = res;
-      isAutoEngineRunning.value = await IsPipelineAutoEngineRunning();
+      if (isWails()) {
+        const res = await GetPipelineOverview();
+        if (res) overview.value = res;
+        isAutoEngineRunning.value = await IsPipelineAutoEngineRunning();
+      } else {
+        const res = await fetch('/api/admin/pipeline/overview');
+        if (res.ok) {
+          const data = await res.json();
+          if (data) overview.value = data;
+        }
+      }
     } catch (_) {}
   };
 
   const fetchLogs = async (stageOverride?: string) => {
-    if (!isWails()) return;
     const stage = stageOverride ?? selectedLogStage.value;
     try {
-      const res = await GetPipelineLogs(stage, 50);
-      if (res) logs.value = res;
+      if (isWails()) {
+        const res = await GetPipelineLogs(stage, 50);
+        if (res) logs.value = res;
+      } else {
+        const res = await fetch(`/api/admin/pipeline/logs?stage=${stage}&limit=50`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data) logs.value = data;
+        }
+      }
     } catch (_) {}
   };
 
@@ -37,10 +51,20 @@ export function usePipelineConsole() {
   };
 
   const toggleAutoEngine = async () => {
-    if (!isWails()) return;
     try {
       const next = !isAutoEngineRunning.value;
-      isAutoEngineRunning.value = await TogglePipelineAutoEngine(next);
+      if (isWails()) {
+        isAutoEngineRunning.value = await TogglePipelineAutoEngine(next);
+      } else {
+        const res = await fetch('/api/admin/pipeline/toggle', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ enable: next })
+        });
+        if (!res.ok) throw new Error('Failed to toggle pipeline engine');
+        const data = await res.json();
+        isAutoEngineRunning.value = data.isRunning;
+      }
       await fetchOverview();
     } catch (_) {}
   };
@@ -52,10 +76,13 @@ export function usePipelineConsole() {
   };
 
   const syncAndReconcile = async () => {
-    if (!isWails()) return;
     syncing.value = true;
     try {
-      await SyncThunderDownloads('');
+      if (isWails()) {
+        await SyncThunderDownloads('');
+      } else {
+        await fetch('/api/admin/pipeline/sync-thunder', { method: 'POST' });
+      }
       await refreshAll();
     } catch (_) {}
     finally { syncing.value = false; }

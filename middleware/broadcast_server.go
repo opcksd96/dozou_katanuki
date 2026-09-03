@@ -30,6 +30,12 @@ func (s *BroadcastService) startServerLocked() error {
 	mux.HandleFunc("/api/timeline", s.handleTimelineAPI)
 	mux.HandleFunc("/api/search", s.handleSearchAPI)
 	// Admin endpoints are now protected by ports.IsAdmin check in handlers
+	mux.HandleFunc("/api/admin/pipeline/toggle", s.handlePipelineToggleAPI)
+	mux.HandleFunc("/api/admin/pipeline/overview", s.handlePipelineOverviewAPI)
+	mux.HandleFunc("/api/admin/pipeline/logs", s.handlePipelineLogsAPI)
+	mux.HandleFunc("/api/admin/pipeline/sync-thunder", s.handleSyncThunderAPI)
+	mux.HandleFunc("/api/admin/pipeline/reset-all", s.handleResetAllAPI)
+	mux.HandleFunc("/api/admin/pipeline/ignite", s.handleIgniteAPI)
 	mux.HandleFunc("/api/article/trash", s.handleArticleTrashAPI)
 	mux.HandleFunc("/api/article/restore", s.handleArticleRestoreAPI)
 	mux.HandleFunc("/api/article/batch-trash", s.handleArticleBatchTrashAPI)

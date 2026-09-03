@@ -28,6 +28,7 @@ type BroadcastService struct {
 	useTLS          bool
 	mu              sync.RWMutex
 	running         bool
+	adminUseCases   AdminUseCases
 }
 
 func NewBroadcastService(netCfg models.NetworkConfig, bcastCfg models.BroadcastConfig, handler *UnifiedHandler, timeline *TimelineService, emitter EventEmitter) *BroadcastService {
@@ -43,8 +44,22 @@ func (s *BroadcastService) SetDistFS(dfs fs.FS) {
 	s.mu.Lock(); defer s.mu.Unlock(); s.distFS = dfs
 }
 
+type AdminUseCases interface {
+	TogglePipelineAutoEngine(enable bool) (bool, error)
+	IsPipelineAutoEngineRunning() bool
+	GetPipelineOverview() (interface{}, error) // Will use interface{} for now to avoid circular deps
+	GetPipelineLogs(stage string, limit int) (interface{}, error)
+	SyncThunderDownloads(req string) (interface{}, error)
+	ResetAllToQueuedAndBootstrap() (interface{}, error)
+	IgnitePipeline() (interface{}, error)
+}
+
 func (s *BroadcastService) SetBeaconCallback(cb func(req dto.BeaconRequestDTO)) {
 	s.mu.Lock(); defer s.mu.Unlock(); s.beaconCallback = cb
+}
+
+func (s *BroadcastService) SetAdminUseCases(uc AdminUseCases) {
+	s.mu.Lock(); defer s.mu.Unlock(); s.adminUseCases = uc
 }
 
 func (s *BroadcastService) Start(ctx context.Context) error {

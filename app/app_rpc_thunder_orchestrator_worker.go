@@ -34,10 +34,18 @@ func (a *App) runThunderOrchestrationWorker() {
 				maxSlots = 3
 			}
 
-			// ④〜⑦ 迅雷タスク状態確認、DB照合、エラー判定・取り下げ
+			// 1. CDP接続状態の確認（未接続なら処理をスキップ）
+			cdpStatus := a.GetThunderCDPStatus()
+			if !cdpStatus.IsConnected {
+				a.AppendPipelineLog("THUNDER", "ERROR", "❌ 迅雷CDP (port 9222) に接続できません。オーケストレータを待機します。")
+				orchState.mu.Unlock()
+				continue // 接続回復まで待機
+			}
+
+			// 2. CDPからの最新状態取得とDB同期 (取り下げ・エラー判定等)
 			_, existingFileMap := a.ReconcileThunderTasksWithDB()
 
-			// ⑥ DB上ONBOARDEDだが迅雷に未登録のタスクを3スロット上限内で再登録
+			// 3. ローカルの *.xltd も考慮してDB上ONBOARDEDだが迅雷に未登録のタスクを3スロット上限内で再登録
 			a.CheckAndReonboardMissingTasks(existingFileMap, maxSlots)
 
 			destDir := a.getMediaDownloadDir()

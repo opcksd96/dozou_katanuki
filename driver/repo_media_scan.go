@@ -21,7 +21,7 @@ type mediaScanRow struct {
 	AccountID string `gorm:"column:account_id"`; Username string `gorm:"column:username"`
 	DisplayName string `gorm:"column:display_name"`; CreatedAt *time.Time `gorm:"column:created_at"`
 	FullText string `gorm:"column:full_text"`; FullTextJA string `gorm:"column:full_text_ja"`
-	WaybackURL string `gorm:"column:wayback_url"`
+	WaybackURL string `gorm:"column:wayback_url"`; AvatarBase64 string `gorm:"column:avatar_base64"`
 }
 
 func (r *Repository) FetchRawMediaItems(accountID, status, mediaType string, limit, offset int) ([]models.MediaScanItem, int64, models.MediaSearchStats, error) {
@@ -47,7 +47,7 @@ func (r *Repository) FetchRawMediaItems(accountID, status, mediaType string, lim
 	if limit <= 0 { limit = 24 }
 
 	var rows []mediaScanRow
-	err := newQ().Select("media.media_id, media.article_id, media.type, media.download_url, media.width, media.height, media.download_status, media.failed_reason, media.stash_scene_id, media.stash_image_id, media.is_bookmarked, media.media_quality, media.is_trash, media.trashed_by, media.trash_reason, articles.created_at, articles.full_text, articles.full_text_ja, accounts.username, accounts.display_name, accounts.numeric_id as account_id, articles.wayback_url").
+	err := newQ().Select("media.media_id, media.article_id, media.type, media.download_url, media.width, media.height, media.download_status, media.failed_reason, media.stash_scene_id, media.stash_image_id, media.is_bookmarked, media.media_quality, media.is_trash, media.trashed_by, media.trash_reason, articles.created_at, articles.full_text, articles.full_text_ja, accounts.username, accounts.display_name, accounts.numeric_id as account_id, articles.wayback_url, accounts.avatar_base64").
 		Order("COALESCE(articles.created_at, '1970-01-01') DESC, media.media_id DESC").Limit(limit).Offset(offset).Scan(&rows).Error
 	if err != nil { return nil, 0, stats, err }
 
@@ -66,6 +66,7 @@ func (r *Repository) FetchRawMediaItems(accountID, status, mediaType string, lim
 			Media: m, ArticleID: row.ArticleID, AccountID: row.AccountID,
 			Username: row.Username, DisplayName: row.DisplayName, CreatedAt: t,
 			FullText: row.FullText, FullTextJA: row.FullTextJA, WaybackURL: row.WaybackURL,
+			AvatarBase64: row.AvatarBase64,
 		})
 	}
 	return rawItems, total, stats, nil

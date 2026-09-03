@@ -36,6 +36,7 @@ func main() {
 
 	unifiedHandler := middleware.NewUnifiedHandler("./assets", stashURL)
 	appInstance := app.NewApp(unifiedHandler, nil)
+	appInstance.IsHeadless = true
 
 	appInstance.Startup(ctx)
 	log.Println("\n[Ready] Katanuki Core API Server is running in headless mode. (Press Ctrl+C to stop)")

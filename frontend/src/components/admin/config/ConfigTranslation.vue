@@ -5,6 +5,14 @@ import { models } from '../../../../wailsjs/go/models';
 
 const props = defineProps<{ config: models.AppConfig }>();
 
+if (!props.config.translation) {
+  (props.config as any).translation = {
+    provider: 'deepl',
+    deepl_api_key: '',
+    google_translate_api_key: ''
+  };
+}
+
 const showDeeplKey = ref(false);
 const showGoogleKey = ref(false);
 </script>

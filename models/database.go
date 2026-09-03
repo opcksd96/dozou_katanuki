@@ -49,6 +49,7 @@ type MediaScanItem struct {
 	FullTextJA     string
 	ProfileHistory []AccountProfileHistory
 	WaybackURL     string
+	AvatarBase64   string
 }
 
 // MediaSearchStats はメディア種別の統計カウントです

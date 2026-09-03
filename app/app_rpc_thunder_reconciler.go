@@ -3,6 +3,7 @@ package app
 
 import (
 	"fmt"
+	"strings"
 
 	"dozou_katanuki/models"
 )
@@ -37,7 +38,11 @@ func (a *App) ReconcileThunderTasksWithDB() (int, map[string]bool) {
 					a.AppendPipelineLog("THUNDER", "INFO", fmt.Sprintf("📦 全候補枯渇(ALL_TRUE)のため退避: %s", mediaID))
 				}
 			}
-			a.deleteTaskByFileNameSilent(wsURL, item.FileName)
+			requireText := ""
+			if strings.Contains(eval.Reason, "原始リソース") {
+				requireText = "原始资源不存在"
+			}
+			a.deleteTaskByFileNameAndTextSilent(wsURL, item.FileName, requireText)
 
 		case DecisionHold:
 			// 暂无任何有效资源 かつ >1B: タスク維持 & media ESCALATED維持

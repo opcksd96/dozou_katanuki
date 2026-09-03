@@ -50,7 +50,7 @@ func (a *App) SyncCompletedDownloads() (int, error) {
 					_ = a.Repo.MarkTaskCompleted(fileName)
 					a.AppendPipelineLog("MOTRIX", "SUCCESS", fmt.Sprintf("✅ Motrix完了回収: %s (%s)", fileName, filePath))
 					syncedCount++
-					a.TriggerStashPipelineForPaths([]string{filepath.Dir(filePath)})
+					// Stash synchronization is now handled asynchronously by StashSyncWorker
 				} else {
 					a.AppendPipelineLog("MOTRIX", "WARN", fmt.Sprintf("⚠️ Motrix偽ファイル検知 (%v): %s ➔ 迅雷エスカレーション", err, fileName))
 					_ = driver.MoveToRecycleBin(filePath)
@@ -71,6 +71,10 @@ func (a *App) SyncCompletedDownloads() (int, error) {
 				cleanID := strings.TrimSuffix(fileName, filepath.Ext(fileName))
 				var med models.Media
 				if err := a.Repo.DB().Where("media_id = ? OR media_id = ? OR download_url LIKE ?", fileName, cleanID, "%/"+fileName).First(&med).Error; err == nil {
+					if med.DownloadStatus == "ESCALATED" || med.DownloadStatus == "RETAINED" {
+						// 既にエスカレーション済みまたは退避済みの場合は、再度の投入・ログ出力をスキップ（マシンガン防止）
+						continue
+					}
 					_ = a.Repo.UpdateMediaMetadata(med.MediaID, "ESCALATED", "", "", "Motrixエラー("+t.ErrorMessage+")→迅雷自動エスカレーション")
 					_ = a.Repo.UpdateMediaCheckpointTime(med.MediaID, models.StageThunder)
 					a.AppendPipelineLog("MOTRIX", "WARN", fmt.Sprintf("⚠️ Motrix失敗 (%s) ➔ 迅雷エスカレーション投入: %s", t.ErrorMessage, med.MediaID))

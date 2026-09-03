@@ -45,25 +45,35 @@ func (a *App) ReapDepletedTask(fileName string) {
 
 // deleteTaskByFileNameSilent は 指定ファイル名のタスクを迅雷からサイレントに取り下げ（削除）します
 func (a *App) deleteTaskByFileNameSilent(wsURL, fileName string) {
+	a.deleteTaskByFileNameAndTextSilent(wsURL, fileName, "")
+}
+
+// deleteTaskByFileNameAndTextSilent は ファイル名と特定のエラー文言（オプショナル）の両方に一致するタスクを安全に取り下げます
+func (a *App) deleteTaskByFileNameAndTextSilent(wsURL, fileName, requireText string) {
 	if wsURL == "" || fileName == "" {
 		return
 	}
 	script := `(() => {
 		const items = Array.from(document.querySelectorAll('.td-draglist-item, .xly-side-item, .xly-side-content'));
 		for (let it of items) {
-			if (it.innerText && it.innerText.includes('` + fileName + `')) {
-				try { it.click(); } catch(e) {}
-				const delBtn = document.querySelector('button[title="删除"], .xly-download-tab__operate button[title="删除"]') ||
-					it.querySelector('a[title="删除任务记录"], [title="删除"]') ||
-					document.querySelector('.td-button[title*="删除"], [title*="彻底删除"]');
-				if (delBtn) {
-					delBtn.click();
-					setTimeout(() => {
-						const confirmBtn = Array.from(document.querySelectorAll('.td-dialog button, .td-dialog .td-button, .el-button, .xly-modal button, button')).find(b => b.innerText && (b.innerText.includes('确定') || b.innerText.includes('删除')));
-						if (confirmBtn) confirmBtn.click();
-					}, 150);
-					return true;
-				}
+			const text = it.innerText || '';
+			if (!text.includes('` + fileName + `')) continue;
+			if ('` + requireText + `' !== '' && !text.includes('` + requireText + `')) continue;
+			
+			try { it.click(); } catch(e) {}
+			
+			let delBtn = it.querySelector('button[title="删除"], a[title="删除任务记录"], [title="删除"], .td-button[title*="删除"], [title*="彻底删除"]');
+			if (!delBtn) {
+				delBtn = document.querySelector('.xly-download-tab__operate button[title="删除"], button[title="删除"], .td-button[title*="删除"]');
+			}
+			
+			if (delBtn) {
+				delBtn.click();
+				setTimeout(() => {
+					const confirmBtn = Array.from(document.querySelectorAll('.td-dialog button, .td-dialog .td-button, .el-button, .xly-modal button, button')).find(b => b.innerText && (b.innerText.includes('确定') || b.innerText.includes('删除')));
+					if (confirmBtn) confirmBtn.click();
+				}, 150);
+				return true;
 			}
 		}
 		return false;

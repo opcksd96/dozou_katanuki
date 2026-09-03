@@ -66,8 +66,9 @@ func (a *App) executeAutonomousPipelineCycle() {
 		_, _ = a.ProcessQueuedViaRequests()
 	}
 
-	// 2. Motrix (OUTSOURCED) の完了同期を自動実行
+	// 2. Motrix (OUTSOURCED) の完了同期と脱落タスクの再投入を自動実行
 	_, _ = a.SyncCompletedDownloads()
+	_, _ = a.ReconcileMotrixTasks()
 
 	// 3. ESCALATED がありオーケストレータ未稼働なら迅雷自律投入を開始
 	var eCount int64
@@ -76,8 +77,11 @@ func (a *App) executeAutonomousPipelineCycle() {
 		_, _ = a.StartThunderOrchestrator(3, 4)
 	}
 
-	// 4. 迅雷ダウンロード完了の回収 ＆ Stash自動連携
+	// 4. 迅雷ダウンロード完了の回収
 	_, _ = a.SyncThunderDownloads("")
+
+	// 5. Stash 連携 (独立した非同期監視)
+	go a.ScanUnsyncedMediaAndTriggerStash()
 }
 
 type models_Media struct {

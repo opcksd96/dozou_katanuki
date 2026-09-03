@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"dozou_katanuki/models"
+	"dozou_katanuki/driver"
 )
 
 // SyncThunderDownloads は迅雷フォルダおよび _escalate の完了ファイルをアカウント所定フォルダへ移動・DB同期・Stash連携します
@@ -35,7 +35,7 @@ func (a *App) SyncThunderDownloads(customDir string) (int, error) {
 	}
 
 	if syncedCount > 0 {
-		a.TriggerStashAllPipelines()
+		// Stash synchronization is now handled asynchronously by StashSyncWorker
 	}
 	return syncedCount, nil
 }
@@ -84,9 +84,15 @@ func (a *App) processDirectoryFiles(srcDir, destRoot string) (int, error) {
 		if err := moveFileSafe(srcPath, destPath); err == nil {
 			if a.Repo != nil {
 				count++
-				a.AppendPipelineLog("THUNDER", "SUCCESS", fmt.Sprintf("⚡ 迅雷完了回収: %s -> %s", name, destPath))
-				go a.CoordinateTaskCompletion(mediaID, name, models.StageThunder)
-				go a.ReapCompletedDuplicates(mediaID, name)
+				if errReg := a.Repo.RegisterCompletedMediaFile(destPath); errReg == nil {
+					_ = a.Repo.MarkTaskCompleted(mediaID)
+					a.AppendPipelineLog("THUNDER", "SUCCESS", fmt.Sprintf("⚡ 迅雷完了回収: %s -> %s", name, destPath))
+					go a.ReapCompletedDuplicates(mediaID, name)
+				} else {
+					a.AppendPipelineLog("THUNDER", "WARN", fmt.Sprintf("⚠️ 迅雷偽ファイル検知 (%v): %s ➔ 破棄", errReg, destPath))
+					_ = driver.MoveToRecycleBin(destPath)
+					_ = a.Repo.UpdateMediaMetadata(mediaID, "FAILED", "", "", "迅雷偽ファイル検知: "+errReg.Error())
+				}
 			}
 		}
 	}

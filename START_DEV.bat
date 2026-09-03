@@ -20,21 +20,23 @@ if "%ERRORLEVEL%"=="0" (
     )
 )
 
-:: Thunder check
-tasklist /FI "IMAGENAME eq Thunder.exe" 2>NUL | find /I /N "Thunder.exe">NUL
-if "%ERRORLEVEL%"=="0" (
-    echo [OK] Thunder is running.
-) else (
-    echo [!] Thunder is NOT running. (Please kick it manually or via app if needed)
-)
+:: Thunder check and CDP Launch
+echo [*] Initializing Thunder with CDP...
+call START_THUNDER_CDP.bat
 
-:: Motrix check
-tasklist /FI "IMAGENAME eq Motrix.exe" 2>NUL | find /I /N "Motrix.exe">NUL
+:: Motrix Next check
+tasklist /FI "IMAGENAME eq motrix-next.exe" 2>NUL | find /I /N "motrix-next.exe">NUL
 if "%ERRORLEVEL%"=="0" (
     echo [OK] Motrix Next is running.
+    goto motrix_done
+)
+tasklist /FI "IMAGENAME eq Motrix.exe" 2>NUL | find /I /N "Motrix.exe">NUL
+if "%ERRORLEVEL%"=="0" (
+    echo [OK] Motrix (Legacy) is running.
 ) else (
     echo [!] Motrix Next is NOT running. (Please kick it manually if needed)
 )
+:motrix_done
 
 echo.
 echo [*] Starting Backend (Air) and Frontend (Vite) in new windows...

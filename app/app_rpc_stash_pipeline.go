@@ -38,7 +38,8 @@ func (a *App) TriggerStashPipelineForPaths(paths []string) {
 		time.Sleep(3 * time.Second)
 
 		// 2. 生成タスク (Thumbnails, Previews, Sprites)
-		_, _ = a.TriggerStashGenerate(nil, nil)
+		// FIXME: 12秒ごとの自動パイプラインでStash全件に対して生成タスクが走るとハングアップの原因になるため、自動トリガーは無効化
+		// _, _ = a.TriggerStashGenerate(nil, nil)
 
 		// 3. バインド（スキャンの非同期完了ラグを吸収するためインターバル付きで試行）
 		for i := 0; i < 4; i++ {

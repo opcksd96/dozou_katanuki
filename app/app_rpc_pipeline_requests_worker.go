@@ -84,7 +84,7 @@ func (a *App) processQueuedWorker(medias []models.Media) {
 				_ = a.Repo.MarkTaskCompleted(m.MediaID)
 				a.AppendPipelineLog("REQUESTS", "SUCCESS", fmt.Sprintf("%s ✅ 取得成功 [%s]: %d bytes -> %s", pos, c.Type, res.Bytes, c.URL))
 				ok, fetched = ok+1, true
-				a.TriggerStashAllPipelines()
+				// Stash synchronization is now handled asynchronously by StashSyncWorker
 				break
 			}
 			a.AppendPipelineLog("REQUESTS", "DEBUG", fmt.Sprintf("%s   ↳ 試行 [%d/%d %s]: %s -> %s", pos, cIdx+1, len(cands), c.Type, c.URL, res.ErrorMsg))

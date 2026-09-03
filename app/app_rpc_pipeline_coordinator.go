@@ -40,7 +40,7 @@ func (a *App) CoordinateTaskCompletion(mediaID, completedFileName string, stage 
 	_ = a.Repo.MarkTaskCompleted(mediaID)
 	a.AppendPipelineLog(string(stage), "SUCCESS", fmt.Sprintf("救出完了: %s (%s)", mediaID, completedFileName))
 	a.emitToast("success", fmt.Sprintf("🎉 ダウンロード成功: %s", completedFileName))
-	a.TriggerStashAllPipelines()
+	// Stash synchronization is now handled asynchronously by StashSyncWorker
 }
 
 // CoordinateTaskDepletion は 特定ステージのタスク枯渇を記録し、次ステージエスカレーションを実行します
