@@ -74,18 +74,22 @@ func (a *App) TriggerStashScan(paths []string) (bool, error) {
 
 // DestroyStashScene は Stash の GraphQL API を通じて Scene を削除します (ファイル削除なし)
 func (a *App) DestroyStashScene(id string) error {
-	if err := a.WaitForReady(); err != nil { return err }
+	if err := a.WaitForReady(); err != nil {
+		return err
+	}
 	m := `mutation SceneDestroy($input: SceneDestroyInput!) { sceneDestroy(input: $input) }`
-	input := map[string]interface{}{ "id": id, "delete_file": false, "delete_generated": true }
+	input := map[string]interface{}{"id": id, "delete_file": false, "delete_generated": true}
 	_, err := a.queryStashGraphQL(m, map[string]interface{}{"input": input})
 	return err
 }
 
 // DestroyStashImage は Stash の GraphQL API を通じて Image を削除します (ファイル削除なし)
 func (a *App) DestroyStashImage(id string) error {
-	if err := a.WaitForReady(); err != nil { return err }
+	if err := a.WaitForReady(); err != nil {
+		return err
+	}
 	m := `mutation ImageDestroy($input: ImageDestroyInput!) { imageDestroy(input: $input) }`
-	input := map[string]interface{}{ "id": id, "delete_file": false, "delete_generated": true }
+	input := map[string]interface{}{"id": id, "delete_file": false, "delete_generated": true}
 	_, err := a.queryStashGraphQL(m, map[string]interface{}{"input": input})
 	return err
 }

@@ -27,11 +27,15 @@ func TestSchedulerRPC(t *testing.T) {
 	app.Scheduler = sched
 
 	backupPath, err := app.TriggerBackup()
-	if err != nil || backupPath == "" { t.Fatalf("TriggerBackup failed: %v", err) }
+	if err != nil || backupPath == "" {
+		t.Fatalf("TriggerBackup failed: %v", err)
+	}
 	defer os.Remove(backupPath)
 
 	job, err := app.TriggerPoll()
-	if err != nil || job == nil || job.Type != models.JobTypeMediaPoll { t.Fatalf("TriggerPoll failed: %+v", job) }
+	if err != nil || job == nil || job.Type != models.JobTypeMediaPoll {
+		t.Fatalf("TriggerPoll failed: %+v", job)
+	}
 }
 
 func TestAuditRPC(t *testing.T) {
@@ -46,11 +50,17 @@ func TestAuditRPC(t *testing.T) {
 	app.AuditService = middleware.NewAuditService(repo, func(string, ...interface{}) {})
 
 	report, err := app.RunAudit(false, false)
-	if err != nil || report == nil || !report.IntegrityOK { t.Fatalf("RunAudit failed: %+v", report) }
+	if err != nil || report == nil || !report.IntegrityOK {
+		t.Fatalf("RunAudit failed: %+v", report)
+	}
 
 	purgedFiles, err := app.PurgeOrphanFiles([]string{})
-	if err != nil || purgedFiles != 0 { t.Fatalf("PurgeOrphanFiles failed: %v", err) }
+	if err != nil || purgedFiles != 0 {
+		t.Fatalf("PurgeOrphanFiles failed: %v", err)
+	}
 
 	purgedDB, err := app.PurgeOrphanDBMedia([]string{})
-	if err != nil || purgedDB != 0 { t.Fatalf("PurgeOrphanDBMedia failed: %v", err) }
+	if err != nil || purgedDB != 0 {
+		t.Fatalf("PurgeOrphanDBMedia failed: %v", err)
+	}
 }

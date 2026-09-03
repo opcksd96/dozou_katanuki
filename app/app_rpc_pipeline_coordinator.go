@@ -9,7 +9,9 @@ import (
 
 // ExpandMediaCandidateTasks は 1つのメディアに対して原本URLおよび候補URLを展開してタスクレコード群を生成します
 func ExpandMediaCandidateTasks(m models.Media, stage models.PipelineStage) []models.DownloadTask {
-	if m.MediaID == "" { return nil }
+	if m.MediaID == "" {
+		return nil
+	}
 	candidates := BuildCandidateURLsFromMediaWithArticle(m.MediaID, m.DownloadURL, m.Type, m.ArticleID)
 	if len(candidates) == 0 {
 		return []models.DownloadTask{
@@ -18,7 +20,9 @@ func ExpandMediaCandidateTasks(m models.Media, stage models.PipelineStage) []mod
 	}
 	tasks := make([]models.DownloadTask, 0, len(candidates))
 	for _, c := range candidates {
-		if c.URL == "" { continue }
+		if c.URL == "" {
+			continue
+		}
 		tasks = append(tasks, models.DownloadTask{
 			MediaID: m.MediaID, ArticleID: m.ArticleID, URL: c.URL, FileName: m.MediaID, Stage: stage, Status: models.TaskPending,
 		})
@@ -28,7 +32,9 @@ func ExpandMediaCandidateTasks(m models.Media, stage models.PipelineStage) []mod
 
 // CoordinateTaskCompletion は 完了時の記録とStashパイプラインを実行します
 func (a *App) CoordinateTaskCompletion(mediaID, completedFileName string, stage models.PipelineStage) {
-	if a.Repo == nil || mediaID == "" { return }
+	if a.Repo == nil || mediaID == "" {
+		return
+	}
 	_ = a.Repo.UpdateMediaCheckpointTime(mediaID, stage)
 	_ = a.Repo.UpdateMediaMetadata(mediaID, "COMPLETED", "", "", "")
 	_ = a.Repo.MarkTaskCompleted(mediaID)
@@ -39,7 +45,9 @@ func (a *App) CoordinateTaskCompletion(mediaID, completedFileName string, stage 
 
 // CoordinateTaskDepletion は 特定ステージのタスク枯渇を記録し、次ステージエスカレーションを実行します
 func (a *App) CoordinateTaskDepletion(fileName string, currentStage models.PipelineStage) {
-	if a.Repo == nil || fileName == "" { return }
+	if a.Repo == nil || fileName == "" {
+		return
+	}
 	mediaID := fileName
 
 	// 現在のステージの候補が全滅した場合のエスカレーション制御

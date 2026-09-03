@@ -9,14 +9,20 @@ import (
 
 // RestartBackendServices はバックエンドの全内部サービスを再初期化・リロードする Wails バインドメソッドです
 func (a *App) RestartBackendServices() (bool, error) {
-	if err := a.WaitForReady(); err != nil { return false, err }
+	if err := a.WaitForReady(); err != nil {
+		return false, err
+	}
 	log.Printf("[Wails RPC] RestartBackendServices requested by user.")
 
 	// 1. 設定再読み込み
 	cfg, _ := a.GetConfig()
 	if cfg != nil {
-		if a.JobOrchestrator != nil { a.JobOrchestrator.SetStorageConfig(cfg.Storage) }
-		if a.UnifiedHandler != nil { a.UnifiedHandler.SetMediaDir(cfg.Storage.LocalMediaDir) }
+		if a.JobOrchestrator != nil {
+			a.JobOrchestrator.SetStorageConfig(cfg.Storage)
+		}
+		if a.UnifiedHandler != nil {
+			a.UnifiedHandler.SetMediaDir(cfg.Storage.LocalMediaDir)
+		}
 		_ = middleware.SyncStashConfig(cfg)
 	}
 

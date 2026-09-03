@@ -23,16 +23,24 @@ func AddTaskViaThunderCOM(downloadURL string, fileName string, destDir string) b
 
 // AddBatchTasksViaThunderCOM は 複数タスクを1プロセスで迅雷COMへ一括投入します
 func AddBatchTasksViaThunderCOM(tasks []ThunderCOMTask) bool {
-	if len(tasks) == 0 { return false }
+	if len(tasks) == 0 {
+		return false
+	}
 	var b strings.Builder
 	b.WriteString(`$ids=@('ThunderAgent.Agent64.1','ThunderAgent.Agent64','ThunderAgent.Agent.1','ThunderAgent.Agent'); foreach($id in $ids){ try{ $a=New-Object -ComObject $id; if($a){ `)
 	for _, t := range tasks {
-		if t.URL == "" { continue }
+		if t.URL == "" {
+			continue
+		}
 		fn := t.FileName
-		if fn == "" { fn = filepath.Base(t.URL) }
+		if fn == "" {
+			fn = filepath.Base(t.URL)
+		}
 		dest := t.DestDir
 		if dest != "" {
-			if abs, err := filepath.Abs(dest); err == nil { dest = abs }
+			if abs, err := filepath.Abs(dest); err == nil {
+				dest = abs
+			}
 		}
 		cleanURL := strings.ReplaceAll(t.URL, "'", "''")
 		cleanFN := strings.ReplaceAll(fn, "'", "''")
@@ -48,9 +56,13 @@ func AddBatchTasksViaThunderCOM(tasks []ThunderCOMTask) bool {
 // EscalateToThunder は指定URLをThunderへ投入し、DBステータスをESCALATEDへ更新します
 func (a *App) EscalateToThunder(mediaID string, downloadURL string) (bool, error) {
 	if downloadURL == "" && mediaID != "" && a.Repo != nil {
-		if m, err := a.Repo.GetMediaByID(mediaID); err == nil && m != nil { downloadURL = m.DownloadURL }
+		if m, err := a.Repo.GetMediaByID(mediaID); err == nil && m != nil {
+			downloadURL = m.DownloadURL
+		}
 	}
-	if downloadURL == "" { return false, fmt.Errorf("download url is required") }
+	if downloadURL == "" {
+		return false, fmt.Errorf("download url is required")
+	}
 
 	check := a.CheckThunderEscalationEligibility(mediaID, downloadURL)
 	if !check.ShouldEscalate {

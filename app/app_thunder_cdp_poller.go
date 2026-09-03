@@ -25,12 +25,19 @@ func (a *App) StartThunderCDPAdaptivePoller() {
 
 			if wsURL == "" {
 				u, err := FetchThunderMainRendererWSUrl(9222)
-				if err != nil { interval = 3000 * time.Millisecond; continue }
+				if err != nil {
+					interval = 3000 * time.Millisecond
+					continue
+				}
 				wsURL = u
 			}
 
 			resJSON, err := EvaluateCDPExpression(wsURL, ThunderExtractTaskScript, 1500*time.Millisecond)
-			if err != nil { wsURL = ""; interval = 3000 * time.Millisecond; continue }
+			if err != nil {
+				wsURL = ""
+				interval = 3000 * time.Millisecond
+				continue
+			}
 
 			var evalRes CDPEvalResult
 			if err := json.Unmarshal([]byte(resJSON), &evalRes); err != nil || len(evalRes.Result.Result.Value) == 0 {

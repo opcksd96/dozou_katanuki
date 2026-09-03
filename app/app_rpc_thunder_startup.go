@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"dozou_katanuki/models"
-	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 // CheckThunderCDPOnStartup は dozou起動時に迅雷のCDP解放状態をテストしトースト通知・オーケストレーター起動を行います
@@ -48,7 +47,7 @@ func (a *App) CheckThunderCDPOnStartup() {
 
 func (a *App) emitToast(toastType, message string) {
 	if a.Ctx != nil {
-		runtime.EventsEmit(a.Ctx, "toast:notify", map[string]interface{}{
+		a.EmitEvent("toast:notify", map[string]interface{}{
 			"type":    toastType,
 			"message": message,
 		})

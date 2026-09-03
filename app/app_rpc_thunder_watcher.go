@@ -22,7 +22,9 @@ func (a *App) CheckThunderDirectoryStatus(tempDir string) {
 	hasCompletedFiles := false
 
 	for _, e := range entries {
-		if e.IsDir() { continue }
+		if e.IsDir() {
+			continue
+		}
 		name := e.Name()
 		ext := strings.ToLower(filepath.Ext(name))
 

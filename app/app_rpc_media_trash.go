@@ -4,7 +4,6 @@ package app
 import (
 	"log"
 
-	"github.com/wailsapp/wails/v2/pkg/runtime"
 	"dozou_katanuki/driver"
 )
 
@@ -35,7 +34,7 @@ func (a *App) TrashMedia(mediaID, reason string) error {
 		return err
 	}
 	if a.Ctx != nil {
-		runtime.EventsEmit(a.Ctx, "media:trashed", map[string]string{
+		a.EmitEvent("media:trashed", map[string]string{
 			"media_id": mediaID,
 			"reason":   reason,
 		})
@@ -53,7 +52,7 @@ func (a *App) RestoreMedia(mediaID string) error {
 		return err
 	}
 	if a.Ctx != nil {
-		runtime.EventsEmit(a.Ctx, "media:restored", map[string]string{
+		a.EmitEvent("media:restored", map[string]string{
 			"media_id": mediaID,
 		})
 	}
@@ -89,7 +88,7 @@ func (a *App) BatchTrashMedia(mediaIDs []string, reason string) error {
 		return err
 	}
 	if a.Ctx != nil {
-		runtime.EventsEmit(a.Ctx, "media:batch_trashed", map[string]interface{}{
+		a.EmitEvent("media:batch_trashed", map[string]interface{}{
 			"count":  len(mediaIDs),
 			"reason": reason,
 		})
@@ -107,7 +106,7 @@ func (a *App) BatchRestoreMedia(mediaIDs []string) error {
 		return err
 	}
 	if a.Ctx != nil {
-		runtime.EventsEmit(a.Ctx, "media:batch_restored", map[string]interface{}{
+		a.EmitEvent("media:batch_restored", map[string]interface{}{
 			"count": len(mediaIDs),
 		})
 	}

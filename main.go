@@ -2,15 +2,12 @@
 package main
 
 import (
+	"context"
 	"embed"
-	"net/url"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
-
-	"dozou_katanuki/app"
-	"dozou_katanuki/middleware"
 
 	"github.com/wailsapp/wails/v2"
 	"github.com/wailsapp/wails/v2/pkg/menu"
@@ -26,6 +23,15 @@ var assets embed.FS
 
 const MainBuildRevision = "main-20260829-0800"
 
+// UIApp struct for simple Wails bindings
+type UIApp struct {
+	ctx context.Context
+}
+
+func (u *UIApp) startup(ctx context.Context) {
+	u.ctx = ctx
+}
+
 func main() {
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
@@ -36,24 +42,21 @@ func main() {
 		os.Exit(0)
 	}()
 
-	stashURL, err := url.Parse("http://127.0.0.1:9999")
-	if err != nil { println("Stash URL Parse Error:", err.Error()) }
-
-	unifiedHandler := middleware.NewUnifiedHandler("./assets", stashURL)
-	appInstance := app.NewApp(unifiedHandler, assets)
+	uiApp := &UIApp{}
+	var appCtx context.Context
 
 	appMenu := menu.NewMenu()
 	toolsMenu := appMenu.AddSubmenu("設定・管理 (Admin)")
 	toolsMenu.AddText("⚙️ 設定・Admin Board...", keys.CmdOrCtrl(","), func(_ *menu.CallbackData) {
-		if appInstance.Ctx != nil { runtime.EventsEmit(appInstance.Ctx, "open:admin") }
+		if appCtx != nil { runtime.EventsEmit(appCtx, "open:admin") }
 	})
 
 	viewMenu := appMenu.AddSubmenu("表示 (View)")
 	viewMenu.AddText("再読み込み (Reload)", keys.CmdOrCtrl("r"), func(_ *menu.CallbackData) {
-		if appInstance.Ctx != nil { runtime.WindowReload(appInstance.Ctx) }
+		if appCtx != nil { runtime.WindowReload(appCtx) }
 	})
 
-	err = wails.Run(&options.App{
+	err := wails.Run(&options.App{
 		Title:            "dozou_katanuki",
 		Width:            1024,
 		Height:           768,
@@ -62,20 +65,24 @@ func main() {
 		BackgroundColour: &options.RGBA{R: 2, G: 6, B: 23, A: 220},
 		Menu:             appMenu,
 		AssetServer: &assetserver.Options{
-			Assets:  assets,
-			Handler: unifiedHandler,
+			Assets: assets,
 		},
-		OnStartup:  appInstance.Startup,
-		OnDomReady: appInstance.DomReady,
-		OnShutdown: appInstance.Shutdown,
+		OnStartup: func(ctx context.Context) {
+			appCtx = ctx
+			uiApp.startup(ctx)
+		},
+		OnDomReady: func(ctx context.Context) {
+			runtime.WindowShow(ctx)
+		},
 		Windows: &windows.Options{
 			Theme:                windows.Dark,
 			WebviewIsTransparent: true,
 			WindowIsTranslucent:  true,
 			BackdropType:         windows.Mica,
 		},
-		Bind: []interface{}{appInstance},
+		Bind: []interface{}{uiApp},
 	})
 
 	if err != nil { println("Error:", err.Error()) }
 }
+

@@ -30,16 +30,20 @@ func (a *App) ControlMotrix(action string) (bool, error) {
 	var method string
 	var params []interface{}
 	switch action {
-	case "pause_all": method = "aria2.forcePauseAll"
-	case "unpause_all": method = "aria2.unpauseAll"
-	case "purge_all": method = "aria2.purgeDownloadResult"
+	case "pause_all":
+		method = "aria2.forcePauseAll"
+	case "unpause_all":
+		method = "aria2.unpauseAll"
+	case "purge_all":
+		method = "aria2.purgeDownloadResult"
 	case "safe_limits":
 		method = "aria2.changeGlobalOption"
 		params = []interface{}{map[string]string{
 			"max-concurrent-downloads": "2", "max-connection-per-server": "1",
 			"split": "1", "retry-wait": "5", "max-tries": "3",
 		}}
-	default: return false, nil
+	default:
+		return false, nil
 	}
 	_, err := callMotrixRPC(method, params)
 	return err == nil, err
@@ -47,13 +51,17 @@ func (a *App) ControlMotrix(action string) (bool, error) {
 
 func (a *App) fetchMotrixStatus() models.MotrixGlobalStat {
 	raw, err := callMotrixRPC("aria2.getGlobalStat", nil)
-	if err != nil { return models.MotrixGlobalStat{IsOnline: false} }
+	if err != nil {
+		return models.MotrixGlobalStat{IsOnline: false}
+	}
 	var res struct {
 		Result struct {
 			DownloadSpeed, UploadSpeed, NumActive, NumWaiting, NumStopped string
 		} `json:"result"`
 	}
-	if err := json.Unmarshal(raw, &res); err != nil { return models.MotrixGlobalStat{IsOnline: false} }
+	if err := json.Unmarshal(raw, &res); err != nil {
+		return models.MotrixGlobalStat{IsOnline: false}
+	}
 	ds, _ := strconv.ParseInt(res.Result.DownloadSpeed, 10, 64)
 	us, _ := strconv.ParseInt(res.Result.UploadSpeed, 10, 64)
 	na, _ := strconv.Atoi(res.Result.NumActive)
@@ -64,17 +72,23 @@ func (a *App) fetchMotrixStatus() models.MotrixGlobalStat {
 
 func (a *App) fetchMotrixActiveTasks() []models.DownloaderTaskInfo {
 	raw, err := callMotrixRPC("aria2.tellActive", []interface{}{[]string{"gid", "status", "totalLength", "completedLength", "downloadSpeed", "files", "errorMessage"}})
-	if err != nil { return nil }
+	if err != nil {
+		return nil
+	}
 	var res struct {
 		Result []struct {
 			GID, Status, TotalLength, CompletedLength, DownloadSpeed, ErrorMessage string
-			Files []struct {
+			Files                                                                  []struct {
 				Path string `json:"path"`
-				URIs []struct{ URI string `json:"uri"` } `json:"uris"`
+				URIs []struct {
+					URI string `json:"uri"`
+				} `json:"uris"`
 			} `json:"files"`
 		} `json:"result"`
 	}
-	if err := json.Unmarshal(raw, &res); err != nil { return nil }
+	if err := json.Unmarshal(raw, &res); err != nil {
+		return nil
+	}
 	var tasks []models.DownloaderTaskInfo
 	for _, t := range res.Result {
 		tl, _ := strconv.ParseInt(t.TotalLength, 10, 64)
@@ -83,10 +97,14 @@ func (a *App) fetchMotrixActiveTasks() []models.DownloaderTaskInfo {
 		fn, uri := "", ""
 		if len(t.Files) > 0 {
 			fn = filepath.Base(t.Files[0].Path)
-			if len(t.Files[0].URIs) > 0 { uri = t.Files[0].URIs[0].URI }
+			if len(t.Files[0].URIs) > 0 {
+				uri = t.Files[0].URIs[0].URI
+			}
 		}
 		prog := 0.0
-		if tl > 0 { prog = float64(cl) / float64(tl) * 100 }
+		if tl > 0 {
+			prog = float64(cl) / float64(tl) * 100
+		}
 		tasks = append(tasks, models.DownloaderTaskInfo{GID: t.GID, Status: t.Status, FileName: fn, URL: uri, TotalLength: tl, CompletedLength: cl, DownloadSpeed: ds, Progress: prog, ErrorMessage: t.ErrorMessage})
 	}
 	return tasks

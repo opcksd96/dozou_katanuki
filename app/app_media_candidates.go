@@ -24,8 +24,12 @@ func BuildCandidateURLsFromMedia(mediaID, downloadURL, mediaType string) []Candi
 func BuildCandidateURLsFromMediaWithArticle(mediaID, downloadURL, mediaType, articleID string) []CandidateURL {
 	isVideo := mediaType == "video" || strings.Contains(downloadURL, ".mp4") || strings.HasSuffix(strings.ToLower(mediaID), ".mp4") || strings.Contains(downloadURL, "video")
 	cleanID := mediaID
-	if cleanID == "" { cleanID = filepath.Base(downloadURL) }
-	if idx := strings.Index(cleanID, "?"); idx != -1 { cleanID = cleanID[:idx] }
+	if cleanID == "" {
+		cleanID = filepath.Base(downloadURL)
+	}
+	if idx := strings.Index(cleanID, "?"); idx != -1 {
+		cleanID = cleanID[:idx]
+	}
 	ext := filepath.Ext(cleanID)
 	rawID := strings.TrimSuffix(cleanID, ext)
 	for _, sfx := range []string{":orig", ":large", ":medium", ":small", ":thumb", ":tiny", "_motrix", "_requests", "_thunder", "_plain", "_orig", "_large"} {
@@ -33,10 +37,15 @@ func BuildCandidateURLsFromMediaWithArticle(mediaID, downloadURL, mediaType, art
 	}
 
 	if isVideo {
-		if ext == "" { ext = ".mp4"; cleanID = rawID + ext }
+		if ext == "" {
+			ext = ".mp4"
+			cleanID = rawID + ext
+		}
 		if downloadURL != "" && strings.Contains(downloadURL, "http") {
 			base := downloadURL
-			if idx := strings.Index(base, "?"); idx != -1 { base = base[:idx] }
+			if idx := strings.Index(base, "?"); idx != -1 {
+				base = base[:idx]
+			}
 			tag14, tag12 := base+"?tag=14", base+"?tag=12"
 			return []CandidateURL{
 				{Type: models.ResolutionOrig, URL: tag14},
@@ -56,7 +65,9 @@ func BuildCandidateURLsFromMediaWithArticle(mediaID, downloadURL, mediaType, art
 		return []CandidateURL{}
 	}
 
-	if ext == "" { ext = ".jpg" }
+	if ext == "" {
+		ext = ".jpg"
+	}
 	plainURL := fmt.Sprintf("https://pbs.twimg.com/media/%s%s", rawID, ext)
 	colonOrigURL := plainURL + ":orig"
 	paramOrigURL := fmt.Sprintf("https://pbs.twimg.com/media/%s?format=%s&name=orig", rawID, strings.TrimPrefix(ext, "."))

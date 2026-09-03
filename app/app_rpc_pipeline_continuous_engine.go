@@ -54,7 +54,9 @@ func (a *App) runContinuousPipelineLoop(stopCh chan struct{}) {
 }
 
 func (a *App) executeAutonomousPipelineCycle() {
-	if a.Repo == nil || a.Repo.DB() == nil { return }
+	if a.Repo == nil || a.Repo.DB() == nil {
+		return
+	}
 	db := a.Repo.DB()
 
 	// 1. QUEUED があれば Requests ➔ Motrix 投入を自動キック

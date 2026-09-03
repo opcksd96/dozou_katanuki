@@ -27,7 +27,7 @@ func (a *App) SafePurgeWithBackup(gids []string) (int, error) {
 			var res struct {
 				Result struct {
 					GID, Status, TotalLength, CompletedLength, ErrorMessage string
-					Files []struct {
+					Files                                                   []struct {
 						Path string `json:"path"`
 						URIs []struct {
 							URI string `json:"uri"`

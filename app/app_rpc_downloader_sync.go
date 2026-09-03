@@ -14,15 +14,21 @@ import (
 // SyncCompletedDownloads queries Aria2/Motrix completed/error tasks and updates DB records
 func (a *App) SyncCompletedDownloads() (int, error) {
 	raw, err := callMotrixRPC("aria2.tellStopped", []interface{}{0, 50, []string{"gid", "status", "files", "errorMessage"}})
-	if err != nil { return 0, err }
+	if err != nil {
+		return 0, err
+	}
 
 	var res struct {
 		Result []struct {
 			GID, Status, ErrorMessage string
-			Files []struct { Path string `json:"path"` } `json:"files"`
+			Files                     []struct {
+				Path string `json:"path"`
+			} `json:"files"`
 		} `json:"result"`
 	}
-	if err := json.Unmarshal(raw, &res); err != nil { return 0, err }
+	if err := json.Unmarshal(raw, &res); err != nil {
+		return 0, err
+	}
 
 	syncedCount := 0
 
@@ -33,7 +39,9 @@ func (a *App) SyncCompletedDownloads() (int, error) {
 			fn := filepath.Base(filePath)
 			ext := filepath.Ext(fn)
 			baseName := strings.TrimSuffix(fn, ext)
-			for _, sfx := range []string{"_motrix", "_requests", "_thunder"} { baseName = strings.TrimSuffix(baseName, sfx) }
+			for _, sfx := range []string{"_motrix", "_requests", "_thunder"} {
+				baseName = strings.TrimSuffix(baseName, sfx)
+			}
 			fileName = baseName + ext
 		}
 		if t.Status == "complete" && fileName != "" {

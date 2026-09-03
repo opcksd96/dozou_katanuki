@@ -17,7 +17,9 @@ func TestCheckThunderEscalationEligibility_Empty(t *testing.T) {
 
 func TestCheckThunderEscalationEligibility_LocalFileExists(t *testing.T) {
 	tempDir, err := os.MkdirTemp("", "guard_test_*")
-	if err != nil { t.Fatalf("failed to create temp dir: %v", err) }
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
 	defer os.RemoveAll(tempDir)
 
 	mediaID := "test_media_123.jpg"

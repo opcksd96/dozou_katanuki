@@ -8,14 +8,16 @@ import (
 	"strings"
 
 	"dozou_katanuki/models"
-
-	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 func cleanPlatformPath(platform string) string {
-	if platform == "" { platform = "twitter" }
+	if platform == "" {
+		platform = "twitter"
+	}
 	cp := filepath.Clean(platform)
-	if strings.Contains(cp, "..") || strings.ContainsAny(cp, "/\\") { return "twitter" }
+	if strings.Contains(cp, "..") || strings.ContainsAny(cp, "/\\") {
+		return "twitter"
+	}
 	return cp
 }
 
@@ -42,7 +44,7 @@ func (a *App) SaveSkinCSS(platform, cssContent string) error {
 		return err
 	}
 	if a.Ctx != nil {
-		runtime.EventsEmit(a.Ctx, "skin:updated", map[string]string{"platform": p, "css": cssContent})
+		a.EmitEvent("skin:updated", map[string]string{"platform": p, "css": cssContent})
 	}
 	return nil
 }

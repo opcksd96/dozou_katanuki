@@ -83,11 +83,17 @@ func (a *App) GetThunderTaskDetailViaCDP(fileName string) (*ThunderTaskDetailInf
 	})('%s')`, cleanFileName)
 
 	resJSON, err := EvaluateCDPExpression(wsURL, jsCode, 2*time.Second)
-	if err != nil { return nil, err }
+	if err != nil {
+		return nil, err
+	}
 
 	var res CDPDetailEvalResult
-	if err := json.Unmarshal([]byte(resJSON), &res); err != nil { return nil, err }
+	if err := json.Unmarshal([]byte(resJSON), &res); err != nil {
+		return nil, err
+	}
 	val := res.Result.Result.Value
-	if !val.Success { return nil, fmt.Errorf("%s", val.Error) }
+	if !val.Success {
+		return nil, fmt.Errorf("%s", val.Error)
+	}
 	return &val, nil
 }

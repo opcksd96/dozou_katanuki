@@ -28,7 +28,10 @@ type ThunderCDPStatus struct {
 func (a *App) GetThunderCDPStatus() ThunderCDPStatus {
 	st := ThunderCDPStatus{Port: 9222, IntervalMs: 200, ActiveTab: "下载中", IsDownloadingTab: true}
 	wsURL, err := FetchThunderMainRendererWSUrl(9222)
-	if err != nil || wsURL == "" { st.IsConnected = false; return st }
+	if err != nil || wsURL == "" {
+		st.IsConnected = false
+		return st
+	}
 	st.IsConnected, st.ActiveWSUrl, st.LastPolledAt = true, wsURL, time.Now().Format("15:04:05")
 
 	tabRes, _ := EvaluateCDPExpression(wsURL, `(() => {
@@ -42,7 +45,16 @@ func (a *App) GetThunderCDPStatus() ThunderCDPStatus {
 		return { tab: '下载中', isDl: true };
 	})()`, 500*time.Millisecond)
 
-	var tabData struct{ Result struct{ Result struct{ Value struct{ Tab string `json:"tab"`; IsDl bool `json:"isDl"` } `json:"value"` } `json:"result"` } `json:"result"` }
+	var tabData struct {
+		Result struct {
+			Result struct {
+				Value struct {
+					Tab  string `json:"tab"`
+					IsDl bool   `json:"isDl"`
+				} `json:"value"`
+			} `json:"result"`
+		} `json:"result"`
+	}
 	if json.Unmarshal([]byte(tabRes), &tabData) == nil && tabData.Result.Result.Value.Tab != "" {
 		st.ActiveTab = tabData.Result.Result.Value.Tab
 		st.IsDownloadingTab = tabData.Result.Result.Value.IsDl
@@ -61,7 +73,9 @@ func (a *App) GetThunderCDPStatus() ThunderCDPStatus {
 // SwitchThunderTabViaCDP は迅雷のタブを指定したもの（"下载中" など）に切り替えます
 func (a *App) SwitchThunderTabViaCDP(targetTab string) bool {
 	wsURL, err := FetchThunderMainRendererWSUrl(9222)
-	if err != nil || wsURL == "" { return false }
+	if err != nil || wsURL == "" {
+		return false
+	}
 	script := `(() => {
 		const tabs = Array.from(document.querySelectorAll('.xly-nav__tab, span, a, .xly-nav__item'));
 		const target = tabs.find(el => el.innerText && el.innerText.trim() === '` + targetTab + `');

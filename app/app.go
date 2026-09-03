@@ -21,7 +21,7 @@ type App struct {
 	Ctx              context.Context
 	Repo             *driver.Repository
 	TimelineService  *middleware.TimelineService
-	StashProber      *middleware.StashProber
+	BeaconService    *middleware.BeaconService
 	JobOrchestrator  *middleware.JobOrchestrator
 	Scheduler        *middleware.SchedulerService
 	AuditService     *middleware.AuditService
@@ -41,14 +41,18 @@ func (a *App) GetAppVersion() string {
 }
 
 func (a *App) IsStashReady() bool {
-	if a.StashProber != nil { return a.StashProber.IsConnected() }
+	if a.BeaconService != nil {
+		return a.BeaconService.GetState().StashReady
+	}
 	return false
 }
 
 func (a *App) WaitForReady() error {
 	select {
 	case <-a.Ready:
-		if a.TimelineService == nil { return fmt.Errorf("timeline service not initialized") }
+		if a.TimelineService == nil {
+			return fmt.Errorf("timeline service not initialized")
+		}
 		return nil
 	case <-time.After(10 * time.Second):
 		return fmt.Errorf("timeout waiting for core initialization")

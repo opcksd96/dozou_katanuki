@@ -7,15 +7,21 @@ import (
 
 // TriggerStashGenerate は サムネイル、VTTスプライト、プレビュー動画の生成タスクをトリガーします
 func (a *App) TriggerStashGenerate(sceneIDs, imageIDs []string) (bool, error) {
-	if err := a.WaitForReady(); err != nil { return false, err }
+	if err := a.WaitForReady(); err != nil {
+		return false, err
+	}
 	input := map[string]interface{}{
 		"sprites":         true,
 		"previews":        true,
 		"imageThumbnails": true,
 		"covers":          true,
 	}
-	if len(sceneIDs) > 0 { input["sceneIDs"] = sceneIDs }
-	if len(imageIDs) > 0 { input["imageIDs"] = imageIDs }
+	if len(sceneIDs) > 0 {
+		input["sceneIDs"] = sceneIDs
+	}
+	if len(imageIDs) > 0 {
+		input["imageIDs"] = imageIDs
+	}
 
 	m := `mutation GenerateMetadata($input: GenerateMetadataInput!) {
 		metadataGenerate(input: $input)
@@ -38,7 +44,9 @@ func (a *App) TriggerStashPipelineForPaths(paths []string) {
 		for i := 0; i < 4; i++ {
 			time.Sleep(2 * time.Second)
 			total, _ := a.ReconcileStashMedia()
-			if total > 0 { break }
+			if total > 0 {
+				break
+			}
 		}
 	}()
 }
@@ -57,4 +65,3 @@ func (a *App) TriggerStashImagePipeline() {
 func (a *App) TriggerStashAllPipelines() {
 	a.TriggerStashPipelineForPaths(nil)
 }
-

@@ -17,8 +17,12 @@ func (a *App) ReconcileThunderTasksWithDB() (int, map[string]bool) {
 
 	wsURL := status.ActiveWSUrl
 	for _, item := range status.CapturedTasks {
-		if item.FileName == "" { continue }
-		if !a.isDozouManagedTask(item.FileName) { continue } // ユーザー独自タスクは除外
+		if item.FileName == "" {
+			continue
+		}
+		if !a.isDozouManagedTask(item.FileName) {
+			continue
+		} // ユーザー独自タスクは除外
 		existingMap[item.FileName] = true
 
 		// ⑦ エラー文言 × サマリサイズ(>1B vs 0B) の判定
@@ -54,7 +58,9 @@ func (a *App) ReconcileThunderTasksWithDB() (int, map[string]bool) {
 
 // isDozouManagedTask は ユーザーが個別に追加した独自タスクを排除し、dozou管轄タスクのみ判定します
 func (a *App) isDozouManagedTask(fileName string) bool {
-	if a.Repo == nil || a.Repo.DB() == nil || fileName == "" { return false }
+	if a.Repo == nil || a.Repo.DB() == nil || fileName == "" {
+		return false
+	}
 	var count int64
 	_ = a.Repo.DB().Model(&models.ThunderTask{}).Where("file_name = ?", fileName).Count(&count).Error
 	return count > 0
@@ -62,11 +68,17 @@ func (a *App) isDozouManagedTask(fileName string) bool {
 
 // CheckAndReonboardMissingTasks は DB上ONBOARDEDだが迅雷から消失したタスクを3個上限内で再投入します
 func (a *App) CheckAndReonboardMissingTasks(existingMap map[string]bool, maxSlots int) int {
-	if a.Repo == nil || a.Repo.DB() == nil { return 0 }
-	if maxSlots <= 0 || maxSlots > 3 { maxSlots = 3 }
+	if a.Repo == nil || a.Repo.DB() == nil {
+		return 0
+	}
+	if maxSlots <= 0 || maxSlots > 3 {
+		maxSlots = 3
+	}
 
 	currentCount := len(existingMap)
-	if currentCount >= maxSlots { return 0 }
+	if currentCount >= maxSlots {
+		return 0
+	}
 
 	var onboardedTasks []models.ThunderTask
 	_ = a.Repo.DB().Where("status = ?", models.ThunderTaskOnboarded).Limit(10).Find(&onboardedTasks).Error
@@ -75,9 +87,15 @@ func (a *App) CheckAndReonboardMissingTasks(existingMap map[string]bool, maxSlot
 	destDir := a.getMediaDownloadDir()
 
 	for _, t := range onboardedTasks {
-		if currentCount >= maxSlots { break }
-		if existingMap[t.FileName] { continue }
-		if IsThunderCooldownActive(t.LastAttemptAt) { continue } // 10分冷却中ならスキップ
+		if currentCount >= maxSlots {
+			break
+		}
+		if existingMap[t.FileName] {
+			continue
+		}
+		if IsThunderCooldownActive(t.LastAttemptAt) {
+			continue
+		} // 10分冷却中ならスキップ
 
 		if AddTaskViaThunderCOM(t.URL, t.FileName, destDir) {
 			existingMap[t.FileName] = true

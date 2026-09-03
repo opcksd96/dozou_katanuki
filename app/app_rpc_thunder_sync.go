@@ -18,44 +18,68 @@ func (a *App) SyncThunderDownloads(customDir string) (int, error) {
 			tempDir = cfg.Storage.ThunderDownloadDir
 		}
 	}
-	if tempDir == "" { tempDir = `D:\迅雷下载` }
+	if tempDir == "" {
+		tempDir = `D:\迅雷下载`
+	}
 
 	destRoot, syncedCount := a.getMediaDownloadDir(), 0
-	if c, err := a.processDirectoryFiles(tempDir, destRoot); err == nil { syncedCount += c }
-	if c, err := a.processDirectoryFiles(destRoot, destRoot); err == nil { syncedCount += c }
+	if c, err := a.processDirectoryFiles(tempDir, destRoot); err == nil {
+		syncedCount += c
+	}
+	if c, err := a.processDirectoryFiles(destRoot, destRoot); err == nil {
+		syncedCount += c
+	}
 	escalateDir := filepath.Join(destRoot, "_escalate")
-	if c, err := a.processDirectoryFiles(escalateDir, destRoot); err == nil { syncedCount += c }
+	if c, err := a.processDirectoryFiles(escalateDir, destRoot); err == nil {
+		syncedCount += c
+	}
 
-	if syncedCount > 0 { a.TriggerStashAllPipelines() }
+	if syncedCount > 0 {
+		a.TriggerStashAllPipelines()
+	}
 	return syncedCount, nil
 }
 
 func (a *App) processDirectoryFiles(srcDir, destRoot string) (int, error) {
 	entries, err := os.ReadDir(srcDir)
-	if err != nil { return 0, err }
+	if err != nil {
+		return 0, err
+	}
 
 	count := 0
 	for _, entry := range entries {
-		if entry.IsDir() { continue }
+		if entry.IsDir() {
+			continue
+		}
 		name := entry.Name()
 		ext := strings.ToLower(filepath.Ext(name))
-		if ext != ".jpg" && ext != ".jpeg" && ext != ".png" && ext != ".webp" && ext != ".mp4" && ext != ".webm" { continue }
+		if ext != ".jpg" && ext != ".jpeg" && ext != ".png" && ext != ".webp" && ext != ".mp4" && ext != ".webm" {
+			continue
+		}
 
 		srcPath := filepath.Join(srcDir, name)
 		mediaID := resolveMediaIDFromFileName(name)
 		destFileName := mediaID
-		if !strings.HasSuffix(strings.ToLower(destFileName), ext) { destFileName = destFileName + ext }
+		if !strings.HasSuffix(strings.ToLower(destFileName), ext) {
+			destFileName = destFileName + ext
+		}
 
 		targetSubDir := filepath.Join(destRoot, "_escalate")
 		if a.Repo != nil {
 			owner, err := a.Repo.GetMediaOwnerUsername(mediaID)
-			if err != nil || owner == "" { owner, _ = a.Repo.GetMediaOwnerUsername(name) }
-			if owner != "" { targetSubDir = filepath.Join(destRoot, owner, "X(Twitter)", "_assets") }
+			if err != nil || owner == "" {
+				owner, _ = a.Repo.GetMediaOwnerUsername(name)
+			}
+			if owner != "" {
+				targetSubDir = filepath.Join(destRoot, owner, "X(Twitter)", "_assets")
+			}
 		}
 		_ = os.MkdirAll(targetSubDir, 0755)
 		destPath := filepath.Join(targetSubDir, destFileName)
 
-		if srcPath == destPath { continue }
+		if srcPath == destPath {
+			continue
+		}
 
 		if err := moveFileSafe(srcPath, destPath); err == nil {
 			if a.Repo != nil {

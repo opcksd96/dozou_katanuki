@@ -65,7 +65,9 @@ func EvaluateThunderTaskError(rawText string) ThunderEvaluation {
 
 func extractSummarySize(text string) (string, bool) {
 	matches := sizeRegex.FindAllStringSubmatch(text, -1)
-	if len(matches) == 0 { return "0B", false }
+	if len(matches) == 0 {
+		return "0B", false
+	}
 	for _, m := range matches {
 		valStr, unit := m[1], strings.ToUpper(m[2])
 		sizeStr := valStr + unit
@@ -79,6 +81,8 @@ func extractSummarySize(text string) (string, bool) {
 
 // IsThunderCooldownActive は前回実行から10分経過しているかを判定します
 func IsThunderCooldownActive(lastAttempt *time.Time) bool {
-	if lastAttempt == nil { return false }
+	if lastAttempt == nil {
+		return false
+	}
 	return time.Since(*lastAttempt) < 10*time.Minute
 }

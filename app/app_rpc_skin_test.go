@@ -20,7 +20,9 @@ func TestSkinCSSRPC(t *testing.T) {
 	testPlatform := "test_skin_platform"
 	testCSS := "/* Test Skin CSS */\n.test-card { color: #abcdef; }\n"
 	err = app.SaveSkinCSS(testPlatform, testCSS)
-	if err != nil { t.Fatalf("SaveSkinCSS failed: %v", err) }
+	if err != nil {
+		t.Fatalf("SaveSkinCSS failed: %v", err)
+	}
 	defer os.RemoveAll(filepath.Join("plugins", testPlatform))
 
 	readCSS, err := app.GetSkinCSS(testPlatform)

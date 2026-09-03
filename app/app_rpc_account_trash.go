@@ -3,8 +3,6 @@ package app
 
 import (
 	"dozou_katanuki/models"
-
-	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 // TrashAccount moves the specified account to the trash bin (soft-delete)
@@ -19,7 +17,7 @@ func (a *App) TrashAccount(numericID, reason string) error {
 		return err
 	}
 	if a.Ctx != nil {
-		runtime.EventsEmit(a.Ctx, "account:trashed", map[string]string{
+		a.EmitEvent("account:trashed", map[string]string{
 			"numeric_id": numericID,
 			"reason":     reason,
 		})
@@ -36,7 +34,7 @@ func (a *App) RestoreAccount(numericID string) error {
 		return err
 	}
 	if a.Ctx != nil {
-		runtime.EventsEmit(a.Ctx, "account:restored", map[string]string{
+		a.EmitEvent("account:restored", map[string]string{
 			"numeric_id": numericID,
 		})
 	}

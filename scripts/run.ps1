@@ -94,15 +94,8 @@ try {
 
     Write-Host "[*] System is running. Beacon loop activated. Press Ctrl+C to stop all processes." -ForegroundColor White
     
-    # メインプロセスが終了するまでビーコンループ
+    # メインプロセスが終了するまで待機
     while (!$appProc.HasExited) {
-        # Check Stash (:9999)
-        if (Test-Port 9999) { Send-Beacon "stash" "ready" } else { Send-Beacon "stash" "busy" }
-        # Check Thunder CDP (:9222)
-        if (Test-Port 9222) { Send-Beacon "thunder" "ready" } else { Send-Beacon "thunder" "stopped" }
-        # Check Motrix (:16800)
-        if (Test-Port 16800) { Send-Beacon "motrix" "ready" } else { Send-Beacon "motrix" "stopped" }
-
         Start-Sleep -Seconds 5
     }
 } catch {

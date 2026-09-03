@@ -5,7 +5,9 @@ import "fmt"
 
 // GiveUpRetainedMedia はユーザーが明示的に諦めたタスクを DEAD_404 状態へ確定します
 func (a *App) GiveUpRetainedMedia(mediaID string) (bool, error) {
-	if mediaID == "" || a.Repo == nil { return false, fmt.Errorf("mediaID is required") }
+	if mediaID == "" || a.Repo == nil {
+		return false, fmt.Errorf("mediaID is required")
+	}
 	err := a.Repo.UpdateMediaMetadata(mediaID, "DEAD_404", "", "", "ユーザーによる探索諦め (GIVE_UP)")
 	return err == nil, err
 }

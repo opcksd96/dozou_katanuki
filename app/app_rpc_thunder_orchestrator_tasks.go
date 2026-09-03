@@ -11,18 +11,24 @@ import (
 
 func (a *App) buildThunderOrchestratorTasks() []*models.ThunderOrchestratorTask {
 	var tasks []*models.ThunderOrchestratorTask
-	if a.Repo == nil { return tasks }
+	if a.Repo == nil {
+		return tasks
+	}
 
 	// 迅雷オーケストレーターは ESCALATED のメディアのみを対象とする
 	items, _, _, err := a.Repo.FetchRawMediaItems("", "ESCALATED", "", 1000, 0)
-	if err != nil || len(items) == 0 { return tasks }
+	if err != nil || len(items) == 0 {
+		return tasks
+	}
 
 	var dTasks []models.DownloadTask
 	seenMedia := make(map[string]bool)
 
 	for _, item := range items {
 		m := item.Media
-		if seenMedia[m.MediaID] || m.IsTrash { continue }
+		if seenMedia[m.MediaID] || m.IsTrash {
+			continue
+		}
 		seenMedia[m.MediaID] = true
 
 		cleanID := strings.TrimSuffix(m.MediaID, filepath.Ext(m.MediaID))

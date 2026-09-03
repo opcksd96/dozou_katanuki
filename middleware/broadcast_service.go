@@ -21,6 +21,7 @@ type BroadcastService struct {
 	timelineService *TimelineService
 	emitter         EventEmitter
 	beaconCallback  func(req dto.BeaconRequestDTO)
+	clients         map[chan []byte]bool
 	distFS          fs.FS
 	server          *http.Server
 	listener        net.Listener

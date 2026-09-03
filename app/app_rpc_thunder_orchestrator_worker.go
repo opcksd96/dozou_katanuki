@@ -12,7 +12,9 @@ import (
 
 func (a *App) runThunderOrchestrationWorker() {
 	interval := time.Duration(orchState.config.IntervalSeconds) * time.Second
-	if interval <= 0 { interval = 4 * time.Second }
+	if interval <= 0 {
+		interval = 4 * time.Second
+	}
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 
@@ -28,7 +30,9 @@ func (a *App) runThunderOrchestrationWorker() {
 			}
 
 			maxSlots := orchState.config.MaxConcurrentSlots
-			if maxSlots <= 0 || maxSlots > 3 { maxSlots = 3 }
+			if maxSlots <= 0 || maxSlots > 3 {
+				maxSlots = 3
+			}
 
 			// ④〜⑦ 迅雷タスク状態確認、DB照合、エラー判定・取り下げ
 			_, existingFileMap := a.ReconcileThunderTasksWithDB()
@@ -69,7 +73,9 @@ func (a *App) runThunderOrchestrationWorker() {
 			}
 
 			if nextTask == nil {
-				if runningCount == 0 { orchState.isRunning = false }
+				if runningCount == 0 {
+					orchState.isRunning = false
+				}
 				orchState.mu.Unlock()
 				continue
 			}
@@ -94,5 +100,7 @@ func (a *App) dispatchTaskDirectly(task *models.ThunderOrchestratorTask) {
 		_ = AddTaskViaThunderCOM(t.URL, t.FileName, dest)
 	}(task, destDir)
 	orchState.recentTasks = append([]models.ThunderOrchestratorTask{*task}, orchState.recentTasks...)
-	if len(orchState.recentTasks) > 30 { orchState.recentTasks = orchState.recentTasks[:30] }
+	if len(orchState.recentTasks) > 30 {
+		orchState.recentTasks = orchState.recentTasks[:30]
+	}
 }

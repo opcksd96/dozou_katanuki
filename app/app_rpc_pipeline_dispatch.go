@@ -25,10 +25,14 @@ func (a *App) DispatchQueuedToMotrix() (int, error) {
 
 	for _, m := range queuedMedias {
 		candidates := BuildCandidateURLsFromMediaWithArticle(m.MediaID, m.DownloadURL, m.Type, m.ArticleID)
-		if len(candidates) == 0 { continue }
+		if len(candidates) == 0 {
+			continue
+		}
 
 		var urls []string
-		for _, c := range candidates { urls = append(urls, c.URL) }
+		for _, c := range candidates {
+			urls = append(urls, c.URL)
+		}
 
 		saveDir := filepath.Join(destRoot, "_motrix_temp")
 		if owner, err := a.Repo.GetMediaOwnerUsername(m.MediaID); err == nil && owner != "" {

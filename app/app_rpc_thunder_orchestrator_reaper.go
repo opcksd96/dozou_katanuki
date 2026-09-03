@@ -7,12 +7,18 @@ import (
 
 // ReapCompletedDuplicates は 1つの候補が完了した際、thunder_tasks DB と連動して他候補を迅雷から即座に取り下げます
 func (a *App) ReapCompletedDuplicates(mediaID, completedFileName string) {
-	if mediaID == "" || a.Repo == nil { return }
+	if mediaID == "" || a.Repo == nil {
+		return
+	}
 	wsURL, err := FetchThunderMainRendererWSUrl(9222)
-	if err != nil || wsURL == "" { return }
+	if err != nil || wsURL == "" {
+		return
+	}
 
 	reaps, err := a.Repo.MarkThunderTaskCompletedAndReapOthers(mediaID, completedFileName)
-	if err != nil || len(reaps) == 0 { return }
+	if err != nil || len(reaps) == 0 {
+		return
+	}
 
 	for _, task := range reaps {
 		a.deleteTaskByFileNameSilent(wsURL, task.FileName)
@@ -21,7 +27,9 @@ func (a *App) ReapCompletedDuplicates(mediaID, completedFileName string) {
 
 // ReapDepletedTask は 枯渇タスクを取り下げ、全候補が全滅した時のみ RETAINED へ退避します
 func (a *App) ReapDepletedTask(fileName string) {
-	if fileName == "" { return }
+	if fileName == "" {
+		return
+	}
 	wsURL, _ := FetchThunderMainRendererWSUrl(9222)
 	if wsURL != "" {
 		a.deleteTaskByFileNameSilent(wsURL, fileName)
@@ -37,7 +45,9 @@ func (a *App) ReapDepletedTask(fileName string) {
 
 // deleteTaskByFileNameSilent は 指定ファイル名のタスクを迅雷からサイレントに取り下げ（削除）します
 func (a *App) deleteTaskByFileNameSilent(wsURL, fileName string) {
-	if wsURL == "" || fileName == "" { return }
+	if wsURL == "" || fileName == "" {
+		return
+	}
 	script := `(() => {
 		const items = Array.from(document.querySelectorAll('.td-draglist-item, .xly-side-item, .xly-side-content'));
 		for (let it of items) {

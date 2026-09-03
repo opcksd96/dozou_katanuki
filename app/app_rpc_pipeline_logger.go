@@ -24,7 +24,9 @@ func (a *App) AppendPipelineLog(stage, level, msg string) {
 		_ = os.MkdirAll(logDir, 0755)
 		filePath := filepath.Join(logDir, fmt.Sprintf("%s.log", strings.ToLower(stage)))
 		f, err := os.OpenFile(filePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-		if err != nil { return }
+		if err != nil {
+			return
+		}
 		defer f.Close()
 
 		ts := time.Now().Format("2006-01-02 15:04:05")
@@ -35,16 +37,22 @@ func (a *App) AppendPipelineLog(stage, level, msg string) {
 
 // GetPipelineLogs は 指定ステージ（空文字なら全ログ混合）の直近ログを取得します
 func (a *App) GetPipelineLogs(stage string, limit int) ([]PipelineLogEntry, error) {
-	if limit <= 0 { limit = 50 }
+	if limit <= 0 {
+		limit = 50
+	}
 	var entries []PipelineLogEntry
 
 	stages := []string{"requests", "motrix", "thunder", "stash"}
-	if stage != "" && stage != "all" { stages = []string{strings.ToLower(stage)} }
+	if stage != "" && stage != "all" {
+		stages = []string{strings.ToLower(stage)}
+	}
 
 	for _, st := range stages {
 		filePath := filepath.Join("logs", fmt.Sprintf("%s.log", st))
 		f, err := os.Open(filePath)
-		if err != nil { continue }
+		if err != nil {
+			continue
+		}
 
 		scanner := bufio.NewScanner(f)
 		for scanner.Scan() {
@@ -59,7 +67,9 @@ func (a *App) GetPipelineLogs(stage string, limit int) ([]PipelineLogEntry, erro
 					if strings.Contains(msg, "[") && strings.Contains(msg, "]") {
 						lvlParts := strings.SplitN(msg, "] ", 2)
 						lvl = strings.Trim(lvlParts[0], "[]")
-						if len(lvlParts) > 1 { msg = lvlParts[1] }
+						if len(lvlParts) > 1 {
+							msg = lvlParts[1]
+						}
 					}
 					entries = append(entries, PipelineLogEntry{
 						Timestamp: ts,

@@ -6,8 +6,8 @@ import (
 )
 
 type CheckpointStatus struct {
-	Name        string `json:"name"`        // Requests, Motrix Next, Thunder, Stash
-	Key         string `json:"key"`         // requests, motrix, thunder, stash
+	Name        string `json:"name"` // Requests, Motrix Next, Thunder, Stash
+	Key         string `json:"key"`  // requests, motrix, thunder, stash
 	IsOnline    bool   `json:"is_online"`
 	ActiveCount int    `json:"active_count"`
 	TotalCount  int    `json:"total_count"`
@@ -16,13 +16,13 @@ type CheckpointStatus struct {
 }
 
 type PipelineOverviewResult struct {
-	Checkpoints   []CheckpointStatus `json:"checkpoints"`
-	TotalMedia    int64              `json:"total_media"`
-	Completed     int64              `json:"completed"`
-	Escalated     int64              `json:"escalated"`
-	Outsourced    int64              `json:"outsourced"`
-	Retained      int64              `json:"retained"`
-	OverallProgress float64          `json:"overall_progress"`
+	Checkpoints     []CheckpointStatus `json:"checkpoints"`
+	TotalMedia      int64              `json:"total_media"`
+	Completed       int64              `json:"completed"`
+	Escalated       int64              `json:"escalated"`
+	Outsourced      int64              `json:"outsourced"`
+	Retained        int64              `json:"retained"`
+	OverallProgress float64            `json:"overall_progress"`
 }
 
 // GetPipelineOverview は パイプライン全体の4大チェックポイント稼働状態とメディア集計を一括返却します
@@ -35,13 +35,17 @@ func (a *App) GetPipelineOverview() (*PipelineOverviewResult, error) {
 	// 2. Motrix Next
 	mStat := a.fetchMotrixStatus()
 	mText := "🔴 OFFLINE"
-	if mStat.IsOnline { mText = "🟢 ONLINE" }
+	if mStat.IsOnline {
+		mText = "🟢 ONLINE"
+	}
 	res.Checkpoints[1] = CheckpointStatus{Name: "Motrix Next / Aria2", Key: "motrix", IsOnline: mStat.IsOnline, ActiveCount: mStat.NumActive, StatusText: mText}
 
 	// 3. Thunder
 	thunderProc := isThunderProcessRunning()
 	thunderCDP := false
-	if _, err := FetchThunderMainRendererWSUrl(9222); err == nil { thunderCDP = true }
+	if _, err := FetchThunderMainRendererWSUrl(9222); err == nil {
+		thunderCDP = true
+	}
 	thunderOnline := thunderProc || thunderCDP
 
 	tText := "🔴 OFFLINE"
@@ -57,7 +61,9 @@ func (a *App) GetPipelineOverview() (*PipelineOverviewResult, error) {
 	// 4. Stash
 	stashOnline := a.isStashServerOnline()
 	sText := "🔴 OFFLINE"
-	if stashOnline { sText = "🟢 ONLINE" }
+	if stashOnline {
+		sText = "🟢 ONLINE"
+	}
 	res.Checkpoints[3] = CheckpointStatus{Name: "Stashapp DB / Assets", Key: "stash", IsOnline: stashOnline, StatusText: sText}
 
 	// DB 集計

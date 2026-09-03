@@ -17,6 +17,7 @@ var (
 	reqWorkerMu     sync.Mutex
 	isReqWorkerBusy bool
 )
+
 type PipelineRunResult struct {
 	QueuedTotal int  `json:"queued_total"`
 	IsStarted   bool `json:"is_started"`
@@ -25,16 +26,28 @@ type PipelineRunResult struct {
 // ProcessQueuedViaRequests は QUEUED メディアに対して直接HTTPフェッチを試行し、失敗時は Motrix Next へ自動移管します
 func (a *App) ProcessQueuedViaRequests() (*PipelineRunResult, error) {
 	reqWorkerMu.Lock()
-	if isReqWorkerBusy { reqWorkerMu.Unlock(); return &PipelineRunResult{QueuedTotal: 0, IsStarted: false}, nil }
+	if isReqWorkerBusy {
+		reqWorkerMu.Unlock()
+		return &PipelineRunResult{QueuedTotal: 0, IsStarted: false}, nil
+	}
 	isReqWorkerBusy = true
 	reqWorkerMu.Unlock()
 	unlock := func() { reqWorkerMu.Lock(); isReqWorkerBusy = false; reqWorkerMu.Unlock() }
 
-	if a.Repo == nil || a.Repo.DB() == nil { unlock(); return nil, fmt.Errorf("database not initialized") }
+	if a.Repo == nil || a.Repo.DB() == nil {
+		unlock()
+		return nil, fmt.Errorf("database not initialized")
+	}
 	var medias []models.Media
-	if err := a.Repo.DB().Where("download_status = 'QUEUED' AND (is_trash = 0 OR is_trash IS NULL)").Find(&medias).Error; err != nil { unlock(); return nil, err }
+	if err := a.Repo.DB().Where("download_status = 'QUEUED' AND (is_trash = 0 OR is_trash IS NULL)").Find(&medias).Error; err != nil {
+		unlock()
+		return nil, err
+	}
 	total := len(medias)
-	if total == 0 { unlock(); return &PipelineRunResult{QueuedTotal: 0, IsStarted: false}, nil }
+	if total == 0 {
+		unlock()
+		return &PipelineRunResult{QueuedTotal: 0, IsStarted: false}, nil
+	}
 	a.AppendPipelineLog("REQUESTS", "INFO", fmt.Sprintf("Requests開始: %d 件を順次処理します", total))
 	go func() {
 		defer unlock()
@@ -48,7 +61,9 @@ func (a *App) processQueuedWorker(medias []models.Media) {
 	ok, outsourced, escalated, total := 0, 0, 0, len(medias)
 	for i, m := range medias {
 		owner := "unknown"
-		if o, _ := a.Repo.GetMediaOwnerUsername(m.MediaID); o != "" { owner = o }
+		if o, _ := a.Repo.GetMediaOwnerUsername(m.MediaID); o != "" {
+			owner = o
+		}
 		pos := fmt.Sprintf("[%d/%d]", i+1, total)
 		a.AppendPipelineLog("REQUESTS", "INFO", fmt.Sprintf("%s 探索開始: %s (所有者: %s)", pos, m.MediaID, owner))
 		_ = a.Repo.UpdateMediaCheckpointTime(m.MediaID, models.StageRequests)
@@ -60,7 +75,9 @@ func (a *App) processQueuedWorker(medias []models.Media) {
 		for cIdx, c := range cands {
 			urls = append(urls, c.URL)
 			// Wayback URL は直接HTTPで叩かない (IP BAN 防止) → Motrix/迅雷フォールバック専用
-			if strings.Contains(c.URL, "web.archive.org") { continue }
+			if strings.Contains(c.URL, "web.archive.org") {
+				continue
+			}
 			res := a.tryDirectFetchDetailed(client, c.URL, destPath)
 			if res.Success {
 				_ = a.Repo.UpdateMediaMetadata(m.MediaID, "COMPLETED", "", "", "Requests取得成功("+string(c.Type)+")")
@@ -93,7 +110,9 @@ func (a *App) processQueuedWorker(medias []models.Media) {
 		go func() {
 			time.Sleep(2 * time.Second)
 			_, _ = a.SyncCompletedDownloads()
-			if escalated > 0 && !a.isThunderOrchestratorRunning() { _, _ = a.StartThunderOrchestrator(3, 4) }
+			if escalated > 0 && !a.isThunderOrchestratorRunning() {
+				_, _ = a.StartThunderOrchestrator(3, 4)
+			}
 		}()
 	}
 }

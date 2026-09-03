@@ -11,17 +11,23 @@ import (
 
 // ReconcileStashScenes は Stashapp 内の全Scene(動画)から標準タイトルおよびファイル名を走査し、DB の media レコードへ逆引き自動バインドします
 func (a *App) ReconcileStashScenes() (int, error) {
-	if err := a.WaitForReady(); err != nil { return 0, err }
+	if err := a.WaitForReady(); err != nil {
+		return 0, err
+	}
 	q := `query { allScenes { id title details files { path } } }`
 	data, err := a.queryStashGraphQL(q, nil)
-	if err != nil { return 0, err }
+	if err != nil {
+		return 0, err
+	}
 
 	titleRegex := regexp.MustCompile(`^([A-Za-z0-9_]+)\s\(@([A-Za-z0-9_]+)\):\s([A-Za-z]+)\s([0-9]+)$`)
 	boundCount := 0
 	if scnList, ok := data["allScenes"].([]interface{}); ok {
 		for _, item := range scnList {
 			if m, ok := item.(map[string]interface{}); ok {
-				if a.bindStashScene(m, titleRegex) { boundCount++ }
+				if a.bindStashScene(m, titleRegex) {
+					boundCount++
+				}
 			}
 		}
 	}
@@ -30,17 +36,23 @@ func (a *App) ReconcileStashScenes() (int, error) {
 
 // ReconcileStashImages は Stashapp 内の全Image(画像)から標準タイトルおよびファイル名を走査し、DB の media レコードへ逆引き自動バインドします
 func (a *App) ReconcileStashImages() (int, error) {
-	if err := a.WaitForReady(); err != nil { return 0, err }
+	if err := a.WaitForReady(); err != nil {
+		return 0, err
+	}
 	q := `query { allImages { id title details files { path } } }`
 	data, err := a.queryStashGraphQL(q, nil)
-	if err != nil { return 0, err }
+	if err != nil {
+		return 0, err
+	}
 
 	titleRegex := regexp.MustCompile(`^([A-Za-z0-9_]+)\s\(@([A-Za-z0-9_]+)\):\s([A-Za-z]+)\s([0-9]+)$`)
 	boundCount := 0
 	if imgList, ok := data["allImages"].([]interface{}); ok {
 		for _, item := range imgList {
 			if m, ok := item.(map[string]interface{}); ok {
-				if a.bindStashImage(m, titleRegex) { boundCount++ }
+				if a.bindStashImage(m, titleRegex) {
+					boundCount++
+				}
 			}
 		}
 	}
@@ -50,7 +62,9 @@ func (a *App) ReconcileStashImages() (int, error) {
 func (a *App) bindStashScene(m map[string]interface{}, titleRegex *regexp.Regexp) bool {
 	sID := getString(m, "id")
 	db := a.Repo.DB()
-	if db == nil { return false }
+	if db == nil {
+		return false
+	}
 	bound := false
 	var articleID string
 
@@ -97,14 +111,18 @@ func (a *App) bindStashScene(m map[string]interface{}, titleRegex *regexp.Regexp
 		}
 	}
 
-	if articleID != "" { a.syncArticleDetailsToStash(sID, articleID, true) }
+	if articleID != "" {
+		a.syncArticleDetailsToStash(sID, articleID, true)
+	}
 	return bound
 }
 
 func (a *App) bindStashImage(m map[string]interface{}, titleRegex *regexp.Regexp) bool {
 	sID := getString(m, "id")
 	db := a.Repo.DB()
-	if db == nil { return false }
+	if db == nil {
+		return false
+	}
 	bound := false
 	var articleID string
 
@@ -141,6 +159,8 @@ func (a *App) bindStashImage(m map[string]interface{}, titleRegex *regexp.Regexp
 		}
 	}
 
-	if articleID != "" { a.syncArticleDetailsToStash(sID, articleID, false) }
+	if articleID != "" {
+		a.syncArticleDetailsToStash(sID, articleID, false)
+	}
 	return bound
 }

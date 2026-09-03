@@ -26,7 +26,9 @@ func getMotrixConfigs() []motrixConfig {
 				port := fmt.Sprintf("%v", sys["rpc-listen-port"])
 				sec := fmt.Sprintf("%v", sys["rpc-secret"])
 				if port != "" && port != "<nil>" {
-					if sec == "<nil>" { sec = "" }
+					if sec == "<nil>" {
+						sec = ""
+					}
 					cfgs = append(cfgs, motrixConfig{Endpoint: "http://127.0.0.1:" + port + "/jsonrpc", Secret: sec})
 				}
 			}

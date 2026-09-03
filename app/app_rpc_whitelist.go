@@ -84,4 +84,3 @@ func (a *App) SyncWhitelistGroups() (int64, error) {
 	log.Printf("[Wails RPC] SyncWhitelistGroups synced %d accounts", synced)
 	return synced, nil
 }
-

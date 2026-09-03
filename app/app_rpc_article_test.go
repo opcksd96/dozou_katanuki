@@ -25,14 +25,22 @@ func TestArticleSearchAndTranslation(t *testing.T) {
 	db.Create(&art)
 
 	res, total, err := repo.SearchArticles("sound", "all", "all", 10, 0)
-	if err != nil || total != 1 || len(res) != 1 { t.Fatalf("SearchArticles failed: %v", err) }
+	if err != nil || total != 1 || len(res) != 1 {
+		t.Fatalf("SearchArticles failed: %v", err)
+	}
 
 	res2, total2, err := repo.SearchArticles("ファミコン", "all", "all", 10, 0)
-	if err != nil || total2 != 1 || len(res2) != 1 { t.Fatalf("SearchArticles by translation failed: %v", err) }
+	if err != nil || total2 != 1 || len(res2) != 1 {
+		t.Fatalf("SearchArticles by translation failed: %v", err)
+	}
 
 	err = repo.UpdateArticleTranslations("art_001", "ファミコン更新", "NES updated", "红白机更新")
-	if err != nil { t.Fatalf("UpdateArticleTranslations failed: %v", err) }
+	if err != nil {
+		t.Fatalf("UpdateArticleTranslations failed: %v", err)
+	}
 
 	upArt, err := repo.GetArticleByID("art_001")
-	if err != nil || upArt.FullTextJA.String != "ファミコン更新" { t.Fatalf("Translations not updated: %+v", upArt) }
+	if err != nil || upArt.FullTextJA.String != "ファミコン更新" {
+		t.Fatalf("Translations not updated: %+v", upArt)
+	}
 }

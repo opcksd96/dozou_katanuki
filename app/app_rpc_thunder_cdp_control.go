@@ -23,7 +23,9 @@ type CDPControlResult struct {
 // ControlThunderTaskViaCDP は CDP 経由で迅雷内部のタスクを操作します (pause / resume / delete / restore)
 func (a *App) ControlThunderTaskViaCDP(fileName string, action string) (bool, error) {
 	wsURL, err := FetchThunderMainRendererWSUrl(9222)
-	if err != nil || wsURL == "" { return false, fmt.Errorf("迅雷 CDP に接続できません (:9222)") }
+	if err != nil || wsURL == "" {
+		return false, fmt.Errorf("迅雷 CDP に接続できません (:9222)")
+	}
 
 	cleanFileName := strings.TrimSpace(fileName)
 	jsCode := fmt.Sprintf(`((targetFileName, action) => {
@@ -69,10 +71,16 @@ func (a *App) ControlThunderTaskViaCDP(fileName string, action string) (bool, er
 	})('%s', '%s')`, cleanFileName, action)
 
 	resJSON, err := EvaluateCDPExpression(wsURL, jsCode, 2*time.Second)
-	if err != nil { return false, err }
+	if err != nil {
+		return false, err
+	}
 
 	var res CDPControlResult
-	if err := json.Unmarshal([]byte(resJSON), &res); err != nil { return false, err }
-	if !res.Result.Result.Value.Success { return false, fmt.Errorf("%s", res.Result.Result.Value.Error) }
+	if err := json.Unmarshal([]byte(resJSON), &res); err != nil {
+		return false, err
+	}
+	if !res.Result.Result.Value.Success {
+		return false, fmt.Errorf("%s", res.Result.Result.Value.Error)
+	}
 	return true, nil
 }

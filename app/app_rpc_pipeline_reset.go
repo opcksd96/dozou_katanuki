@@ -22,7 +22,9 @@ func (a *App) ResetAllToQueuedAndBootstrap() (int64, error) {
 			"download_status": "QUEUED",
 			"failed_reason":   nil,
 		})
-	if res.Error != nil { return 0, res.Error }
+	if res.Error != nil {
+		return 0, res.Error
+	}
 	count := res.RowsAffected
 
 	// 2. download_tasks の旧汚染タスクを一掃し、Motrix結果をパージ
