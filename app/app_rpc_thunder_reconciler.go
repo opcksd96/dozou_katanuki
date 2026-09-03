@@ -18,6 +18,7 @@ func (a *App) ReconcileThunderTasksWithDB() (int, map[string]bool) {
 	wsURL := status.ActiveWSUrl
 	for _, item := range status.CapturedTasks {
 		if item.FileName == "" { continue }
+		if !a.isDozouManagedTask(item.FileName) { continue } // ユーザー独自タスクは除外
 		existingMap[item.FileName] = true
 
 		// ⑦ エラー文言 × サマリサイズ(>1B vs 0B) の判定
@@ -49,6 +50,14 @@ func (a *App) ReconcileThunderTasksWithDB() (int, map[string]bool) {
 	}
 
 	return len(existingMap), existingMap
+}
+
+// isDozouManagedTask は ユーザーが個別に追加した独自タスクを排除し、dozou管轄タスクのみ判定します
+func (a *App) isDozouManagedTask(fileName string) bool {
+	if a.Repo == nil || a.Repo.DB() == nil || fileName == "" { return false }
+	var count int64
+	_ = a.Repo.DB().Model(&models.ThunderTask{}).Where("file_name = ?", fileName).Count(&count).Error
+	return count > 0
 }
 
 // CheckAndReonboardMissingTasks は DB上ONBOARDEDだが迅雷から消失したタスクを3個上限内で再投入します

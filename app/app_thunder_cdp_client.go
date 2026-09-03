@@ -40,39 +40,13 @@ func FetchThunderMainRendererWSUrl(port int) (string, error) {
 	return "", fmt.Errorf("no valid main-renderer target found")
 }
 
-// ThunderExtractTaskScript は画面静止ロック付きで裏でダウンロードリストを抜き取るステルススクリプトです
-const ThunderExtractTaskScript = `(async () => {
-	const navs = Array.from(document.querySelectorAll('.xly-nav__item, .xly-side-menu__item, [class*="nav__item"]'));
-	const active = navs.find(it => it.classList.contains('is-active') || it.classList.contains('active') || it.classList.contains('selected'));
-	const curTab = active ? (active.querySelector('.xly-nav__tab, .xly-nav__content') || active).innerText.split('\n')[0].trim() : '下载中';
-
-	if (curTab === '下载中') {
-		const list = document.querySelector('.xly-side-list');
-		return list ? Array.from(list.querySelectorAll('.xly-side-content')).map(el => el.innerText) : [];
+// ThunderExtractTaskScript は画面上のダウンロードリストを瞬時に抜き取るステルススクリプトです
+const ThunderExtractTaskScript = `(() => {
+	const sel = '.td-draglist-item, .xly-side-item, .xly-side-content';
+	let items = Array.from(document.querySelectorAll(sel));
+	if (items.length === 0) {
+		const list = document.querySelector('.xly-side-list, .td-draglist, .xly-main');
+		if (list) items = Array.from(list.children);
 	}
-
-	const area = document.querySelector('.xly-side-list, .xly-main, #app') || document.body;
-	const overlay = area.cloneNode(true);
-	overlay.id = '__stealth_freeze__';
-	overlay.style.cssText = 'position:absolute;top:' + area.offsetTop + 'px;left:' + area.offsetLeft + 'px;width:' + area.offsetWidth + 'px;height:' + area.offsetHeight + 'px;z-index:999999;pointer-events:none;';
-	document.body.appendChild(overlay);
-
-	try {
-		const allTabs = Array.from(document.querySelectorAll('.xly-nav__tab, span, a, .xly-nav__item'));
-		const dlTab = allTabs.find(el => el.innerText && el.innerText.trim() === '下载中');
-		const origTab = allTabs.find(el => el.innerText && el.innerText.trim() === curTab);
-
-		if (dlTab) dlTab.click();
-		await new Promise(r => setTimeout(r, 60));
-
-		const list = document.querySelector('.xly-side-list');
-		const tasks = list ? Array.from(list.querySelectorAll('.xly-side-content')).map(el => el.innerText) : [];
-
-		if (origTab) origTab.click();
-		await new Promise(r => setTimeout(r, 30));
-		return tasks;
-	} finally {
-		const ov = document.getElementById('__stealth_freeze__');
-		if (ov) ov.remove();
-	}
+	return items.map(el => el.innerText).filter(t => t && (t.includes('.jpg') || t.includes('.mp4') || t.includes('.png') || t.includes('.webp')));
 })()`

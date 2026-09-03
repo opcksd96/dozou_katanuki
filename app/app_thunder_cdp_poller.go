@@ -3,7 +3,6 @@ package app
 
 import (
 	"encoding/json"
-	"strings"
 	"time"
 )
 
@@ -40,21 +39,7 @@ func (a *App) StartThunderCDPAdaptivePoller() {
 			}
 
 			interval = 2000 * time.Millisecond
-			a.reconcileThunderCDPTasks(evalRes.Result.Result.Value)
+			_, _ = a.ReconcileThunderTasksWithDB()
 		}
 	}()
-}
-
-func (a *App) reconcileThunderCDPTasks(contents []string) {
-	for _, text := range contents {
-		for _, line := range strings.Split(text, "\n") {
-			line = strings.TrimSpace(line)
-			if !strings.Contains(line, ".jpg") && !strings.Contains(line, ".mp4") { continue }
-
-			// 【鉄則③】リソース枯渇タスクを取り下げ（thunder_tasksで全滅判定）
-			if strings.Contains(text, "无法继续下载") || strings.Contains(text, "暂无任何有效资源") {
-				go a.ReapDepletedTask(line)
-			}
-		}
-	}
 }
