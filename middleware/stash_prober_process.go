@@ -1,47 +1,22 @@
-// middleware/stash_prober_process.go (100行以下)
+// middleware/stash_prober_process.go (100行以下 - SPEC-PRINCIPLE-001)
 package middleware
 
 import (
-	"context"
 	"fmt"
-	"os/exec"
-	"path/filepath"
-	"strings"
-	"syscall"
-	"time"
 )
 
+// NOTE: v4.5.0 アーキテクチャ原則（PLAN-01）に基づき、
+// Stash プロセスの起動・停止・強制終了はすべて外装の PS1 Top Conductor (scripts/dev.ps1 / run.ps1) が担当します。
+// Go ランタイム内部から tasklist や taskkill を発行する処理は完全に無効化・撤廃されました。
+
 func (p *StashProber) isStashProcessAlive() bool {
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
-	defer cancel()
-	cmd := exec.CommandContext(ctx, "tasklist", "/FI", "IMAGENAME eq stash-win.exe")
-	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true, CreationFlags: 0x08000000}
-	out, err := cmd.Output()
-	if err != nil { return false }
-	return strings.Contains(strings.ToLower(string(out)), "stash-win.exe")
+	// Go 内部での OS プロセス監視は行わず、HTTP ポートの接続状態 (p.connected) のみを参照
+	return p.connected
 }
 
 func (p *StashProber) kickStashAsync() {
-	if p.isStashProcessAlive() {
-		fmt.Println("[StashProber] Stash プロセスが既に存在するため二重起動を抑止しました。")
-		return
-	}
-	if p.emitter != nil {
-		p.emitter("toast:notify", map[string]string{
-			"type":    "info",
-			"message": "📦 Stash をバックグラウンド起動中...",
-		})
-	}
-	go func() {
-		if p.isStashProcessAlive() { return }
-		absPath, err := filepath.Abs(p.stashPath)
-		if err != nil { return }
-		cmd := exec.Command(absPath)
-		cmd.Dir = filepath.Dir(absPath)
-		cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true, CreationFlags: 0x08000000 | 0x00000200}
-		_ = cmd.Start()
-		fmt.Printf("[StashProber] Stash プロセスをバックグラウンドキックしました: %s\n", absPath)
-	}()
+	// Go 内部からの直接起動は禁止（死の多重起動ループ防止）
+	fmt.Println("[StashProber] kickStashAsync は廃止されました。外部スクリプト(dev.ps1/run.ps1)による管理に委譲しています。")
 }
 
 func (p *StashProber) Stop() {
@@ -49,9 +24,5 @@ func (p *StashProber) Stop() {
 		p.cancelFunc()
 	}
 	p.running = false
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
-	defer cancel()
-	cmd := exec.CommandContext(ctx, "taskkill", "/F", "/IM", "stash-win.exe")
-	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true, CreationFlags: 0x08000000}
-	_ = cmd.Run()
+	fmt.Println("[StashProber] StashProber 停止完了 (プロセス管理は外部Conductorに委譲)")
 }

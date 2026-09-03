@@ -17,3 +17,11 @@ CREATE INDEX IF NOT EXISTS `idx_url_redirects_article_id` ON `url_redirects`(`ar
 CREATE TABLE IF NOT EXISTS `whitelists` (`id` integer PRIMARY KEY AUTOINCREMENT,`type` text NOT NULL,`value` text NOT NULL,`group_name` text DEFAULT '',`alias_of` text DEFAULT '',`is_active` boolean NOT NULL DEFAULT true);
 CREATE UNIQUE INDEX IF NOT EXISTS `idx_whitelists_value` ON `whitelists`(`value`);
 
+-- PLAN-09: Accounts リレーショングラフ管理
+CREATE TABLE IF NOT EXISTS `account_relations` (`id` text PRIMARY KEY, `source_account_id` text NOT NULL, `target_account_id` text NOT NULL, `target_handle` text, `relation_type` text NOT NULL, `direction` text NOT NULL, `weight` real NOT NULL DEFAULT 1.0, `created_at` datetime NOT NULL, `updated_at` datetime NOT NULL, CONSTRAINT `fk_account_relations_source` FOREIGN KEY (`source_account_id`) REFERENCES `accounts`(`numeric_id`));
+CREATE INDEX IF NOT EXISTS `idx_account_relations_source` ON `account_relations`(`source_account_id`);
+CREATE INDEX IF NOT EXISTS `idx_account_relations_target` ON `account_relations`(`target_account_id`);
+
+CREATE TABLE IF NOT EXISTS `article_relation_evidences` (`id` text PRIMARY KEY, `relation_id` text NOT NULL, `source_article_id` text NOT NULL, `target_article_id` text, `evidence_type` text NOT NULL, `context_snippet` text, `media_id` text, `is_salvaged` boolean NOT NULL DEFAULT false, `observed_at` datetime NOT NULL, CONSTRAINT `fk_article_relation_evidences_rel` FOREIGN KEY (`relation_id`) REFERENCES `account_relations`(`id`));
+CREATE INDEX IF NOT EXISTS `idx_evidences_relation_id` ON `article_relation_evidences`(`relation_id`);
+CREATE INDEX IF NOT EXISTS `idx_evidences_source_article` ON `article_relation_evidences`(`source_article_id`);

@@ -65,21 +65,15 @@ func (p *StashProber) check(client *http.Client, disconnectedSince *time.Time, l
 			*disconnectedSince = time.Now()
 			if p.emitter != nil { p.emitter("stash:ready", false) }
 			GetGlobalJournal().Record("stash", "WARN", "stash_disconnected", "Stash connection lost", map[string]interface{}{"error": err.Error()})
-			fmt.Println("[StashProber] ⚠️ Stash 切断検知 (Reconnecting...)")
-		}
-		if time.Since(*disconnectedSince) > 3*time.Second && time.Since(*lastKickAt) > 8*time.Second {
-			if !p.isStashProcessAlive() {
-				*lastKickAt = time.Now()
-				fmt.Println("[StashProber] 🔄 Stash プロセス不在を検知 ➔ 自動再キック実行")
-				p.kickStashAsync()
-			}
+			fmt.Println("[StashProber] ⚠️ Stash 未接続 / 高負荷処理中 (Silent Waiting...)")
 		}
 	}
 }
 
 func (p *StashProber) probeLoop(ctx context.Context) {
-	client := &http.Client{Timeout: 800 * time.Millisecond}
-	ticker := time.NewTicker(1500 * time.Millisecond)
+	// スプライト生成・トランスコード等の高負荷時を考慮し5秒タイムアウト
+	client := &http.Client{Timeout: 5 * time.Second}
+	ticker := time.NewTicker(5 * time.Second)
 	defer ticker.Stop()
 
 	disconnectedSince := time.Now()
