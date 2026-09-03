@@ -27,9 +27,16 @@ func (a *App) runThunderOrchestrationWorker() {
 				continue
 			}
 
-			existingFileMap := a.fetchExistingThunderFilesMap()
-			destDir := a.getMediaDownloadDir()
+			maxSlots := orchState.config.MaxConcurrentSlots
+			if maxSlots <= 0 || maxSlots > 3 { maxSlots = 3 }
 
+			// ④〜⑦ 迅雷タスク状態確認、DB照合、エラー判定・取り下げ
+			_, existingFileMap := a.ReconcileThunderTasksWithDB()
+
+			// ⑥ DB上ONBOARDEDだが迅雷に未登録のタスクを3スロット上限内で再登録
+			a.CheckAndReonboardMissingTasks(existingFileMap, maxSlots)
+
+			destDir := a.getMediaDownloadDir()
 			runningCount := 0
 			for _, t := range orchState.queue {
 				if t.Status == "running" {
@@ -43,8 +50,7 @@ func (a *App) runThunderOrchestrationWorker() {
 				}
 			}
 
-			maxSlots := orchState.config.MaxConcurrentSlots
-			if maxSlots <= 0 || maxSlots > 3 { maxSlots = 3 }
+			// ⑧ 3個を上限にスロット制限
 			if runningCount >= maxSlots || len(existingFileMap) >= maxSlots {
 				orchState.mu.Unlock()
 				continue
@@ -73,13 +79,7 @@ func (a *App) runThunderOrchestrationWorker() {
 		}
 	}
 }
-func (a *App) fetchExistingThunderFilesMap() map[string]bool {
-	m := make(map[string]bool)
-	for _, t := range a.GetThunderCDPStatus().CapturedTasks {
-		if t.FileName != "" { m[t.FileName] = true }
-	}
-	return m
-}
+
 func (a *App) dispatchTaskDirectly(task *models.ThunderOrchestratorTask) {
 	now := time.Now()
 	task.Status = "running"
@@ -87,7 +87,7 @@ func (a *App) dispatchTaskDirectly(task *models.ThunderOrchestratorTask) {
 	orchState.processedMap[task.ID] = true
 	if a.Repo != nil && task.MediaID != "" {
 		_ = a.Repo.UpdateMediaMetadata(task.MediaID, "ESCALATED", "", "", fmt.Sprintf("迅雷投入中 (%s)", task.ResolutionType))
-		_ = a.Repo.MarkThunderTaskRunning(task.ID)
+		_ = a.Repo.MarkThunderTaskOnboarded(task.ID, "")
 	}
 	destDir := a.getMediaDownloadDir()
 	go func(t *models.ThunderOrchestratorTask, dest string) {

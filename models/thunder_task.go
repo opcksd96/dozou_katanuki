@@ -8,8 +8,11 @@ type ThunderTaskStatus string
 
 const (
 	ThunderTaskPending   ThunderTaskStatus = "PENDING"
+	ThunderTaskOnboarded ThunderTaskStatus = "ONBOARDED"
 	ThunderTaskRunning   ThunderTaskStatus = "RUNNING"
+	ThunderTaskHolding   ThunderTaskStatus = "HOLDING"
 	ThunderTaskCompleted ThunderTaskStatus = "COMPLETED"
+	ThunderTaskRetired   ThunderTaskStatus = "RETIRED"
 	ThunderTaskDepleted  ThunderTaskStatus = "DEPLETED"
 	ThunderTaskReaped    ThunderTaskStatus = "REAPED"
 )
@@ -23,6 +26,9 @@ type ThunderTask struct {
 	URL            string            `gorm:"not null" json:"url"`
 	FileName       string            `gorm:"index;not null" json:"file_name"`
 	Status         ThunderTaskStatus `gorm:"index;default:'PENDING'" json:"status"`
+	SummarySize    string            `json:"summary_size,omitempty"`
+	ErrorReason    string            `json:"error_reason,omitempty"`
+	LastAttemptAt  *time.Time        `json:"last_attempt_at,omitempty"`
 	DispatchedAt   *time.Time        `json:"dispatched_at,omitempty"`
 	CompletedAt    *time.Time        `json:"completed_at,omitempty"`
 	ReapedAt       *time.Time        `json:"reaped_at,omitempty"`

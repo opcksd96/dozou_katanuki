@@ -33,6 +33,7 @@ func (a *App) CoordinateTaskCompletion(mediaID, completedFileName string, stage 
 	_ = a.Repo.UpdateMediaMetadata(mediaID, "COMPLETED", "", "", "")
 	_ = a.Repo.MarkTaskCompleted(mediaID)
 	a.AppendPipelineLog(string(stage), "SUCCESS", fmt.Sprintf("救出完了: %s (%s)", mediaID, completedFileName))
+	a.emitToast("success", fmt.Sprintf("🎉 ダウンロード成功: %s", completedFileName))
 	a.TriggerStashAllPipelines()
 }
 

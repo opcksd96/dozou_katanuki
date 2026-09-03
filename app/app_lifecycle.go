@@ -69,6 +69,7 @@ func (a *App) broadcastStart(ctx context.Context, netCfg models.NetworkConfig, b
 
 func (a *App) DomReady(ctx context.Context) {
 	runtime.WindowShow(ctx)
+	go a.CheckThunderCDPOnStartup()
 }
 
 func (a *App) Shutdown(ctx context.Context) {
