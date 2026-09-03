@@ -51,11 +51,14 @@ const handleBatchTrashConfirm = (reason: string) => { emit('batchTrash', Array.f
 
 <template>
   <div class="space-y-2 flex flex-col h-full text-xs">
-    <!-- アカウント切替バー -->
-    <div class="flex flex-wrap items-center gap-1.5 bg-slate-950/40 p-2 rounded-xl border border-slate-800">
-      <span class="text-[11px] font-bold text-slate-400 mr-1">アカウント:</span>
-      <button @click="emit('selectAccount', 'all')" :class="searchAccount === 'all' ? 'bg-blue-600 text-white' : 'bg-slate-900 text-slate-400'" class="px-2.5 py-1 rounded-lg border border-slate-700 font-bold cursor-pointer">ALL</button>
-      <button v-for="acc in accounts" :key="acc.numeric_id" @click="emit('selectAccount', acc.numeric_id)" :class="searchAccount === acc.numeric_id ? 'bg-blue-600 text-white' : 'bg-slate-900 text-slate-400'" class="px-2.5 py-1 rounded-lg border border-slate-700 font-mono cursor-pointer">@{{ acc.username || acc.handle || acc.numeric_id }}</button>
+    <div class="flex items-center gap-2 bg-slate-950/40 p-2 rounded-xl border border-slate-800 shrink-0">
+      <span class="text-[11px] font-bold text-slate-400">アカウント:</span>
+      <select :value="searchAccount" @change="emit('selectAccount', ($event.target as HTMLSelectElement).value)" class="flex-1 min-w-0 bg-slate-900 border border-slate-700 rounded-lg px-2 py-1.5 text-slate-200 text-xs font-mono focus:outline-none focus:border-blue-500 cursor-pointer">
+        <option value="all">ALL (@全体)</option>
+        <option v-for="acc in accounts" :key="acc.numeric_id" :value="acc.numeric_id">
+          @{{ acc.username || acc.handle || acc.numeric_id }}
+        </option>
+      </select>
     </div>
 
     <!-- 検索バー -->

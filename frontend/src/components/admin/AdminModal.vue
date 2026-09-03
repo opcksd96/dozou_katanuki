@@ -2,7 +2,7 @@
 <script setup lang="ts">
 import { ref, reactive, watch, onMounted, onUnmounted } from 'vue';
 import { useAdmin } from '../../composables/useAdmin';
-import { Minus, Square, X, ArrowLeft, Settings2, RefreshCw, Server, ExternalLink } from 'lucide-vue-next';
+import { Minus, Square, X, ArrowLeft, Settings2, RefreshCw, Server, ExternalLink, Menu } from 'lucide-vue-next';
 import { WindowMinimise, WindowToggleMaximise, Quit, EventsOn, BrowserOpenURL } from '../../../wailsjs/runtime/runtime';
 import { AdminTabId } from '../../models/adminTabs';
 import AdminNavSidebar from './AdminNavSidebar.vue';
@@ -33,8 +33,11 @@ const checkStash = async () => {
   } catch { isStashOnline.value = false; }
 };
 const openStashWeb = () => {
-  try { BrowserOpenURL('http://127.0.0.1:9999/'); }
-  catch { window.open('http://127.0.0.1:9999/', '_blank'); }
+  if ((window as any)._isWailsPolyfill) {
+    window.open(`http://${window.location.hostname}:9999/`, '_blank');
+  } else {
+    try { BrowserOpenURL('http://127.0.0.1:9999/'); } catch {}
+  }
 };
 const handleGlobalHardReload = () => {
   sessionStorage.setItem('admin_auto_open_tab', activeTab.value);
@@ -57,16 +60,19 @@ onUnmounted(() => { window.removeEventListener('keydown', handleKey); if (unoffS
         <h2 class="text-xs font-bold text-slate-100 truncate">Admin Governance Portal</h2>
       </div>
       <div class="flex items-center gap-1.5 wails-no-drag shrink-0">
-        <button @click="openStashWeb" class="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700/80 text-[11px] font-mono transition-all cursor-pointer active:scale-95 group" title="Stash Web UI を開く">
+        <button @click="openStashWeb" class="hidden md:flex items-center gap-1.5 px-2 py-1 rounded-lg bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700/80 text-[11px] font-mono transition-all cursor-pointer active:scale-95 group" title="Stash Web UI を開く">
           <span :class="['w-1.5 h-1.5 rounded-full', isStashOnline ? 'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]' : 'bg-amber-500']"></span>
           <span class="text-slate-400 group-hover:text-white flex items-center gap-1"><Server class="w-3 h-3" />Stash</span>
           <ExternalLink class="w-2.5 h-2.5 text-slate-500 group-hover:text-blue-400 ml-0.5" />
         </button>
-        <button @click="handleGlobalHardReload" class="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-semibold border border-slate-700 cursor-pointer active:scale-95 flex items-center gap-1.5" title="現在のタブを保持して再読み込み">
+        <button @click="handleGlobalHardReload" class="hidden md:flex px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-semibold border border-slate-700 cursor-pointer active:scale-95 items-center gap-1.5 shrink-0" title="現在のタブを保持して再読み込み">
           <RefreshCw class="w-3.5 h-3.5" /><span class="hidden sm:inline">再読込</span>
         </button>
-        <button @click="close" class="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-semibold border border-slate-700 cursor-pointer active:scale-95">
+        <button @click="close" class="hidden md:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-semibold border border-slate-700 cursor-pointer active:scale-95 shrink-0">
           <ArrowLeft class="w-3.5 h-3.5" /><span>タイムラインへ</span>
+        </button>
+        <button @click="isMobileNavOpen = true" class="md:hidden p-1.5 rounded-lg bg-slate-800 border border-slate-700 text-slate-300 hover:text-white cursor-pointer shrink-0" aria-label="Menu">
+          <Menu class="w-4 h-4" />
         </button>
         <div class="hidden sm:flex items-center ml-1 border-l border-slate-700 pl-1.5">
           <button @click="() => { try { WindowMinimise(); } catch {} }" class="p-1 rounded text-slate-400 hover:text-white"><Minus class="w-3 h-3" /></button>
@@ -87,6 +93,6 @@ onUnmounted(() => { window.removeEventListener('keydown', handleKey); if (unoffS
         <ConfigPortal v-else-if="activeTab === 'config'" class="overflow-y-auto flex-1" :config="admin.configForm" :loading-config="admin.isConfigLoading?.value ?? admin.isConfigLoading" :saving-config="admin.isConfigLoading?.value ?? admin.isConfigLoading" :save-status="admin.configSaved?.value ?? admin.configSaved ? { success: true, message: '設定を保存しました' } : null" @save-config="admin.saveConfig" @load-config="admin.fetchConfig" />
       </main>
     </div>
-    <AdminMobileMenu :is-open="isMobileNavOpen" :active-tab="activeTab" @close="isMobileNavOpen = false" @select="(t) => activeTab = t" @back-to-timeline="close" />
+    <AdminMobileMenu :is-open="isMobileNavOpen" :active-tab="activeTab" :is-stash-online="isStashOnline" @close="isMobileNavOpen = false" @select="(t) => activeTab = t" @back-to-timeline="close" @open-stash-web="openStashWeb" @hard-reload="handleGlobalHardReload" />
   </div>
 </template>

@@ -12,34 +12,34 @@ const emit = defineEmits<{
 </script>
 
 <template>
-  <div class="flex flex-wrap items-center justify-between gap-2 bg-slate-900/70 border border-slate-800 p-2 rounded-xl text-xs select-none shadow-sm">
+  <div class="flex flex-nowrap overflow-x-auto no-scrollbar items-center justify-between gap-2 bg-slate-900/70 border border-slate-800 p-2 rounded-xl text-xs select-none shadow-sm">
     <!-- 左側：選択ステータス ＆ バッチ操作 -->
-    <div class="flex items-center gap-2 flex-wrap">
-      <span class="text-slate-400 font-mono text-[11px] flex items-center gap-1.5">
+    <div class="flex items-center gap-2 shrink-0">
+      <span class="text-slate-400 font-mono text-[11px] flex items-center gap-1.5 shrink-0 whitespace-nowrap">
         <span>全 <strong class="text-slate-200">{{ total }}</strong> 件</span>
         <span v-if="selectedCount > 0" class="text-blue-400 font-bold bg-blue-950/60 border border-blue-800/60 px-2 py-0.5 rounded-md">
-          ✓ 選択: {{ selectedCount }} 件
+          ✓ <span class="hidden md:inline">選択: </span>{{ selectedCount }}<span class="hidden md:inline"> 件</span>
         </span>
       </span>
 
       <template v-if="selectedCount > 0">
         <button
           @click="emit('batchTrash')"
-          class="px-2.5 py-1 bg-rose-950/80 hover:bg-rose-900 border border-rose-700/60 text-rose-300 hover:text-white font-bold rounded-lg flex items-center gap-1 cursor-pointer transition-colors shadow"
+          class="px-2.5 py-1 bg-rose-950/80 hover:bg-rose-900 border border-rose-700/60 text-rose-300 hover:text-white font-bold rounded-lg flex items-center gap-1 cursor-pointer transition-colors shadow shrink-0 whitespace-nowrap"
           title="選択した記事を一括でゴミ箱へ移動"
         >
-          <span>🗑️</span> 一括削除 ({{ selectedCount }})
+          <span>🗑️</span><span class="hidden md:inline"> 一括削除</span> ({{ selectedCount }})
         </button>
         <button
           @click="emit('batchResetTranslations')"
-          class="px-2.5 py-1 bg-amber-950/80 hover:bg-amber-900 border border-amber-700/60 text-amber-300 hover:text-white font-bold rounded-lg flex items-center gap-1 cursor-pointer transition-colors shadow"
+          class="px-2.5 py-1 bg-amber-950/80 hover:bg-amber-900 border border-amber-700/60 text-amber-300 hover:text-white font-bold rounded-lg flex items-center gap-1 cursor-pointer transition-colors shadow shrink-0 whitespace-nowrap"
           title="選択した記事の翻訳データを初期化"
         >
-          <span>🔄</span> 翻訳リセット ({{ selectedCount }})
+          <span>🔄</span><span class="hidden md:inline"> 翻訳リセット</span> ({{ selectedCount }})
         </button>
         <button
           @click="emit('clearSelection')"
-          class="px-2 py-1 text-slate-400 hover:text-slate-200 text-[11px] cursor-pointer"
+          class="px-2 py-1 text-slate-400 hover:text-slate-200 text-[11px] cursor-pointer shrink-0 whitespace-nowrap"
         >
           選択解除
         </button>
@@ -47,34 +47,34 @@ const emit = defineEmits<{
     </div>
 
     <!-- 右側：Undo / Redo & ゴミ箱表示トグル -->
-    <div class="flex items-center gap-2 flex-wrap">
-      <div class="flex items-center gap-1 bg-slate-950 p-0.5 rounded-lg border border-slate-800">
+    <div class="flex items-center gap-2 shrink-0">
+      <div class="flex items-center gap-1 bg-slate-950 p-0.5 rounded-lg border border-slate-800 shrink-0">
         <button
           @click="emit('undo')"
           :disabled="!canUndo"
-          class="px-2 py-1 rounded text-slate-300 hover:bg-slate-800 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer flex items-center gap-1 text-[11px]"
+          class="px-2 py-1 rounded text-slate-300 hover:bg-slate-800 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer flex items-center gap-1 text-[11px] shrink-0 whitespace-nowrap"
           title="直前の操作を取り消す (Ctrl+Z)"
         >
-          <span>↩</span> アンドゥ
+          <span>↩</span><span class="hidden md:inline"> アンドゥ</span>
         </button>
         <button
           @click="emit('redo')"
           :disabled="!canRedo"
-          class="px-2 py-1 rounded text-slate-300 hover:bg-slate-800 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer flex items-center gap-1 text-[11px]"
+          class="px-2 py-1 rounded text-slate-300 hover:bg-slate-800 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer flex items-center gap-1 text-[11px] shrink-0 whitespace-nowrap"
           title="取り消した操作をやり直す (Ctrl+Y)"
         >
-          <span>↪</span> リドゥ
+          <span>↪</span><span class="hidden md:inline"> リドゥ</span>
         </button>
       </div>
 
-      <label class="flex items-center gap-1.5 px-2.5 py-1 bg-slate-950/80 border border-slate-800 rounded-lg text-slate-400 hover:text-slate-200 cursor-pointer select-none text-[11px]">
+      <label class="flex items-center gap-1.5 px-2.5 py-1 bg-slate-950/80 border border-slate-800 rounded-lg text-slate-400 hover:text-slate-200 cursor-pointer select-none text-[11px] shrink-0 whitespace-nowrap">
         <input
           type="checkbox"
           :checked="includeTrash"
           @change="emit('update:includeTrash', ($event.target as HTMLInputElement).checked)"
           class="rounded border-slate-700 bg-slate-900 text-rose-500 focus:ring-0 w-3.5 h-3.5"
         />
-        <span :class="{ 'text-rose-300 font-bold': includeTrash }">🗑️ 削除済みも含める</span>
+        <span :class="{ 'text-rose-300 font-bold': includeTrash }">🗑️<span class="hidden md:inline"> 削除済みも含める</span></span>
       </label>
     </div>
   </div>

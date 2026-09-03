@@ -36,6 +36,8 @@ func (s *BroadcastService) startServerLocked() error {
 	mux.HandleFunc("/api/admin/pipeline/sync-thunder", s.handleSyncThunderAPI)
 	mux.HandleFunc("/api/admin/pipeline/reset-all", s.handleResetAllAPI)
 	mux.HandleFunc("/api/admin/pipeline/ignite", s.handleIgniteAPI)
+	mux.HandleFunc("/api/admin/system/journals", s.handleSystemJournalsAPI)
+	mux.HandleFunc("/api/admin/system/restart", s.handleRestartAPI)
 	mux.HandleFunc("/api/article/trash", s.handleArticleTrashAPI)
 	mux.HandleFunc("/api/article/restore", s.handleArticleRestoreAPI)
 	mux.HandleFunc("/api/article/batch-trash", s.handleArticleBatchTrashAPI)

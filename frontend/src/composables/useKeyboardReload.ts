@@ -6,6 +6,7 @@ import { WindowReload } from '../../wailsjs/runtime/runtime';
  * 画面（WebView / DOM）の完全リロードを実行する統一関数
  */
 export function reloadWindow() {
+  try { sessionStorage.setItem('katana_scroll_y', window.scrollY.toString()); } catch (_) {}
   try {
     if (typeof WindowReload === 'function') {
       WindowReload();

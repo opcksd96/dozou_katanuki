@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 )
@@ -54,6 +55,7 @@ func (a *App) GetPipelineLogs(stage string, limit int) ([]PipelineLogEntry, erro
 			continue
 		}
 
+		var fileEntries []PipelineLogEntry
 		scanner := bufio.NewScanner(f)
 		for scanner.Scan() {
 			line := scanner.Text()
@@ -61,17 +63,17 @@ func (a *App) GetPipelineLogs(stage string, limit int) ([]PipelineLogEntry, erro
 				parts := strings.SplitN(line, "] ", 2)
 				if len(parts) == 2 {
 					header := strings.TrimPrefix(parts[0], "[")
-					msg := parts[1]
+					msg := strings.TrimSpace(parts[1])
 					ts := header
 					lvl := "INFO"
 					if strings.Contains(msg, "[") && strings.Contains(msg, "]") {
 						lvlParts := strings.SplitN(msg, "] ", 2)
 						lvl = strings.Trim(lvlParts[0], "[]")
 						if len(lvlParts) > 1 {
-							msg = lvlParts[1]
+							msg = strings.TrimSpace(lvlParts[1])
 						}
 					}
-					entries = append(entries, PipelineLogEntry{
+					fileEntries = append(fileEntries, PipelineLogEntry{
 						Timestamp: ts,
 						Stage:     strings.ToUpper(st),
 						Level:     lvl,
@@ -81,7 +83,16 @@ func (a *App) GetPipelineLogs(stage string, limit int) ([]PipelineLogEntry, erro
 			}
 		}
 		f.Close()
+
+		if len(fileEntries) > limit {
+			fileEntries = fileEntries[len(fileEntries)-limit:]
+		}
+		entries = append(entries, fileEntries...)
 	}
+
+	sort.Slice(entries, func(i, j int) bool {
+		return entries[i].Timestamp < entries[j].Timestamp
+	})
 
 	if len(entries) > limit {
 		entries = entries[len(entries)-limit:]

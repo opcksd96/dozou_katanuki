@@ -4,7 +4,7 @@ export function initWailsPolyfill() {
   if (typeof window === 'undefined') return;
 
   const isDev = window.location.port === '5173';
-  const baseUrl = isDev ? 'http://127.0.0.1:5175' : '';
+  const baseUrl = ''; // Use relative paths to leverage Vite proxy or backend directly
 
   let sseListeners: Record<string, Function[]> = {};
 
@@ -56,6 +56,8 @@ export function initWailsPolyfill() {
     GetPipelineLogs: async (stage: string, limit: number) => getJson(`/api/admin/pipeline/logs?stage=${encodeURIComponent(stage || 'all')}&limit=${limit || 50}`, []),
     IsPipelineAutoEngineRunning: async () => { try { const o = await getJson('/api/admin/pipeline/overview', null); return o?.auto_engine_running || false; } catch { return false; } },
     TogglePipelineAutoEngine: async (enable: boolean) => { try { const r = await postJson('/api/admin/pipeline/toggle', { enable }); return !!r?.isRunning; } catch { return false; } },
+    GetSystemJournals: async (limit: number) => getJson(`/api/admin/system/journals?limit=${limit || 200}`, []),
+    RestartBackendServices: async () => { try { await postJson('/api/admin/system/restart', {}); return true; } catch { return false; } },
     SyncThunderDownloads: async () => { try { await postJson('/api/admin/pipeline/sync-thunder', {}); } catch {} },
     GetMediaList: async (acc = 'all', st = 'all', t = 'all', l = 24, o = 0) => getJson(`/api/media?account_id=${encodeURIComponent(acc)}&status=${encodeURIComponent(st)}&type=${encodeURIComponent(t)}&limit=${l}&offset=${o}`, { items: [], total: 0, stats: { total_count: 0, image_count: 0, video_count: 0 } }),
     GetMediaDownloadStatusStats: async (acc = 'all') => getJson(`/api/media/stats?account_id=${encodeURIComponent(acc)}`, { queued: 0, completed: 0, dead_404: 0, outsourced: 0, retained: 0, failed: 0, total: 0 }),

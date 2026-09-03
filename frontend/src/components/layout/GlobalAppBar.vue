@@ -23,8 +23,11 @@ const checkStash = async () => {
 };
 
 const openStashWeb = () => {
-  try { BrowserOpenURL('http://127.0.0.1:9999/'); }
-  catch { window.open('http://127.0.0.1:9999/', '_blank'); }
+  if ((window as any)._isWailsPolyfill) {
+    window.open(`http://${window.location.hostname}:9999/`, '_blank');
+  } else {
+    try { BrowserOpenURL('http://127.0.0.1:9999/'); } catch {}
+  }
 };
 
 onMounted(() => {

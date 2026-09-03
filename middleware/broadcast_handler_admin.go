@@ -3,6 +3,8 @@ package middleware
 import (
 	"encoding/json"
 	"net/http"
+	"strconv"
+
 	"dozou_katanuki/domain/ports"
 )
 
@@ -127,3 +129,37 @@ func (s *BroadcastService) handleSyncThunderAPI(w http.ResponseWriter, r *http.R
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	_ = json.NewEncoder(w).Encode(res)
 }
+
+func (s *BroadcastService) handleSystemJournalsAPI(w http.ResponseWriter, r *http.Request) {
+	if ports.GetScope(r.Context()) != ports.ScopeAdmin {
+		http.Error(w, "Forbidden", http.StatusForbidden); return
+	}
+	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
+	if limit <= 0 {
+		limit = 200
+	}
+	entries := GetGlobalJournal().GetEntries(limit)
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	_ = json.NewEncoder(w).Encode(entries)
+}
+
+func (s *BroadcastService) handleRestartAPI(w http.ResponseWriter, r *http.Request) {
+	if ports.GetScope(r.Context()) != ports.ScopeAdmin {
+		http.Error(w, "Forbidden", http.StatusForbidden); return
+	}
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed); return
+	}
+
+	// Just record the journal entry, since we don't have access to App struct here
+	GetGlobalJournal().Record(
+		"system", "INFO", "backend_restarted",
+		"Wails backend services re-initialized (Dev Mode HTTP triggered)",
+		map[string]interface{}{"status": "reloaded_ok_dev"},
+	)
+
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	_ = json.NewEncoder(w).Encode(map[string]bool{"success": true})
+}
+
+

@@ -9,6 +9,7 @@ import { useKeyboardNavigation } from './composables/useKeyboardNavigation';
 import { useKeyboardReload } from './composables/useKeyboardReload';
 import { useTheme } from './composables/useTheme';
 import { useExternalAppsHealth } from './composables/useExternalAppsHealth';
+import { useAppRouter } from './composables/useAppRouter';
 import GlobalAppBar from './components/layout/GlobalAppBar.vue';
 import AccountScopeSelector from './components/timeline/AccountScopeSelector.vue';
 import AccountHeroHeader from './components/timeline/AccountHeroHeader.vue';
@@ -33,6 +34,11 @@ const currentAccountObj = computed(() => accounts.value.find((a) => a.numeric_id
 const currentNavItems = computed(() => (activeArticleId.value && detail.value) ? [detail.value.article, ...(detail.value.thread || [])] : articles.value);
 const openDetail = (id: string) => { activeArticleId.value = id; fetchDetail(id); window.scrollTo({ top: 0, behavior: 'smooth' }); };
 const closeDetail = () => { activeArticleId.value = null; clearDetail(); };
+
+useAppRouter(
+  { activeArticleId, selectedAccount, isAdminOpen, isTimelineLoading: loading, isDetailLoading: detailLoading },
+  { onSelectAccount: selectAccount, onSelectPost: openDetail, onOpenAdmin: () => { isAdminOpen.value = true; } }
+);
 
 const { focusedIndex, isHelpOpen } = useKeyboardNavigation({
   getItems: () => currentNavItems.value, onSelectArticle: openDetail, onToggleLike: toggleLike,
