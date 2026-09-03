@@ -9,6 +9,7 @@ import (
 )
 
 func (s *BroadcastService) handleMediaBookmarkAPI(w http.ResponseWriter, r *http.Request) {
+	if !ports.IsAdmin(r.Context()) { http.Error(w, `{"error":"Forbidden: Requires Admin scope"}`, http.StatusForbidden); return }
 	if s.timelineService == nil { http.Error(w, `{"error":"Service unavailable"}`, 503); return }
 	var req struct{ MediaID string `json:"media_id"` }
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.MediaID == "" {
@@ -20,6 +21,7 @@ func (s *BroadcastService) handleMediaBookmarkAPI(w http.ResponseWriter, r *http
 }
 
 func (s *BroadcastService) handleMediaUpdateAPI(w http.ResponseWriter, r *http.Request) {
+	if !ports.IsAdmin(r.Context()) { http.Error(w, `{"error":"Forbidden: Requires Admin scope"}`, http.StatusForbidden); return }
 	if s.timelineService == nil { http.Error(w, `{"error":"Service unavailable"}`, 503); return }
 	var req struct {
 		MediaID string `json:"media_id"`; DownloadStatus string `json:"download_status"`
@@ -34,6 +36,7 @@ func (s *BroadcastService) handleMediaUpdateAPI(w http.ResponseWriter, r *http.R
 }
 
 func (s *BroadcastService) handleMediaPurgeAPI(w http.ResponseWriter, r *http.Request) {
+	if !ports.IsAdmin(r.Context()) { http.Error(w, `{"error":"Forbidden: Requires Admin scope"}`, http.StatusForbidden); return }
 	if s.timelineService == nil { http.Error(w, `{"error":"Service unavailable"}`, 503); return }
 	var req struct{ MediaID string `json:"media_id"` }
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.MediaID == "" {
@@ -44,6 +47,7 @@ func (s *BroadcastService) handleMediaPurgeAPI(w http.ResponseWriter, r *http.Re
 }
 
 func (s *BroadcastService) handleMediaPurgeByStatusAPI(w http.ResponseWriter, r *http.Request) {
+	if !ports.IsAdmin(r.Context()) { http.Error(w, `{"error":"Forbidden: Requires Admin scope"}`, http.StatusForbidden); return }
 	if s.timelineService == nil { http.Error(w, `{"error":"Service unavailable"}`, 503); return }
 	var req struct{ Status string `json:"status"`; AccountID string `json:"account_id"` }
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.Status == "" {
@@ -55,6 +59,7 @@ func (s *BroadcastService) handleMediaPurgeByStatusAPI(w http.ResponseWriter, r 
 }
 
 func (s *BroadcastService) handleMediaRequeueAPI(w http.ResponseWriter, r *http.Request) {
+	if !ports.IsAdmin(r.Context()) { http.Error(w, `{"error":"Forbidden: Requires Admin scope"}`, http.StatusForbidden); return }
 	if s.timelineService == nil { http.Error(w, `{"error":"Service unavailable"}`, 503); return }
 	var req struct{ Status string `json:"status"`; AccountID string `json:"account_id"` }
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil { http.Error(w, `{"error":"invalid json"}`, 400); return }
@@ -64,6 +69,10 @@ func (s *BroadcastService) handleMediaRequeueAPI(w http.ResponseWriter, r *http.
 }
 
 func (s *BroadcastService) handleMediaOpenActionAPI(w http.ResponseWriter, r *http.Request) {
+	if !ports.IsAdmin(r.Context()) {
+		http.Error(w, `{"error":"Forbidden: Explorer open action requires Admin scope (localhost only)"}`, http.StatusForbidden)
+		return
+	}
 	if s.timelineService == nil { http.Error(w, `{"error":"Service unavailable"}`, 503); return }
 	var req struct{ MediaID string `json:"media_id"`; Action string `json:"action"` }
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.MediaID == "" {

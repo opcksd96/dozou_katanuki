@@ -4,6 +4,8 @@ package middleware
 import (
 	"encoding/json"
 	"net/http"
+	
+	"dozou_katanuki/domain/ports"
 )
 
 type BatchTrashRequest struct {
@@ -17,6 +19,7 @@ type BatchIDsRequest struct {
 }
 
 func (s *BroadcastService) handleArticleBatchTrashAPI(w http.ResponseWriter, r *http.Request) {
+	if !ports.IsAdmin(r.Context()) { http.Error(w, `{"error":"Forbidden: Requires Admin scope"}`, http.StatusForbidden); return }
 	if s.timelineService == nil { http.Error(w, `{"error":"Timeline service unavailable"}`, 503); return }
 	if r.Method != http.MethodPost { http.Error(w, `{"error":"Method not allowed"}`, 405); return }
 	var req BatchTrashRequest
@@ -33,6 +36,7 @@ func (s *BroadcastService) handleArticleBatchTrashAPI(w http.ResponseWriter, r *
 }
 
 func (s *BroadcastService) handleArticleBatchRestoreAPI(w http.ResponseWriter, r *http.Request) {
+	if !ports.IsAdmin(r.Context()) { http.Error(w, `{"error":"Forbidden: Requires Admin scope"}`, http.StatusForbidden); return }
 	if s.timelineService == nil { http.Error(w, `{"error":"Timeline service unavailable"}`, 503); return }
 	if r.Method != http.MethodPost { http.Error(w, `{"error":"Method not allowed"}`, 405); return }
 	var req BatchIDsRequest
@@ -48,6 +52,7 @@ func (s *BroadcastService) handleArticleBatchRestoreAPI(w http.ResponseWriter, r
 }
 
 func (s *BroadcastService) handleArticleBatchResetTranslationsAPI(w http.ResponseWriter, r *http.Request) {
+	if !ports.IsAdmin(r.Context()) { http.Error(w, `{"error":"Forbidden: Requires Admin scope"}`, http.StatusForbidden); return }
 	if s.timelineService == nil { http.Error(w, `{"error":"Timeline service unavailable"}`, 503); return }
 	if r.Method != http.MethodPost { http.Error(w, `{"error":"Method not allowed"}`, 405); return }
 	var req BatchIDsRequest

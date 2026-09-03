@@ -4,6 +4,8 @@ package middleware
 import (
 	"encoding/json"
 	"net/http"
+	
+	"dozou_katanuki/domain/ports"
 )
 
 type TrashArticleRequest struct {
@@ -17,6 +19,7 @@ type RestoreArticleRequest struct {
 }
 
 func (s *BroadcastService) handleArticleTrashAPI(w http.ResponseWriter, r *http.Request) {
+	if !ports.IsAdmin(r.Context()) { http.Error(w, `{"error":"Forbidden: Requires Admin scope"}`, http.StatusForbidden); return }
 	if s.timelineService == nil {
 		http.Error(w, `{"error":"Timeline service not available"}`, http.StatusServiceUnavailable)
 		return
@@ -43,6 +46,7 @@ func (s *BroadcastService) handleArticleTrashAPI(w http.ResponseWriter, r *http.
 }
 
 func (s *BroadcastService) handleArticleRestoreAPI(w http.ResponseWriter, r *http.Request) {
+	if !ports.IsAdmin(r.Context()) { http.Error(w, `{"error":"Forbidden: Requires Admin scope"}`, http.StatusForbidden); return }
 	if s.timelineService == nil {
 		http.Error(w, `{"error":"Timeline service not available"}`, http.StatusServiceUnavailable)
 		return

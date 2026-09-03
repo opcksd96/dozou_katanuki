@@ -14,12 +14,15 @@ import (
 	"dozou_katanuki/adapters/driven/sqlite"
 	"dozou_katanuki/application/account"
 	"dozou_katanuki/application/timeline"
+	"dozou_katanuki/domain/ports"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 func (a *App) Startup(ctx context.Context) {
-	a.Ctx = ctx
+	// Wailsアプリ(ローカルプロセス)からの呼び出しはすべて管理者権限として扱う
+	a.Ctx = ports.WithScope(ctx, ports.ScopeAdmin)
+	
 	db, err := driver.InitDB("archive.db")
 	if err != nil {
 		log.Fatalf("Failed to init database: %v", err)

@@ -8,6 +8,7 @@ import (
 	"net"
 	"net/http"
 	"strings"
+	"dozou_katanuki/domain/ports"
 )
 
 func (s *BroadcastService) securityMiddleware(next http.Handler) http.Handler {
@@ -22,7 +23,17 @@ func (s *BroadcastService) securityMiddleware(next http.Handler) http.Handler {
 			})
 			return
 		}
-		log.Printf("[Broadcast Access] 200 OK: %s %s from %s", r.Method, r.URL.Path, clientIP)
+
+		// Inject Scope based on IP
+		scope := ports.ScopeReadOnly
+		if parsedIP := net.ParseIP(clientIP); parsedIP != nil && parsedIP.IsLoopback() {
+			scope = ports.ScopeAdmin
+		}
+		
+		ctx := ports.WithScope(r.Context(), scope)
+		r = r.WithContext(ctx)
+
+		log.Printf("[Broadcast Access] 200 OK: %s %s from %s (Scope: %s)", r.Method, r.URL.Path, clientIP, scope)
 		next.ServeHTTP(w, r)
 	})
 }
