@@ -1,4 +1,5 @@
 @echo off
+chcp 65001 >nul
 setlocal enabledelayedexpansion
 title dozou_katanuki (土蔵・型抜き) Launcher
 
@@ -24,19 +25,24 @@ if %ERRORLEVEL% equ 0 (
 ) else (
     where py >nul 2>&1
     if !ERRORLEVEL! equ 0 (
-        echo [OK] Python ランチャー (py) が検出されました。
+        echo [OK] Python ランチャー 'py' が検出されました。
     ) else (
         echo [!] 警告: Python が PATH に見つかりません。サイドカー収集機能を利用する場合は Python をインストールしてください。
     )
 )
 
-if not exist "dozou_katanuki.exe" (
-    echo [ERROR] dozou_katanuki.exe が見つかりません。
+echo [*] Production Conductor (run.ps1) へ起動を委譲します...
+if exist "scripts\run.ps1" (
+    where pwsh >nul 2>&1
+    if !ERRORLEVEL! equ 0 (
+        pwsh -NoProfile -ExecutionPolicy Bypass -File "scripts\run.ps1"
+    ) else (
+        powershell -NoProfile -ExecutionPolicy Bypass -File "scripts\run.ps1"
+    )
+) else (
+    echo [ERROR] scripts\run.ps1 が見つかりません。
     pause
     exit /b 1
 )
 
-echo [*] dozou_katanuki を起動しています...
-start "" "dozou_katanuki.exe"
-
-exit /b 0
+exit /b %ERRORLEVEL%

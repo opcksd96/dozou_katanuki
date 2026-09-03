@@ -1,4 +1,5 @@
-@echo off
+﻿@echo off
+chcp 65001 >nul
 title dozou_katanuki Portable Builder
 
 echo ===================================================

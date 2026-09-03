@@ -4,7 +4,6 @@ package middleware
 import (
 	"context"
 	"fmt"
-	"net/http"
 	"os"
 	"path/filepath"
 	"time"
@@ -38,54 +37,34 @@ func NewStashProber(stashPath string, targetURL string, emitter EventEmitter) *S
 func (p *StashProber) IsConnected() bool { return p.connected }
 
 func (p *StashProber) Start(ctx context.Context) {
-	proberCtx, cancel := context.WithCancel(ctx)
-	p.cancelFunc = cancel; p.running = true
-	go p.probeLoop(proberCtx)
+	_, cancel := context.WithCancel(ctx)
+	p.cancelFunc = cancel
+	p.running = true
+	// 実際のプロービングは外部(PS1ビーコン)からの UpdateStatus 呼び出しに委譲
+	fmt.Println("[StashProber] Start: ビーコン受信待機モードで起動しました。")
 }
 
-func (p *StashProber) check(client *http.Client, disconnectedSince *time.Time, lastKickAt *time.Time) {
-	resp, err := client.Get(p.targetURL)
-	if err == nil {
-		_ = resp.Body.Close()
-		if !p.connected {
-			p.connected = true
-			if p.emitter != nil {
-				p.emitter("stash:ready", true)
-				if time.Since(p.lastNotifiedAt) > 30*time.Second {
-					p.lastNotifiedAt = time.Now()
-					p.emitter("toast:notify", map[string]string{"type": "success", "message": "🟢 Stash 接続完了！"})
-				}
-			}
-			GetGlobalJournal().Record("stash", "INFO", "stash_connected", "Stash connection established", map[string]interface{}{"url": p.targetURL})
-			fmt.Println("[StashProber] 🟢 Stash 接続確認完了 (Ready)")
-		}
-	} else {
-		if p.connected {
-			p.connected = false
-			*disconnectedSince = time.Now()
-			if p.emitter != nil { p.emitter("stash:ready", false) }
-			GetGlobalJournal().Record("stash", "WARN", "stash_disconnected", "Stash connection lost", map[string]interface{}{"error": err.Error()})
-			fmt.Println("[StashProber] ⚠️ Stash 未接続 / 高負荷処理中 (Silent Waiting...)")
-		}
+func (p *StashProber) UpdateStatus(isConnected bool) {
+	if p.connected == isConnected {
+		return // No change
 	}
-}
 
-func (p *StashProber) probeLoop(ctx context.Context) {
-	// スプライト生成・トランスコード等の高負荷時を考慮し5秒タイムアウト
-	client := &http.Client{Timeout: 5 * time.Second}
-	ticker := time.NewTicker(5 * time.Second)
-	defer ticker.Stop()
-
-	disconnectedSince := time.Now()
-	lastKickAt := time.Time{}
-
-	p.check(client, &disconnectedSince, &lastKickAt) // 初回即時実行
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-ticker.C:
-			p.check(client, &disconnectedSince, &lastKickAt)
+	p.connected = isConnected
+	if isConnected {
+		if p.emitter != nil {
+			p.emitter("stash:ready", true)
+			if time.Since(p.lastNotifiedAt) > 30*time.Second {
+				p.lastNotifiedAt = time.Now()
+				p.emitter("toast:notify", map[string]string{"type": "success", "message": "🟢 Stash 接続完了 (Beacon)！"})
+			}
 		}
+		GetGlobalJournal().Record("stash", "INFO", "stash_connected", "Stash connection established via Beacon", nil)
+		fmt.Println("[StashProber] 🟢 Stash 接続確認完了 (Beacon Ready)")
+	} else {
+		if p.emitter != nil {
+			p.emitter("stash:ready", false)
+		}
+		GetGlobalJournal().Record("stash", "WARN", "stash_disconnected", "Stash connection lost via Beacon", nil)
+		fmt.Println("[StashProber] ⚠️ Stash 未接続 / 停止 (Beacon Waiting...)")
 	}
 }

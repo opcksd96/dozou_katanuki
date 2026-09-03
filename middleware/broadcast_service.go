@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"sync"
 
+	"dozou_katanuki/adapters/driving/dto"
 	"dozou_katanuki/models"
 )
 
@@ -19,6 +20,7 @@ type BroadcastService struct {
 	unifiedHandler  *UnifiedHandler
 	timelineService *TimelineService
 	emitter         EventEmitter
+	beaconCallback  func(req dto.BeaconRequestDTO)
 	distFS          fs.FS
 	server          *http.Server
 	listener        net.Listener
@@ -38,6 +40,10 @@ func NewBroadcastService(netCfg models.NetworkConfig, bcastCfg models.BroadcastC
 
 func (s *BroadcastService) SetDistFS(dfs fs.FS) {
 	s.mu.Lock(); defer s.mu.Unlock(); s.distFS = dfs
+}
+
+func (s *BroadcastService) SetBeaconCallback(cb func(req dto.BeaconRequestDTO)) {
+	s.mu.Lock(); defer s.mu.Unlock(); s.beaconCallback = cb
 }
 
 func (s *BroadcastService) Start(ctx context.Context) error {

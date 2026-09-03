@@ -7,6 +7,7 @@ import (
 	"os"
 	"time"
 
+	"dozou_katanuki/adapters/driving/dto"
 	"dozou_katanuki/driver"
 	"dozou_katanuki/middleware"
 	"dozou_katanuki/models"
@@ -64,12 +65,34 @@ func (a *App) broadcastStart(ctx context.Context, netCfg models.NetworkConfig, b
 	if a.DistFS != nil {
 		a.BroadcastService.SetDistFS(a.DistFS)
 	}
+	a.BroadcastService.SetBeaconCallback(a.handleBeaconStatus)
 	_ = a.BroadcastService.Start(ctx)
+}
+
+func (a *App) handleBeaconStatus(req dto.BeaconRequestDTO) {
+	switch req.Service {
+	case "stash":
+		if a.StashProber != nil {
+			a.StashProber.UpdateStatus(req.Status == dto.BeaconStatusReady)
+		}
+	case "thunder":
+		if req.Status == dto.BeaconStatusReady {
+			a.emitToast("success", "⚡ 迅雷 CDP (:9222) 接続確認完了 (Beacon Ready)")
+			// 必要ならオーケストレータを自動点火
+			var escalatedCount int64
+			_ = a.Repo.DB().Model(&models.Media{}).Where("download_status = 'ESCALATED' AND (is_trash = 0 OR is_trash IS NULL)").Count(&escalatedCount).Error
+			if escalatedCount > 0 && !a.isThunderOrchestratorRunning() {
+				a.StartThunderOrchestrator(3, 4)
+			}
+		} else {
+			// a.emitToast("warning", "⚠️ 迅雷 未接続 / 待機中 (Beacon Waiting...)")
+		}
+	}
 }
 
 func (a *App) DomReady(ctx context.Context) {
 	runtime.WindowShow(ctx)
-	go a.CheckThunderCDPOnStartup()
+	// CDPチェックは外部(PS1)からのビーコンに委譲したため、ここでの自動チェックと起動は廃止
 }
 
 func (a *App) Shutdown(ctx context.Context) {

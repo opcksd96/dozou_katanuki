@@ -23,9 +23,8 @@ function Cleanup {
             Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
         }
     }
-    
-    taskkill /F /IM stash-win.exe 2>$null
-    taskkill /F /IM dozou_katanuki.exe 2>$null
+    Get-Process -Name "stash-win", "stash-win.exe" -ErrorAction SilentlyContinue | Stop-Process -Force
+    Get-Process -Name "dozou_katanuki", "dozou_katanuki.exe" -ErrorAction SilentlyContinue | Stop-Process -Force
     
     Write-Host "[OK] Cleanup completed." -ForegroundColor Green
 }
@@ -36,20 +35,52 @@ Register-EngineEvent -SourceIdentifier Console.CancelKeyPress -Action {
     exit 0
 }
 
-try {
-    taskkill /F /IM stash-win.exe 2>$null
-    taskkill /F /IM dozou_katanuki.exe 2>$null
+function Test-Port {
+    param([int]$port)
+    $tcp = New-Object System.Net.Sockets.TcpClient
+    try {
+        $task = $tcp.ConnectAsync("127.0.0.1", $port)
+        if ($task.Wait(100)) {
+            if ($tcp.Connected) { return $true }
+        }
+    } catch {
+        # ignore
+    } finally { 
+        $tcp.Dispose() 
+    }
+    return $false
+}
 
-    # Stash のパス解決
+function Send-Beacon {
+    param([string]$service, [string]$status)
+    $payload = @{
+        service = $service
+        status = $status
+    } | ConvertTo-Json -Compress
+    
+    try {
+        Invoke-RestMethod -Uri "http://127.0.0.1:5175/api/internal/beacon" -Method Post -Body $payload -ContentType "application/json" -ErrorAction SilentlyContinue | Out-Null
+    } catch {
+        # ignore
+    }
+}
+
+try {
+    Get-Process -Name "stash-win", "stash-win.exe" -ErrorAction SilentlyContinue | Stop-Process -Force
+    Get-Process -Name "dozou_katanuki", "dozou_katanuki.exe" -ErrorAction SilentlyContinue | Stop-Process -Force
+
     $stashPath = "stash-win.exe"
+    $stashDir = $ProjectRoot
     if (Test-Path "bin\stash\stash-win.exe") {
         $stashPath = "bin\stash\stash-win.exe"
+        $stashDir = "$ProjectRoot\bin\stash"
     } elseif (Test-Path "bin\stash-win.exe") {
         $stashPath = "bin\stash-win.exe"
+        $stashDir = "$ProjectRoot\bin"
     }
 
-    Write-Host "[*] Starting Stash-win ($stashPath)..." -ForegroundColor Cyan
-    $stashProc = Start-Process -FilePath $stashPath -WindowStyle Hidden -PassThru
+    Write-Host "[*] Starting Stash-win ($stashPath) in ($stashDir)..." -ForegroundColor Cyan
+    $stashProc = Start-Process -FilePath $stashPath -WorkingDirectory $stashDir -WindowStyle Hidden -PassThru
     $global:managedProcesses += $stashProc
 
     if (!(Test-Path "dozou_katanuki.exe")) {
@@ -61,11 +92,21 @@ try {
     $appProc = Start-Process -FilePath "dozou_katanuki.exe" -PassThru
     $global:managedProcesses += $appProc
 
-    Write-Host "[*] System is running. Press Ctrl+C to stop all processes." -ForegroundColor White
+    Write-Host "[*] System is running. Beacon loop activated. Press Ctrl+C to stop all processes." -ForegroundColor White
     
-    # メインプロセスが終了するまで待機
-    $appProc.WaitForExit()
+    # メインプロセスが終了するまでビーコンループ
+    while (!$appProc.HasExited) {
+        # Check Stash (:9999)
+        if (Test-Port 9999) { Send-Beacon "stash" "ready" } else { Send-Beacon "stash" "busy" }
+        # Check Thunder CDP (:9222)
+        if (Test-Port 9222) { Send-Beacon "thunder" "ready" } else { Send-Beacon "thunder" "stopped" }
+        # Check Motrix (:16800)
+        if (Test-Port 16800) { Send-Beacon "motrix" "ready" } else { Send-Beacon "motrix" "stopped" }
 
+        Start-Sleep -Seconds 5
+    }
+} catch {
+    Write-Host "[ERROR] $($_.Exception.Message)" -ForegroundColor Red
 } finally {
     Cleanup
 }

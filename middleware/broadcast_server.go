@@ -48,6 +48,7 @@ func (s *BroadcastService) startServerLocked() error {
 	// mux.HandleFunc("/api/media/open", s.handleMediaOpenActionAPI)
 	mux.HandleFunc("/api/media", s.handleMediaAPI)
 	mux.HandleFunc("/api/broadcast/status", s.handleStatusAPI)
+	mux.HandleFunc("/api/internal/beacon", s.handleBeaconAPI)
 	mux.HandleFunc("/", s.handleRoot)
 
 	server := &http.Server{
