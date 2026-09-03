@@ -3,14 +3,11 @@ package app
 
 import (
 	"fmt"
-	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 	"syscall"
 )
-
-const defaultThunderPath = `C:\Program Files (x86)\Thunder Network\Thunder\Program\Thunder.exe`
 
 // ThunderCOMTask は迅雷COM投入用の単一タスク定義です
 type ThunderCOMTask struct {
@@ -46,21 +43,6 @@ func AddBatchTasksViaThunderCOM(tasks []ThunderCOMTask) bool {
 	cmd := exec.Command("powershell.exe", "-NoProfile", "-NonInteractive", "-WindowStyle", "Hidden", "-Command", b.String())
 	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true, CreationFlags: 0x08000000}
 	return cmd.Run() == nil
-}
-
-// isThunderProcessRunning は Windows OS 上で Thunder.exe が稼働しているか判定します
-func isThunderProcessRunning() bool {
-	cmd := exec.Command("tasklist", "/FI", "IMAGENAME eq Thunder.exe", "/NH")
-	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true, CreationFlags: 0x08000000}
-	out, err := cmd.Output()
-	return err == nil && strings.Contains(strings.ToLower(string(out)), "thunder.exe")
-}
-
-// LaunchThunder は Thunder.exe を CDP デバッグポート 9222 を有効にして起動します
-func (a *App) LaunchThunder() (bool, error) {
-	if _, err := os.Stat(defaultThunderPath); err != nil { return false, err }
-	cmd := exec.Command(defaultThunderPath, "--remote-debugging-port=9222")
-	return cmd.Start() == nil, nil
 }
 
 // EscalateToThunder は指定URLをThunderへ投入し、DBステータスをESCALATEDへ更新します

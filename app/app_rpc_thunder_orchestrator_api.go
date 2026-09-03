@@ -26,6 +26,7 @@ func (a *App) StartThunderOrchestrator(maxSlots, intervalSec int) (models.Thunde
 	orchState.stopCh, orchState.pauseCh, orchState.resumeCh = make(chan struct{}), make(chan struct{}), make(chan struct{})
 	orchState.processedMap = make(map[string]bool)
 
+	go a.EnsureThunderCDP()
 	go a.StartThunderCDPAdaptivePoller()
 	go a.runThunderOrchestrationWorker()
 	return a.getOrchestratorStatusLocked(), nil
