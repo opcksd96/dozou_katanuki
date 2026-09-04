@@ -19,120 +19,244 @@
 
 ## 1.2 実稼働 SQLite3 スキーマ定義 (DDL)
 実稼働マスターデータベース（ `archive.db` ）をクリーンビルド・再構築する際の、ANSI規格およびSQLite3方言に準拠した厳格な物理DDL（データ定義言語）仕様です [4, 15]。  
-GORMによる `AutoMigrate` [17] の実行時、このスキーマおよび各種制約（外部キー、NULL許容、ユニークインデックス）が完全自動で整合展開されます。
+本システムは **pressly/goose** を用いた完全な `.sql` マイグレーション管理へ移行しており、GORMの `AutoMigrate` は使用しません。アプリケーション起動時に `migrations/` ディレクトリ内のSQLファイル群が自動的に走査・適用され、常に最新のスキーマへと整合進化します。
 
 ```sql
 -- 1. accounts テーブル（ユーザープロフィールの基本原本データ）
 CREATE TABLE IF NOT EXISTS accounts (
-    numeric_id TEXT PRIMARY KEY,               -- SNS固有の不変な数値文字列ID (例: "1234567890123456789")
-    username TEXT NOT NULL,                     -- 一意なスクリーンネーム / ハンドル (例: "msluo14", @マークなし)
-    display_name TEXT NOT NULL,                -- 表示名。絵文字を含むマルチバイト文字列
-    avatar_url TEXT NOT NULL,                  -- 本家SNSにおける生のアバターURL（基礎データ原本として100%不変保存）
-    updated_at DATETIME NOT NULL               -- 最終同期・更新タイムスタンプ
+    numeric_id TEXT PRIMARY KEY,
+    username TEXT NOT NULL,
+    display_name TEXT NOT NULL,
+    avatar_url TEXT NOT NULL,
+    updated_at DATETIME NOT NULL,
+    description TEXT,
+    avatar_base64 TEXT,
+    group_name TEXT DEFAULT "",
+    alias_of TEXT DEFAULT "",
+    is_whitelist NUMERIC DEFAULT 1,
+    post_count INTEGER,
+    is_trash BOOLEAN NOT NULL DEFAULT 0,
+    trashed_by TEXT,
+    trash_reason TEXT,
+    trashed_at DATETIME
 );
 
--- 2. account_profile_history テーブル（0埋め3桁アバター世代管理 ＆ プロフィール変遷履歴）
-CREATE TABLE IF NOT EXISTS account_profile_history (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,      -- 履歴シリアルID
-    account_id TEXT NOT NULL,                  -- 外部キー: accounts(numeric_id)
-    display_name TEXT NOT NULL,                -- その時点での表示名
-    avatar_url TEXT NOT NULL,                  -- その時点でのアバターオリジナル生URL
-    avatar_seq INTEGER NOT NULL,               -- アバター変更履歴を1からカウントアップする世代シリアル値 (1, 2, 3...)
-    observed_at DATETIME NOT NULL,             -- 履歴観測・保存日時
-    FOREIGN KEY (account_id) REFERENCES accounts(numeric_id) ON DELETE CASCADE
+-- 2. account_profile_histories テーブル（アバター世代管理 ＆ プロフィール変遷履歴）
+CREATE TABLE IF NOT EXISTS account_profile_histories (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    account_id TEXT NOT NULL,
+    display_name TEXT NOT NULL,
+    avatar_original_url TEXT NOT NULL,
+    avatar_seq INTEGER NOT NULL,
+    avatar_virtual_key TEXT NOT NULL,
+    observed_at DATETIME NOT NULL,
+    avatar_base64 TEXT,
+    description TEXT DEFAULT "",
+    CONSTRAINT fk_accounts_profile_history FOREIGN KEY (account_id) REFERENCES accounts(numeric_id) ON DELETE CASCADE
 );
 
 -- 3. articles テーブル（投稿メタデータ：スレッドツリーおよび会話構造の保持）
 CREATE TABLE IF NOT EXISTS articles (
-    id TEXT PRIMARY KEY,                       -- 投稿ID (または記事ID)
-    account_id TEXT NOT NULL,                  -- 外部キー: accounts(numeric_id)
-    conversation_id TEXT NOT NULL,             -- 会話ツリーをグルーピングするためのスレッドルートID
-    reply_to_status_id TEXT,                   -- 返信先（親）投稿ID (NULL許容)
-    reply_to_username TEXT,                    -- 返信先（親）スクリーンネーム (NULL許容)
-    created_at DATETIME NOT NULL,              -- 投稿作成タイムスタンプ
-    full_text TEXT NOT NULL,                   -- 投稿本文テキスト
-    via TEXT NOT NULL,                         -- 投稿ソース（クライアント名、例: "Twitter for Android"）
-    is_retweet BOOLEAN NOT NULL DEFAULT 0,     -- リツイート（他者投稿の引用/転載）フラグ
-    is_liked BOOLEAN NOT NULL DEFAULT 0,       -- お気に入り（ローカルブックマーク）フラグ
-    wayback_url TEXT NOT NULL,                 -- Wayback Machine のキャッシュ原本URL
-    FOREIGN KEY (account_id) REFERENCES accounts(numeric_id) ON DELETE CASCADE
+    id TEXT PRIMARY KEY,
+    account_id TEXT NOT NULL,
+    conversation_id TEXT NOT NULL,
+    reply_to_id TEXT,
+    reply_to_handle TEXT,
+    created_at DATETIME NOT NULL,
+    full_text TEXT NOT NULL,
+    lang TEXT NOT NULL DEFAULT "ja",
+    full_text_ja TEXT,
+    full_text_en TEXT,
+    full_text_zh TEXT,
+    via TEXT NOT NULL,
+    is_repost BOOLEAN NOT NULL DEFAULT 0,
+    is_liked BOOLEAN NOT NULL DEFAULT 0,
+    wayback_url TEXT NOT NULL,
+    is_trash BOOLEAN NOT NULL DEFAULT 0,
+    trashed_by TEXT,
+    trash_reason TEXT,
+    trashed_at DATETIME,
+    source_domain TEXT,
+    original_url TEXT,
+    sotwe_url TEXT,
+    nitter_url TEXT,
+    twistalker_url TEXT,
+    source_name TEXT,
+    CONSTRAINT fk_accounts_articles FOREIGN KEY (account_id) REFERENCES accounts(numeric_id) ON DELETE CASCADE
 );
 
--- 4. media テーブル（Stash IDとSQLite3をバインドする最重要リレーション層）
+-- 4. media テーブル（記事とアセットを結びつける中核リレーション層）
 CREATE TABLE IF NOT EXISTS media (
-    media_id TEXT PRIMARY KEY,                 -- オリジナルアセット取得URLの末尾（BaseName）をそのまま採用 [65]
-    article_id TEXT NOT NULL,                  -- 外部キー: articles(id)
-    type TEXT NOT NULL,                        -- メディア種別: "image" | "video" | "gif"
-    download_url TEXT NOT NULL,                -- 本家CDNまたはWaybackのオリジナルメディアURL [52]
-    width INTEGER NOT NULL,                    -- ピクセル横幅
-    height INTEGER NOT NULL,                   -- ピクセル縦幅
-    stash_scene_id TEXT UNIQUE,                -- Wailsが秘匿するStash内部プロセス側の動画UUID (NULL許容) [52]
-    stash_image_id TEXT UNIQUE,                -- Wailsが秘匿するStash内部プロセス側の静止画UUID (NULL許容) [52]
-    FOREIGN KEY (article_id) REFERENCES articles(id) ON DELETE CASCADE
+    media_id TEXT PRIMARY KEY,
+    article_id TEXT NOT NULL,
+    type TEXT NOT NULL,
+    download_url TEXT NOT NULL,
+    width INTEGER NOT NULL,
+    height INTEGER NOT NULL,
+    download_status TEXT NOT NULL DEFAULT "QUEUED",
+    failed_reason TEXT,
+    stash_scene_id TEXT,
+    stash_image_id TEXT,
+    is_bookmarked BOOLEAN DEFAULT 0,
+    media_quality TEXT DEFAULT "",
+    tweet_urls TEXT DEFAULT '[]',
+    thumbnail_url TEXT,
+    is_trash BOOLEAN NOT NULL DEFAULT 0,
+    trashed_by TEXT,
+    trash_reason TEXT,
+    trashed_at DATETIME,
+    account_id TEXT,
+    CONSTRAINT fk_articles_media FOREIGN KEY (article_id) REFERENCES articles(id) ON DELETE CASCADE
 );
 
--- 5. url_redirects テーブル（t.co 等のSNS短縮URL逆引きマップ）
+-- 5. media_variants テーブル（動画など、複数解像度のURLバリアントプール）
+CREATE TABLE IF NOT EXISTS media_variants (
+    variant_hash TEXT PRIMARY KEY,
+    media_id TEXT NOT NULL,
+    article_id TEXT NOT NULL,
+    download_url TEXT NOT NULL,
+    bit_rate INTEGER,
+    CONSTRAINT fk_media_variants FOREIGN KEY (media_id) REFERENCES media(media_id) ON DELETE CASCADE
+);
+
+-- 6. url_redirects / whitelists テーブル
 CREATE TABLE IF NOT EXISTS url_redirects (
-    short_url TEXT PRIMARY KEY,                -- 短縮URL (例: "https://t.co/eb7ymRi")
-    expanded_url TEXT NOT NULL,                -- 解決済みのフルURL (例: "https://example.com/actual_destination")
-    article_id TEXT NOT NULL,                  -- 外部キー: articles(id)
-    FOREIGN KEY (article_id) REFERENCES articles(id) ON DELETE CASCADE
+    short_url TEXT PRIMARY KEY,
+    expanded_url TEXT NOT NULL,
+    article_id TEXT NOT NULL,
+    CONSTRAINT fk_articles_url_redirects FOREIGN KEY (article_id) REFERENCES articles(id) ON DELETE CASCADE
 );
 
--- 6. whitelist テーブル（スパムパージ用・アーカイブ対象アカウントの統治ホワイトリスト）
-CREATE TABLE IF NOT EXISTS whitelist (
+CREATE TABLE IF NOT EXISTS whitelists (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    type TEXT NOT NULL,                        -- 種別: "account" | "keyword"
-    value TEXT NOT NULL UNIQUE,                -- 値: "msluo14" 等のスクリーンネーム
-    is_active BOOLEAN NOT NULL DEFAULT 1       -- 有効フラグ
+    type TEXT NOT NULL,
+    value TEXT NOT NULL UNIQUE,
+    is_active BOOLEAN NOT NULL DEFAULT 1,
+    group_name TEXT DEFAULT "",
+    alias_of TEXT DEFAULT ""
+);
+
+-- 7. ダウンロードタスク・予約キュー・Thunder制御用テーブル
+CREATE TABLE IF NOT EXISTS download_reserves (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    g_id TEXT,
+    url TEXT NOT NULL,
+    file_name TEXT,
+    article_id TEXT,
+    media_id TEXT,
+    mirror_urls TEXT,
+    status TEXT DEFAULT "reserved",
+    reason TEXT,
+    total_length INTEGER,
+    created_at DATETIME,
+    updated_at DATETIME
+);
+
+CREATE TABLE IF NOT EXISTS thunder_tasks (
+    id TEXT PRIMARY KEY,
+    media_id TEXT NOT NULL,
+    article_id TEXT,
+    resolution_type TEXT NOT NULL,
+    url TEXT NOT NULL,
+    file_name TEXT NOT NULL,
+    status TEXT DEFAULT "PENDING",
+    dispatched_at DATETIME,
+    completed_at DATETIME,
+    reaped_at DATETIME,
+    created_at DATETIME,
+    updated_at DATETIME,
+    summary_size TEXT,
+    error_reason TEXT,
+    last_attempt_at DATETIME
+);
+
+CREATE TABLE IF NOT EXISTS download_tasks (
+    media_id TEXT PRIMARY KEY,
+    article_id TEXT,
+    url TEXT NOT NULL,
+    file_name TEXT NOT NULL,
+    stage TEXT DEFAULT "REQUESTS",
+    status TEXT DEFAULT "PENDING",
+    failed_reason TEXT,
+    requests_at DATETIME,
+    motrix_at DATETIME,
+    thunder_at DATETIME,
+    stash_at DATETIME,
+    completed_at DATETIME,
+    created_at DATETIME,
+    updated_at DATETIME
+);
+
+-- 8. アカウント相関・Graph関連テーブル (PLAN-09対応)
+CREATE TABLE IF NOT EXISTS account_relations (
+    id TEXT PRIMARY KEY,
+    source_account_id TEXT NOT NULL,
+    target_account_id TEXT NOT NULL,
+    target_handle TEXT,
+    relation_type TEXT NOT NULL,
+    direction TEXT NOT NULL,
+    weight REAL NOT NULL DEFAULT 1.0,
+    created_at DATETIME NOT NULL,
+    updated_at DATETIME NOT NULL,
+    CONSTRAINT fk_account_relations_source FOREIGN KEY (source_account_id) REFERENCES accounts(numeric_id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS article_relation_evidences (
+    id TEXT PRIMARY KEY,
+    relation_id TEXT NOT NULL,
+    source_article_id TEXT NOT NULL,
+    target_article_id TEXT,
+    evidence_type TEXT NOT NULL,
+    context_snippet TEXT,
+    media_id TEXT,
+    is_salvaged BOOLEAN NOT NULL DEFAULT 0,
+    observed_at DATETIME NOT NULL,
+    CONSTRAINT fk_article_relation_evidences_rel FOREIGN KEY (relation_id) REFERENCES account_relations(id) ON DELETE CASCADE
 );
 ```
 
 ---
 
-## 1.3 高速化インデックス定義 (10 Optimizations)
-ローカルでの無限スクロール描画、会話スレッドの逆引き走査、およびStashappのUUIDとのバインド突合処理において、 **ミリ秒単位のゼロレイテンシレスポンス** を100%保証するため、以下の10大インデックスを厳格に適用します [16, 58]。
+## 1.3 高速化インデックス定義 (Optimizations)
+ローカルでの無限スクロール描画、会話スレッドの逆引き走査、およびStashappのUUIDとのバインド突合処理において、 **ミリ秒単位のゼロレイテンシレスポンス** を100%保証するため、以下のインデックスを厳格に適用します [16, 58]。
 
 ```sql
--- 1. 【お気に入りタイムライン高速化】
--- 目的: いいねした投稿（Bookmarks）のみを瞬時に逆順フィルタリングする [58]
+-- 【タイムライン・記事検索 高速化】
 CREATE INDEX IF NOT EXISTS idx_articles_is_liked_created ON articles(is_liked, created_at DESC) WHERE is_liked = 1;
-
--- 2. 【アカウント別タイムライン高速化】
--- 目的: 特定アカウントのタイムラインを無限スクロールで超高速に表示・ページネーションする [58]
 CREATE INDEX IF NOT EXISTS idx_articles_account_created ON articles(account_id, created_at DESC);
-
--- 3. 【会話ツリー爆速スキャン】
--- 目的: 特定の conversation_id に属する関連投稿を時系列順に一括解決する
 CREATE INDEX IF NOT EXISTS idx_articles_conversation ON articles(conversation_id, created_at ASC);
-
--- 4. 【リプライ親参照インデックス】
--- 目的: 特定の親記事に対する子リプライ（スレッドツリーの下流）を瞬時に検索する
-CREATE INDEX IF NOT EXISTS idx_articles_reply_to ON articles(reply_to_status_id);
-
--- 5. 【統合タイムライン高速化】
--- 目的: 登録されている全アカウントの投稿を時系列に結合した統合タイムラインの描画ソートを O(1) 化する [58]
+CREATE INDEX IF NOT EXISTS idx_articles_reply_to ON articles(reply_to_id);
 CREATE INDEX IF NOT EXISTS idx_articles_created_at ON articles(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_articles_is_trash ON articles(is_trash);
+CREATE INDEX IF NOT EXISTS idx_articles_trashed_by ON articles(trashed_by);
 
--- 6. 【アバター履歴世代・逆引きミリ秒解決】
--- 目的: 記事の投稿日時に最も近いアバターの「世代キー」をGORM BeforeFindフックで瞬時に逆引き解決する [68]
-CREATE INDEX IF NOT EXISTS idx_history_lookup ON account_profile_history(account_id, avatar_seq DESC);
-
--- 7. 【ユーザー名インクリメンタル検索】
--- 目的: ハンドルネーム（username）から numeric_id やプロフィール情報をミリ秒検索する
+-- 【アカウント・プロフィール履歴 高速化】
 CREATE INDEX IF NOT EXISTS idx_accounts_username ON accounts(username);
+CREATE INDEX IF NOT EXISTS idx_history_lookup ON account_profile_histories(account_id, avatar_seq DESC);
+CREATE INDEX IF NOT EXISTS idx_accounts_is_trash ON accounts(is_trash);
 
--- 8. 【メディア紐付け（Reconciliation）自動高速化】
--- 目的: 添付メディアのロード、およびStash IDの逆引きインポートをバースト検索可能にする
+-- 【メディア紐付け（Reconciliation）自動高速化】
 CREATE INDEX IF NOT EXISTS idx_media_article ON media(article_id);
-
--- 9. 【StashビデオUUIDユニーク参照】
--- 目的: StashappのUUIDとSQLite3 mediaレコードの一対一整合性を最速で照合・監視する [52]
 CREATE UNIQUE INDEX IF NOT EXISTS idx_media_stash_scene ON media(stash_scene_id) WHERE stash_scene_id IS NOT NULL;
-
--- 10. 【StashイメージUUIDユニーク参照】
--- 目的: Stashappの静止画UUIDとのバインド突合をミリ秒で判定し、二重インポートを100%防止する [52]
 CREATE UNIQUE INDEX IF NOT EXISTS idx_media_stash_image ON media(stash_image_id) WHERE stash_image_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_media_status_type ON media(download_status, type);
+CREATE INDEX IF NOT EXISTS idx_media_account ON media(account_id);
+CREATE INDEX IF NOT EXISTS idx_media_is_trash ON media(is_trash);
+CREATE INDEX IF NOT EXISTS idx_media_variants_media_id ON media_variants(media_id);
+CREATE INDEX IF NOT EXISTS idx_media_variants_article_id ON media_variants(article_id);
+
+-- 【ダウンロードキュー検索 高速化】
+CREATE INDEX IF NOT EXISTS idx_download_reserves_status ON download_reserves(status);
+CREATE INDEX IF NOT EXISTS idx_download_reserves_media_id ON download_reserves(media_id);
+CREATE INDEX IF NOT EXISTS idx_thunder_tasks_status ON thunder_tasks(status);
+CREATE INDEX IF NOT EXISTS idx_thunder_tasks_media_id ON thunder_tasks(media_id);
+CREATE INDEX IF NOT EXISTS idx_download_tasks_status ON download_tasks(status);
+CREATE INDEX IF NOT EXISTS idx_download_tasks_stage ON download_tasks(stage);
+
+-- 【Graphリレーション検索 高速化】
+CREATE INDEX IF NOT EXISTS idx_account_relations_source ON account_relations(source_account_id);
+CREATE INDEX IF NOT EXISTS idx_account_relations_target ON account_relations(target_account_id);
+CREATE INDEX IF NOT EXISTS idx_evidences_relation_id ON article_relation_evidences(relation_id);
 ```
 
 ---

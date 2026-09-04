@@ -23,8 +23,15 @@ VUE_EXTRACT_JS = """(() => {
 
 def get_filename_from_url(url: str) -> str:
     if not url: return ""
-    fn = urlparse(url.split("?")[0]).path.split("/")[-1]
+    parsed = urlparse(url)
+    fn = parsed.path.split("/")[-1]
     for sfx in [":large", ":orig", ":small", ":medium", ":thumb"]: fn = fn[:-len(sfx)] if fn.endswith(sfx) else fn
+    
+    if "." not in fn:
+        import urllib.parse
+        qs = urllib.parse.parse_qs(parsed.query)
+        if "format" in qs:
+            fn = f"{fn}.{qs['format'][0]}"
     return fn
 
 def build_streamsaver_url(filename: str) -> str:
@@ -67,10 +74,19 @@ def extract_media_entities(raw: Dict[str, Any]) -> List[Dict[str, Any]]:
             v_url = v.get("url")
             if v_url:
                 v_fn = get_filename_from_url(v_url)
-                variants.append({"content_type": v.get("type") or v.get("content_type", ""), "bitrate": v.get("bitrate", 0), "filename": v_fn, "streamsaver_url": build_streamsaver_url(v_fn), "direct_url": v_url})
+                variants.append({"content_type": v.get("type") or v.get("content_type", ""), "bit_rate": v.get("bitrate", 0), "filename": v_fn, "streamsaver_url": build_streamsaver_url(v_fn), "url": v_url})
+        
+        # Sort variants by bit_rate descending
+        variants = sorted(variants, key=lambda x: int(x.get("bit_rate") or 0), reverse=True)
+        
+        # Add StreamSaver and Thumbnail as fallbacks for video
+        if direct_vid or m_type == "video":
+            if ss_url: variants.append({"content_type": "streamsaver", "bit_rate": -1, "filename": fn, "streamsaver_url": ss_url, "url": ss_url})
+            if thumb: variants.append({"content_type": "thumbnail", "bit_rate": -2, "filename": get_filename_from_url(thumb), "streamsaver_url": build_streamsaver_url(get_filename_from_url(thumb)), "url": thumb})
+
         media_list.append({"media_id": fn, "url": target_u, "download_url": target_u, "type": "video" if direct_vid or m_type == "video" else "image",
                            "width": (m.get("sizes", {}).get("large", {}) or {}).get("w", 0), "height": (m.get("sizes", {}).get("large", {}) or {}).get("h", 0),
-                           "filename": fn, "streamsaver_url": ss_url, "thumbnail_url": thumb, "stream_variants": variants})
+                           "filename": fn, "streamsaver_url": ss_url, "thumbnail_url": thumb, "variants": variants})
     return media_list
 
 def normalize_vue_tweet(raw: Dict[str, Any], default_account: str) -> Dict[str, Any]:

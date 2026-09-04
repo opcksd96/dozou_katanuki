@@ -44,11 +44,11 @@ class TwitterParser(BaseParser):
             if m_type in ["video", "animated_gif"]:
                 variants = m.get("video_info", {}).get("variants", []) or m.get("variants", [])
                 mp4_variants = [v for v in variants if v.get("content_type") == "video/mp4" and "url" in v]
+                mp4_variants = sorted(mp4_variants, key=lambda x: x.get("bit_rate") or 0, reverse=True)
                 for v in mp4_variants:
                     media_item["variants"].append({"url": v.get("url"), "bit_rate": v.get("bit_rate", 0)})
                 if mp4_variants:
-                    best = max(mp4_variants, key=lambda x: x.get("bit_rate", 0))
-                    media_item["url"] = best.get("url")
+                    media_item["url"] = mp4_variants[0].get("url")
             media_list.append(media_item)
         raw_urls = (tweet.get("extended_entities", {}) or tweet.get("entities", {})).get("urls", []) or tweet.get("urls", [])
         urls_list = [{"short_url": u.get("url"), "expanded_url": u.get("expanded_url") or u.get("unwound", {}).get("url") or u.get("url")}

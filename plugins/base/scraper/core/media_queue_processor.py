@@ -55,25 +55,52 @@ class MediaQueueProcessor:
             u = self.d.resolve_media_url(m_id, url, m_type)
             meta = self.d.build_metadata(art_id or "", user or "", dname or "", str(cr_at or ""), wb_url or "", f_text or "", f_text_ja or "")
 
+            if m_type == "image":
+                fallback_urls = MediaUrlBuilder.build_url_list(u)
+            else:
+                variants = cur.execute("SELECT download_url FROM media_variants WHERE media_id = ? ORDER BY bit_rate DESC", (m_id,)).fetchall()
+                fallback_urls = [v[0] for v in variants if v[0]]
+                if not fallback_urls and u: fallback_urls = [u]
+
             # 1. 直接フェッチ試行 (全解像度 & Wayback)
             ok, st, img_id, scn_id, qual = self.d.fetcher.try_fetch_direct(
                 dest_path, m_id, u, m_type, meta,
                 thumbnail_url=thumb_url or "", created_at=str(cr_at or ""),
-                username=user or "", display_name=dname or ""
+                username=user or "", display_name=dname or "",
+                fallback_urls=fallback_urls
             )
 
             if ok:
                 self.d._update_status(m_id, "COMPLETED", None, img_id, scn_id, qual)
                 success += 1
             else:
-                # 2. Motrix (Aria2) への全候補URLマルチソース外注
+                # 2. Motrix (Aria2) への外注
                 dest_dir = os.path.dirname(dest_path)
                 base_name = m_id.split(":")[0]
-                fallback_urls = MediaUrlBuilder.build_url_list(u)
-                gid = self.d.aria2.add_uri(fallback_urls, dest_dir, base_name) if fallback_urls else None
-                status = "OUTSOURCED" if gid else "RETAINED"
-                reason = f"Motrix外注 (GID: {gid})" if gid else "原本消失・外注待機 (404)"
-                self.d._update_status(m_id, status, reason, None, None, None)
+                
+                if m_type == "image":
+                    # 画像は全てパックして1タスク
+                    gid = self.d.aria2.add_uri(fallback_urls, dest_dir, base_name) if fallback_urls else None
+                    status = "OUTSOURCED" if gid else "RETAINED"
+                    reason = f"Motrix外注 (GID: {gid})" if gid else "原本消失・外注待機 (404)"
+                    self.d._update_status(m_id, status, reason, None, None, None)
+                else:
+                    # 動画はバリアントごとに完全に独立したタスクとして投入（チャンク混在破壊を防止）
+                    gids = []
+                    if fallback_urls:
+                        for v_url in fallback_urls:
+                            # v_urlからファイル名ハッシュを抽出（Sotweと同様のロジック）
+                            v_fn = v_url.split("?")[0].split("/")[-1]
+                            for sfx in [":large", ":orig", ":small", ":medium", ":thumb"]:
+                                v_fn = v_fn[:-len(sfx)] if v_fn.endswith(sfx) else v_fn
+                            v_base_name = v_fn.split(".")[0] if "." in v_fn else v_fn
+                            
+                            gid = self.d.aria2.add_uri([v_url], dest_dir, v_base_name)
+                            if gid: gids.append(gid)
+                    
+                    status = "OUTSOURCED" if gids else "RETAINED"
+                    reason = f"Motrix個別外注 (GIDs: {','.join(gids[:3])}...)" if gids else "原本消失・外注待機 (404)"
+                    self.d._update_status(m_id, status, reason, None, None, None)
 
             if log_fn:
                 log_fn(idx, total, f"Media {m_id} -> {status if not ok else 'COMPLETED'}")

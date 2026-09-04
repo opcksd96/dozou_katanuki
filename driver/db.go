@@ -2,16 +2,19 @@
 package driver
 
 import (
+	"embed"
 	"fmt"
 	"log"
 	"strings"
 
-	"dozou_katanuki/models"
-
 	"github.com/glebarez/sqlite"
+	"github.com/pressly/goose/v3"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 )
+
+//go:embed migrations/*.sql
+var embedMigrations embed.FS
 
 func InitDB(dbPath string) (*gorm.DB, error) {
 	dsn := dbPath
@@ -27,49 +30,13 @@ func InitDB(dbPath string) (*gorm.DB, error) {
 	sqlDB.SetMaxOpenConns(10)
 	sqlDB.SetMaxIdleConns(5)
 
-	err = db.AutoMigrate(
-		&models.Account{}, &models.AccountProfileHistory{},
-		&models.Article{}, &models.Media{}, &models.MediaVariant{}, &models.MediaExcluded{},
-		&models.UrlRedirect{}, &models.Whitelist{},
-		&models.DownloadReserve{}, &models.ThunderTask{},
-		&models.DownloadTask{},
-	)
-	if err != nil { return nil, err }
-
-	migrations := []string{
-		"ALTER TABLE accounts ADD COLUMN is_trash BOOLEAN DEFAULT 0;",
-		"ALTER TABLE accounts ADD COLUMN trashed_by TEXT;",
-		"ALTER TABLE accounts ADD COLUMN trash_reason TEXT;",
-		"ALTER TABLE accounts ADD COLUMN trashed_at DATETIME;",
-		"ALTER TABLE media ADD COLUMN is_trash BOOLEAN DEFAULT 0;",
-		"ALTER TABLE media ADD COLUMN trashed_by TEXT;",
-		"ALTER TABLE media ADD COLUMN trash_reason TEXT;",
-		"ALTER TABLE media ADD COLUMN trashed_at DATETIME;",
-		"CREATE INDEX IF NOT EXISTS idx_accounts_is_trash ON accounts(is_trash);",
-		"CREATE INDEX IF NOT EXISTS idx_media_is_trash ON media(is_trash);",
-		"CREATE INDEX IF NOT EXISTS idx_articles_is_liked_created ON articles(is_liked, created_at DESC) WHERE is_liked = 1;",
-		"CREATE INDEX IF NOT EXISTS idx_articles_account_created ON articles(account_id, created_at DESC);",
-		"CREATE INDEX IF NOT EXISTS idx_articles_conversation ON articles(conversation_id, created_at ASC);",
-		"CREATE INDEX IF NOT EXISTS idx_articles_reply_to ON articles(reply_to_id);",
-		"CREATE INDEX IF NOT EXISTS idx_articles_created_at ON articles(created_at DESC);",
-		"CREATE INDEX IF NOT EXISTS idx_history_lookup ON account_profile_histories(account_id, avatar_seq DESC);",
-		"CREATE INDEX IF NOT EXISTS idx_accounts_username ON accounts(username);",
-		"CREATE INDEX IF NOT EXISTS idx_media_article ON media(article_id);",
-		"CREATE UNIQUE INDEX IF NOT EXISTS idx_media_stash_scene ON media(stash_scene_id) WHERE stash_scene_id IS NOT NULL;",
-		"CREATE UNIQUE INDEX IF NOT EXISTS idx_media_stash_image ON media(stash_image_id) WHERE stash_image_id IS NOT NULL;",
-		"CREATE INDEX IF NOT EXISTS idx_media_status_type ON media(download_status, type);",
-		"CREATE INDEX IF NOT EXISTS idx_media_variants_media_id ON media_variants(media_id);",
-		"CREATE INDEX IF NOT EXISTS idx_whitelist_type_active ON whitelists(type, is_active);",
-		"CREATE INDEX IF NOT EXISTS idx_articles_is_trash ON articles(is_trash, created_at DESC);",
-		"CREATE INDEX IF NOT EXISTS idx_articles_trashed_by ON articles(trashed_by) WHERE is_trash = 1;",
-		"ALTER TABLE media ADD COLUMN account_id TEXT;",
-		"CREATE INDEX IF NOT EXISTS idx_media_account ON media(account_id);",
-		"UPDATE media SET account_id = (SELECT account_id FROM articles WHERE articles.id = media.article_id) WHERE (account_id IS NULL OR account_id = '') AND EXISTS (SELECT 1 FROM articles WHERE articles.id = media.article_id);",
-		"UPDATE accounts SET is_trash = 0 WHERE is_trash IS NULL;",
-		"UPDATE articles SET is_trash = 0 WHERE is_trash IS NULL;",
-		"UPDATE media SET is_trash = 0 WHERE is_trash IS NULL;",
+	goose.SetBaseFS(embedMigrations)
+	if err := goose.SetDialect("sqlite3"); err != nil {
+		return nil, err
 	}
-	for _, mSql := range migrations { _ = db.Exec(mSql).Error }
+	if err := goose.Up(sqlDB, "migrations"); err != nil {
+		return nil, err
+	}
 
 	_ = MigrateAvatarsToBase64(db)
 	log.Printf("[Driver] Database initialized (WAL mode & Migrations applied): %s", dbPath)

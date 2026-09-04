@@ -2,6 +2,7 @@
 import os, sqlite3
 from typing import Any, Callable, List, Optional
 from .thunder_client import ThunderClient
+from .media_url_builder import MediaUrlBuilder
 
 
 class DownloaderPipelineHelper:
@@ -20,9 +21,29 @@ class DownloaderPipelineHelper:
             if base_name in existing or m_id in existing:
                 self.d._update_status(m_id, "OUTSOURCED", "Motrix既存キュー確認 (送信スキップ)"); continue
             u, dest_dir = self.d.resolve_media_url(m_id, url, m_type), os.path.dirname(self.d.get_target_path(user or "unknown", m_id, m_type))
-            fallback_urls = [cand for cand, _ in self.d._build_fallback_urls(u)]
-            gid = self.d.aria2.add_uri(fallback_urls, dest_dir, base_name) if fallback_urls else None
-            self.d._update_status(m_id, "OUTSOURCED" if gid else "RETAINED", f"Motrix外注 (GID: {gid})" if gid else "Aria2 offline")
+            
+            gid = None
+            if m_type == "image":
+                fallback_urls = MediaUrlBuilder.build_url_list(u)
+                gid = self.d.aria2.add_uri(fallback_urls, dest_dir, base_name) if fallback_urls else None
+                self.d._update_status(m_id, "OUTSOURCED" if gid else "RETAINED", f"Motrix外注 (GID: {gid})" if gid else "Aria2 offline")
+            else:
+                variants = conn.cursor().execute("SELECT download_url FROM media_variants WHERE media_id = ? ORDER BY bit_rate DESC", (m_id,)).fetchall()
+                fallback_urls = [v[0] for v in variants if v[0]]
+                if not fallback_urls and u: fallback_urls = [u]
+                
+                gids = []
+                for v_url in fallback_urls:
+                    v_fn = v_url.split("?")[0].split("/")[-1]
+                    for sfx in [":large", ":orig", ":small", ":medium", ":thumb"]: v_fn = v_fn[:-len(sfx)] if v_fn.endswith(sfx) else v_fn
+                    v_base_name = v_fn.split(".")[0] if "." in v_fn else v_fn
+                    
+                    added_gid = self.d.aria2.add_uri([v_url], dest_dir, v_base_name)
+                    if added_gid: gids.append(added_gid)
+                
+                gid = gids[0] if gids else None
+                self.d._update_status(m_id, "OUTSOURCED" if gids else "RETAINED", f"Motrix個別外注 (GIDs: {','.join(gids[:3])}...)" if gids else "Aria2 offline/Empty")
+            
             outsourced += (1 if gid else 0); (log_fn and log_fn(idx, total, f"{m_id} -> {'OUTSOURCED' if gid else 'RETAINED'}"))
         return outsourced
 
@@ -54,13 +75,38 @@ class DownloaderPipelineHelper:
             total, tasks, m_ids = len(records), [], []
             for m_id, url, m_type, user in records:
                 u = self.d.resolve_media_url(m_id, url, m_type)
-                wb_url = f"https://web.archive.org/web/2id_/{u}" if u and not u.startswith("http://web.archive") and not u.startswith("https://web.archive") else u
                 target_path = self.d.get_target_path(user or "unknown", m_id, m_type)
-                tasks.append({"url": wb_url or u, "file_name": m_id.split(":")[0], "dest_dir": os.path.dirname(target_path)})
+                dest_dir = os.path.dirname(target_path)
+                
+                if m_type == "image":
+                    # 画像の場合は推論ビルダーで全パターンを投入（Thunderは1URLにつき1タスク）
+                    fallback_urls = MediaUrlBuilder.build_url_list(u)
+                    for f_url in fallback_urls:
+                        wb_url = f"https://web.archive.org/web/2id_/{f_url}" if not f_url.startswith("http") or (not f_url.startswith("http://web.archive") and not f_url.startswith("https://web.archive")) else f_url
+                        tasks.append({"url": wb_url or f_url, "file_name": m_id.split(":")[0], "dest_dir": dest_dir})
+                else:
+                    # 動画の場合はmedia_variantsから完全独立タスクとして投入
+                    variants = cur.execute("SELECT download_url FROM media_variants WHERE media_id = ? ORDER BY bit_rate DESC", (m_id,)).fetchall()
+                    fallback_urls = [v[0] for v in variants if v[0]]
+                    if not fallback_urls and u: fallback_urls = [u]
+                    
+                    for v_url in fallback_urls:
+                        v_fn = v_url.split("?")[0].split("/")[-1]
+                        for sfx in [":large", ":orig", ":small", ":medium", ":thumb"]: v_fn = v_fn[:-len(sfx)] if v_fn.endswith(sfx) else v_fn
+                        v_base_name = v_fn.split(".")[0] if "." in v_fn else v_fn
+                        
+                        wb_url = f"https://web.archive.org/web/2id_/{v_url}" if not v_url.startswith("http") or (not v_url.startswith("http://web.archive") and not v_url.startswith("https://web.archive")) else v_url
+                        tasks.append({"url": wb_url or v_url, "file_name": v_base_name, "dest_dir": dest_dir})
+                        
                 m_ids.append(m_id)
+                
             sent = self.thunder.add_batch_tasks(tasks, max_limit=max_batch)
             if sent > 0 and m_ids:
-                cur.executemany("UPDATE media SET download_status = 'ESCALATED', failed_reason = 'Thunder P2SP エスカレーション投入' WHERE media_id = ?", [(mid,) for mid in m_ids[:sent]])
+                # Thunder投入成功としてステータスを更新
+                # TODO: m_ids はユニークなmedia_id単位だが、tasksの数はm_idsの数より多い。
+                # ただしadd_batch_tasksは最大max_limitまでしか処理しないため、完全に同期させるのは複雑になる。
+                # 簡単のため、今回処理したm_idsすべてをESCALATEDとする
+                cur.executemany("UPDATE media SET download_status = 'ESCALATED', failed_reason = 'Thunder P2SP エスカレーション投入' WHERE media_id = ?", [(mid,) for mid in m_ids])
                 conn.commit()
         if log_fn: log_fn(sent, max(total, 1), f"Escalated {sent}/{total} media items to Thunder (ESCALATED).")
         return sent

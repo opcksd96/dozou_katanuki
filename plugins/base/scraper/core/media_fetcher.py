@@ -2,7 +2,6 @@
 import os
 import requests
 from typing import Any, Dict, List, Optional, Tuple
-from .media_url_builder import MediaUrlBuilder
 
 
 class MediaFetcher:
@@ -38,6 +37,7 @@ class MediaFetcher:
         created_at: str = "",
         username: str = "",
         display_name: str = "",
+        fallback_urls: Optional[List[str]] = None,
     ) -> Tuple[bool, Optional[str], Optional[str], Optional[str], Optional[str]]:
         t_title, txt, urls_list, c_fields = meta_tuple
 
@@ -50,8 +50,9 @@ class MediaFetcher:
             )
             return True, "COMPLETED", reg_id if media_type == "image" else None, reg_id if media_type != "image" else None, "local"
 
-        candidates = MediaUrlBuilder.build_all_candidates(resolved_url)
-        for cand_url, qual_name in candidates:
+        candidates = fallback_urls if fallback_urls else [resolved_url]
+        for cand_url in candidates:
+            qual_name = "original" if cand_url == resolved_url else "variant"
             try:
                 timeout = 8 if media_type == "image" else 20
                 resp = self.session.get(cand_url, stream=True, timeout=timeout, allow_redirects=True)
