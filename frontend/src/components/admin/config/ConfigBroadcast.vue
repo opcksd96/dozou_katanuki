@@ -3,9 +3,11 @@
 import { ref, computed, onMounted } from 'vue';
 import { models } from '../../../../wailsjs/go/models';
 import { useAdminBroadcast } from '../../../composables/admin/useAdminBroadcast';
+import { useStashResolver } from '../../../composables/useStashResolver';
 
 const props = defineProps<{ config: models.AppConfig }>();
 const { broadcastStatus, isBroadcastLoading, fetchBroadcastStatus, toggleBroadcast } = useAdminBroadcast();
+const { stashPort } = useStashResolver();
 const copiedIndex = ref<number | null>(null);
 
 const isEnabled = computed({
@@ -89,7 +91,7 @@ onMounted(() => { fetchBroadcastStatus(); });
             <button type="button" @click="copyUrl(`http://${ip}:${config?.network?.middleware_port || 5175}`, idx)" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs rounded transition-colors whitespace-nowrap">
               {{ copiedIndex === idx ? 'コピー完了!' : '土蔵URL' }}
             </button>
-            <button type="button" @click="copyUrl(`http://${ip}:${config?.network?.stash_port || 9999}`, idx + 100)" class="px-2.5 py-1 bg-purple-950/80 hover:bg-purple-900 border border-purple-700/50 text-purple-300 text-xs rounded transition-colors whitespace-nowrap" title="Stash WebUI のアクセスURLをコピー">
+            <button type="button" @click="copyUrl(`http://${ip}:${stashPort}`, idx + 100)" class="px-2.5 py-1 bg-purple-950/80 hover:bg-purple-900 border border-purple-700/50 text-purple-300 text-xs rounded transition-colors whitespace-nowrap" title="Stash WebUI のアクセスURLをコピー">
               {{ copiedIndex === (idx + 100) ? 'コピー完了!' : 'Stash URL' }}
             </button>
           </div>

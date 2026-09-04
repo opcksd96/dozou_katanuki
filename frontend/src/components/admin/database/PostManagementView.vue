@@ -1,6 +1,6 @@
 <!-- frontend/src/components/admin/database/PostManagementView.vue (100行以下 - SPEC-PRINCIPLE-001) -->
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { models } from '../../../../wailsjs/go/models';
 import DatabaseSpreadsheet from './DatabaseSpreadsheet.vue';
 import DatabaseTranslationEditor from './DatabaseTranslationEditor.vue';
@@ -47,6 +47,7 @@ const spreadsheetRows = computed(() => (props.articles || []).filter(Boolean).ma
 })));
 
 const handleBatchTrashConfirm = (reason: string) => { emit('batchTrash', Array.from(selectedIds.value), reason); clearSelection(); };
+onMounted(() => emit('search'));
 </script>
 
 <template>

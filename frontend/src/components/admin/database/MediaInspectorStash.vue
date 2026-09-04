@@ -2,6 +2,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { BrowserOpenURL } from '../../../../wailsjs/runtime/runtime';
+import { useStashResolver } from '../../../composables/useStashResolver';
 
 const props = defineProps<{
   media: any;
@@ -22,10 +23,10 @@ const emit = defineEmits<{
   (e: 'undo'): void;
 }>();
 
-const currentHostname = computed(() => (typeof window !== 'undefined' && window.location?.hostname && window.location.hostname !== 'wails.localhost') ? window.location.hostname : '127.0.0.1');
+const { getStashSceneUrl, getStashImageUrl } = useStashResolver();
 const stashDirectUrl = computed(() => {
-  if (props.media.stash_scene_id) return `http://${currentHostname.value}:9999/scenes/${props.media.stash_scene_id}`;
-  if (props.media.stash_image_id) return `http://${currentHostname.value}:9999/images/${props.media.stash_image_id}`;
+  if (props.media.stash_scene_id) return getStashSceneUrl(props.media.stash_scene_id);
+  if (props.media.stash_image_id) return getStashImageUrl(props.media.stash_image_id);
   return null;
 });
 

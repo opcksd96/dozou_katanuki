@@ -34,7 +34,7 @@ type Media struct {
 	TrashedBy      string         `gorm:"column:trashed_by;type:text" json:"trashed_by,omitempty"`
 	TrashReason    string         `gorm:"column:trash_reason;type:text" json:"trash_reason,omitempty"`
 	TrashedAt      *time.Time     `gorm:"column:trashed_at;type:datetime" json:"trashed_at,omitempty"`
-	Variants       []MediaVariant `gorm:"foreignKey:MediaID" json:"variants,omitempty"`
+	Variants       []MediaVariant `gorm:"foreignKey:MediaID;constraint:OnDelete:CASCADE;" json:"variants,omitempty"`
 }
 
 // BuildRenderMedia converts a DB Media record to frontend RenderMedia with normalized URLs and status

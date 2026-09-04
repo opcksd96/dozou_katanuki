@@ -3,18 +3,17 @@
 import { BrowserOpenURL } from '../../../../wailsjs/runtime/runtime';
 import { useThunderOrchestrator } from '../../../composables/admin/useThunderOrchestrator';
 import { useDownloaderConsole } from '../../../composables/admin/useDownloaderConsole';
+import { useStashResolver } from '../../../composables/useStashResolver';
 
 defineProps<{ checkpoints: any[] }>();
 const { launchThunder } = useThunderOrchestrator();
 const { launchMotrix } = useDownloaderConsole();
+const { openStashWebUI } = useStashResolver();
 
 const kickApp = (key: string) => {
   if (key === 'thunder') launchThunder();
-  else if (key === 'stash') {
-    try { BrowserOpenURL('http://127.0.0.1:9999/'); } catch { window.open('http://127.0.0.1:9999/', '_blank'); }
-  } else if (key === 'motrix') {
-    launchMotrix();
-  }
+  else if (key === 'stash') openStashWebUI();
+  else if (key === 'motrix') launchMotrix();
 };
 </script>
 

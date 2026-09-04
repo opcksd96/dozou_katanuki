@@ -3,15 +3,18 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"log"
 	"net/url"
 	"os"
 	"os/signal"
+	"strconv"
 	"syscall"
 	"time"
 
 	"dozou_katanuki/app"
 	"dozou_katanuki/middleware"
+	"dozou_katanuki/models"
 )
 
 func main() {
@@ -29,7 +32,15 @@ func main() {
 		os.Exit(0)
 	}()
 
-	stashURL, err := url.Parse("http://127.0.0.1:9999")
+	port := 9999
+	if data, err := os.ReadFile("config.json"); err == nil {
+		var cfg models.AppConfig
+		if err := json.Unmarshal(data, &cfg); err == nil && cfg.Network.StashPort > 0 {
+			port = cfg.Network.StashPort
+		}
+	}
+
+	stashURL, err := url.Parse("http://127.0.0.1:" + strconv.Itoa(port))
 	if err != nil {
 		log.Println("Stash URL Parse Error:", err.Error())
 	}

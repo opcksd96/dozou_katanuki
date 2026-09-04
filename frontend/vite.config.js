@@ -5,6 +5,20 @@ import tailwindcss from '@tailwindcss/vite';
 import path from 'path';
 import fs from 'fs';
 
+// config.json から stash_port を読み取る
+let stashPort = 9999;
+try {
+  const configPath = path.resolve(__dirname, '..', 'config.json');
+  if (fs.existsSync(configPath)) {
+    const cfg = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+    if (cfg?.network?.stash_port) {
+      stashPort = cfg.network.stash_port;
+    }
+  }
+} catch (e) {
+  console.warn('vite.config.js: Failed to read config.json, using default stash port 9999');
+}
+
 export default defineConfig({
   plugins: [
     vue(),
@@ -104,7 +118,7 @@ export default defineConfig({
     port: 5173,
     proxy: {
       '/stash-proxy': {
-        target: 'http://127.0.0.1:9999',
+        target: `http://127.0.0.1:${stashPort}`,
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/stash-proxy/, ''),
       },

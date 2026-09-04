@@ -3,6 +3,7 @@
 import { ref, computed } from 'vue';
 import type { RenderMedia, RenderTree } from '../../models/RenderTree';
 import type { LanguageCode } from '../../composables/useTimeline';
+import { useStashResolver } from '../../composables/useStashResolver';
 import Avatar from '../article/Avatar.vue';
 
 const props = defineProps<{ media: RenderMedia; article: RenderTree; targetLang?: LanguageCode }>();
@@ -18,11 +19,11 @@ const displayText = computed(() => {
   return c.original;
 });
 
-const currentHostname = computed(() => typeof window !== 'undefined' && window.location?.hostname ? window.location.hostname : '127.0.0.1');
+const { getStashSceneUrl, getStashImageUrl, stashBaseUrl } = useStashResolver();
 const stashDirectUrl = computed(() => {
-  if (props.media.stash_scene_id) return `http://${currentHostname.value}:9999/scenes/${props.media.stash_scene_id}`;
-  if (props.media.stash_image_id) return `http://${currentHostname.value}:9999/images/${props.media.stash_image_id}`;
-  return `http://${currentHostname.value}:9999`;
+  if (props.media.stash_scene_id) return getStashSceneUrl(props.media.stash_scene_id);
+  if (props.media.stash_image_id) return getStashImageUrl(props.media.stash_image_id);
+  return stashBaseUrl.value;
 });
 </script>
 

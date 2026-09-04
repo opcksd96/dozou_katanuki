@@ -11,7 +11,7 @@ import (
 )
 
 func TestBroadcastCORSMiddleware(t *testing.T) {
-	service := NewBroadcastService(models.NetworkConfig{MiddlewarePort: 5175}, models.BroadcastConfig{Enabled: true}, nil, nil, nil)
+	service := NewBroadcastService(models.NetworkConfig{MiddlewarePort: 5175}, models.BroadcastConfig{Enabled: true}, nil, nil, nil, nil)
 	handler := service.corsMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK); _, _ = w.Write([]byte("DATA"))
 	}))
@@ -62,7 +62,7 @@ func TestBroadcastLifecycle(t *testing.T) {
 	service := NewBroadcastService(
 		models.NetworkConfig{MiddlewarePort: 0, PublicBindAddress: "127.0.0.1"},
 		models.BroadcastConfig{Enabled: true},
-		nil, nil, nil,
+		nil, nil, nil, nil,
 	)
 	if err := service.Start(t.Context()); err != nil {
 		t.Fatalf("Failed to start broadcast service: %v", err)

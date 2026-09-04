@@ -4,8 +4,11 @@ package main
 import (
 	"context"
 	"embed"
+	"encoding/json"
+	"net/url"
 	"os"
 	"os/signal"
+	"strconv"
 	"syscall"
 	"time"
 
@@ -18,6 +21,8 @@ import (
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 
 	"dozou_katanuki/app"
+	"dozou_katanuki/middleware"
+	"dozou_katanuki/models"
 )
 
 //go:embed all:frontend/dist
@@ -46,8 +51,16 @@ func main() {
 
 	uiApp := &UIApp{}
 	
+	port := 9999
+	if data, err := os.ReadFile("config.json"); err == nil {
+		var cfg models.AppConfig
+		if err := json.Unmarshal(data, &cfg); err == nil && cfg.Network.StashPort > 0 { port = cfg.Network.StashPort }
+	}
+	stashURL, _ := url.Parse("http://127.0.0.1:" + strconv.Itoa(port))
+	unifiedHandler := middleware.NewUnifiedHandler("./assets", stashURL)
+
 	// Create actual application logic core
-	kApp := app.NewApp(nil, nil) // FIXME: middleware initialization needed if not injected later
+	kApp := app.NewApp(unifiedHandler, nil)
 	var appCtx context.Context
 
 	appMenu := menu.NewMenu()

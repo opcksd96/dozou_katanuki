@@ -21,6 +21,6 @@ type Account struct {
 	UpdatedAt    time.Time  `gorm:"column:updated_at;type:datetime;not null" json:"updated_at"`
 	PostCount    int64      `gorm:"->" json:"post_count"`
 
-	ProfileHistory []AccountProfileHistory `gorm:"foreignKey:AccountID;references:NumericID" json:"profile_history,omitempty"`
-	Articles       []Article               `gorm:"foreignKey:AccountID;references:NumericID" json:"articles,omitempty"`
+	ProfileHistory []AccountProfileHistory `gorm:"foreignKey:AccountID;references:NumericID;constraint:OnDelete:CASCADE;" json:"profile_history,omitempty"`
+	Articles       []Article               `gorm:"foreignKey:AccountID;references:NumericID;constraint:OnDelete:CASCADE;" json:"articles,omitempty"`
 }

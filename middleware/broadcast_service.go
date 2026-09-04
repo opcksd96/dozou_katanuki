@@ -29,15 +29,16 @@ type BroadcastService struct {
 	mu              sync.RWMutex
 	running         bool
 	adminUseCases   AdminUseCases
+	auditService    *AuditService
 }
 
-func NewBroadcastService(netCfg models.NetworkConfig, bcastCfg models.BroadcastConfig, handler *UnifiedHandler, timeline *TimelineService, emitter EventEmitter) *BroadcastService {
+func NewBroadcastService(netCfg models.NetworkConfig, bcastCfg models.BroadcastConfig, handler *UnifiedHandler, timeline *TimelineService, audit *AuditService, emitter EventEmitter) *BroadcastService {
 	if netCfg.MiddlewarePort <= 0 { netCfg.MiddlewarePort = 5175 }
 	if netCfg.PublicBindAddress == "" { netCfg.PublicBindAddress = "0.0.0.0" }
 	if len(bcastCfg.AllowedNetworks) == 0 {
 		bcastCfg.AllowedNetworks = append(GetLocalSubnets(), "127.0.0.1/32", "::1/128")
 	}
-	return &BroadcastService{netCfg: netCfg, bcastCfg: bcastCfg, unifiedHandler: handler, timelineService: timeline, emitter: emitter}
+	return &BroadcastService{netCfg: netCfg, bcastCfg: bcastCfg, unifiedHandler: handler, timelineService: timeline, auditService: audit, emitter: emitter}
 }
 
 func (s *BroadcastService) SetDistFS(dfs fs.FS) {

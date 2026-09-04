@@ -3,6 +3,7 @@
 import { ref, shallowRef, computed, onMounted, onBeforeUnmount, watch } from 'vue';
 import Plyr from 'plyr';
 import Hls from 'hls.js';
+import { useStashResolver } from '../../composables/useStashResolver';
 import { EventsOn } from '../../../wailsjs/runtime/runtime';
 
 const props = withDefaults(defineProps<{ src: string; poster?: string; autoplay?: boolean; controls?: boolean; stashSceneId?: string; showExpandButton?: boolean }>(), { autoplay: false, controls: true, showExpandButton: true });
@@ -11,11 +12,11 @@ const emit = defineEmits<{ (e: 'expand'): void; (e: 'fullscreenChange', active: 
 const videoRef = ref<HTMLVideoElement | null>(null), playerRef = shallowRef<Plyr | null>(null), hlsRef = shallowRef<Hls | null>(null);
 const isError = ref(false), retryCount = ref(0);
 let unoffStashReady: (() => void) | null = null;
-const host = computed(() => typeof window !== 'undefined' && window.location?.hostname ? window.location.hostname : '127.0.0.1');
+const { getStashSceneUrl } = useStashResolver();
 const stashUrl = computed(() => {
-  if (props.stashSceneId) return `http://${host.value}:9999/scenes/${props.stashSceneId}`;
+  if (props.stashSceneId) return getStashSceneUrl(props.stashSceneId);
   const m = props.src?.match(/\/stash-proxy\/scene\/([^/]+)/);
-  return m?.[1] ? `http://${host.value}:9999/scenes/${m[1]}` : null;
+  return m?.[1] ? getStashSceneUrl(m[1]) : null;
 });
 
 const destroyPlayer = () => { if (hlsRef.value) { hlsRef.value.destroy(); hlsRef.value = null; } if (playerRef.value) { playerRef.value.destroy(); playerRef.value = null; } };

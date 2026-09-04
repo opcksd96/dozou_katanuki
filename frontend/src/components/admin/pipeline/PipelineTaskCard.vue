@@ -1,14 +1,16 @@
 <!-- frontend/src/components/admin/pipeline/PipelineTaskCard.vue (100行以下 - SPEC-PRINCIPLE-001) -->
 <script setup lang="ts">
 import { BrowserOpenURL } from '../../../../wailsjs/runtime/runtime';
+import { useStashResolver } from '../../../composables/useStashResolver';
 
 const props = defineProps<{ task: any }>();
 const emit = defineEmits<{ (e: 'jumpToMedia', mediaId: string): void }>();
 
+const { getStashSceneUrl, getStashImageUrl, stashBaseUrl } = useStashResolver();
 const openInStash = (stashSceneId?: string, stashImageId?: string) => {
-  let url = 'http://127.0.0.1:9999/';
-  if (stashSceneId) url += `scenes/${stashSceneId}`;
-  else if (stashImageId) url += `images/${stashImageId}`;
+  let url = stashBaseUrl.value;
+  if (stashSceneId) url = getStashSceneUrl(stashSceneId);
+  else if (stashImageId) url = getStashImageUrl(stashImageId);
   try { BrowserOpenURL(url); } catch { window.open(url, '_blank'); }
 };
 </script>

@@ -2,6 +2,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import { BrowserOpenURL } from '../../../../wailsjs/runtime/runtime';
+import { useStashResolver } from '../../../composables/useStashResolver';
 import MediaCockpitHeader from './MediaCockpitHeader.vue';
 import MediaToolbar from './MediaToolbar.vue';
 import MediaBatchToolbar from './MediaBatchToolbar.vue';
@@ -24,8 +25,7 @@ const emit = defineEmits<{
   (e: 'update:typeFilter', v: 'all' | 'image' | 'video'): void; (e: 'update:page', p: number): void; (e: 'update:limit', l: number): void;
   (e: 'retryMedia', mediaId: string): void; (e: 'trashMedia', payload: { mediaId: string; reason: string }): void; (e: 'restoreMedia', id: string): void;
   (e: 'purgeMedia', mediaId: string): void; (e: 'purgeByStatus', status: string): void; (e: 'viewPost', articleId: string): void;
-  (e: 'viewPostTimeline', articleId: string): void; (e: 'saveMetadata', payload: any): void; (e: 'startDownload'): void;
-  (e: 'startPoll'): void; (e: 'startEscalate'): void; (e: 'startSmartRecovery'): void; (e: 'startThunder'): void; (e: 'escalateThunder', m: any): void;
+  (e: 'startPoll'): void; (e: 'startEscalate'): void; (e: 'startSmartRecovery'): void;
   (e: 'requeueFailed'): void; (e: 'reconcileStash'): void; (e: 'openExplorer', id: string): void; (e: 'openDefault', id: string): void;
   (e: 'toggleBookmark', id: string): void; (e: 'cancelJob', id: string): void;
   (e: 'batchTrashMedia', mediaIds: string[], reason?: string): void; (e: 'batchRestoreMedia', mediaIds: string[]): void;
@@ -37,10 +37,8 @@ const searchQuery = ref(''), onlyBookmarked = ref(false), showTrashModal = ref(f
 const { selectedIds, selectedCount, toggleSelect, selectAll, clearSelection } = useMediaBatchOps();
 
 const openTrashModal = (m: any) => { selectedMediaForTrash.value = m; showTrashModal.value = true; };
-const openStash = () => {
-  const url = `http://127.0.0.1:${props.config?.network?.stash_port || 9999}`;
-  try { BrowserOpenURL(url); } catch { window.open(url, '_blank', 'noopener,noreferrer'); }
-};
+const { openStashWebUI } = useStashResolver();
+const openStash = () => openStashWebUI();
 
 const handleBatchRetry = () => { selectedIds.value.forEach(id => emit('retryMedia', id)); clearSelection(); };
 const handleBatchRevertToQueued = () => {
@@ -63,7 +61,7 @@ onMounted(() => emit('fetch'));
       @update:account-filter="emit('update:accountFilter', $event)"
       @update:status-filter="emit('update:statusFilter', $event)"
       @update:type-filter="emit('update:typeFilter', $event)"
-      @open-stash="openStash" @start-smart-recovery="emit('startSmartRecovery')" @start-thunder="emit('startThunder')"
+      @open-stash="openStash" @start-smart-recovery="emit('startSmartRecovery')"
       @reconcile-stash="emit('reconcileStash')"
     />
     <MediaBatchToolbar

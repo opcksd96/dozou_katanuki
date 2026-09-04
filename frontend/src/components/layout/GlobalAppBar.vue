@@ -2,6 +2,7 @@
 <script setup lang="ts">
 import { computed, ref, onMounted, onUnmounted } from 'vue';
 import { reloadWindow } from '../../composables/useKeyboardReload';
+import { useStashResolver } from '../../composables/useStashResolver';
 import { EventsOn, WindowMinimise, WindowToggleMaximise, Quit, BrowserOpenURL } from '../../../wailsjs/runtime/runtime';
 import { RefreshCw, Settings, Minus, Square, X, Server, Layers, Menu, ExternalLink } from 'lucide-vue-next';
 import GlobalMobileMenu from './GlobalMobileMenu.vue';
@@ -13,6 +14,8 @@ const localOnline = ref(false), isMobileMenuOpen = ref(false);
 const isOnline = computed(() => props.isStashOnline ?? localOnline.value);
 let unoff: (() => void) | null = null;
 
+const { openStashWebUI } = useStashResolver();
+
 const checkStash = async () => {
   try {
     const getApp = (window as any)?.go?.app?.App || (window as any)?.go?.main?.App;
@@ -22,13 +25,7 @@ const checkStash = async () => {
   } catch { localOnline.value = false; }
 };
 
-const openStashWeb = () => {
-  if ((window as any)._isWailsPolyfill) {
-    window.open(`http://${window.location.hostname}:9999/`, '_blank');
-  } else {
-    try { BrowserOpenURL('http://127.0.0.1:9999/'); } catch {}
-  }
-};
+const openStashWeb = () => openStashWebUI();
 
 onMounted(() => {
   try { if ((window as any)?.runtime?.EventsOnMultiple) unoff = EventsOn('stash:ready', (ready: boolean) => { localOnline.value = !!ready; }); } catch {}

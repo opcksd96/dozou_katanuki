@@ -42,7 +42,7 @@ defineProps<{ config: models.AppConfig }>();
       </div>
       <p class="text-[11px] text-slate-400">
         {{ config.storage.stash_enabled
-          ? 'Stashapp (:9999) と連携し、stash_dir 内の scenes/images を走査・ストリーミングします。'
+          ? 'Stashapp と連携し、stash_dir 内の scenes/images を走査・ストリーミングします。'
           : 'Stashapp を起動せず、local_media_dir 配下の物理ディレクトリから Go サーバーが直接メディアを配信します。' }}
       </p>
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">

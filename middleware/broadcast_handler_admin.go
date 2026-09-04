@@ -144,13 +144,6 @@ func (s *BroadcastService) handleSystemJournalsAPI(w http.ResponseWriter, r *htt
 }
 
 func (s *BroadcastService) handleRestartAPI(w http.ResponseWriter, r *http.Request) {
-	if ports.GetScope(r.Context()) != ports.ScopeAdmin {
-		http.Error(w, "Forbidden", http.StatusForbidden); return
-	}
-	if r.Method != http.MethodPost {
-		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed); return
-	}
-
 	// Just record the journal entry, since we don't have access to App struct here
 	GetGlobalJournal().Record(
 		"system", "INFO", "backend_restarted",
@@ -162,4 +155,80 @@ func (s *BroadcastService) handleRestartAPI(w http.ResponseWriter, r *http.Reque
 	_ = json.NewEncoder(w).Encode(map[string]bool{"success": true})
 }
 
+// handleAuditAPI handles GET /api/admin/audit
+func (s *BroadcastService) handleAuditAPI(w http.ResponseWriter, r *http.Request) {
+	if s.auditService == nil {
+		http.Error(w, "AuditService not configured", http.StatusInternalServerError)
+		return
+	}
+	purgeFiles := r.URL.Query().Get("purgeFiles") == "true"
+	purgeDB := r.URL.Query().Get("purgeDB") == "true"
+	report, err := s.auditService.RunAudit(r.Context(), "./stash", "./blobs", purgeFiles, purgeDB)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	_ = json.NewEncoder(w).Encode(report)
+}
+
+// handleAuditPurgeFilesAPI handles POST /api/admin/audit/purge-files
+func (s *BroadcastService) handleAuditPurgeFilesAPI(w http.ResponseWriter, r *http.Request) {
+	if s.auditService == nil {
+		http.Error(w, "AuditService not configured", http.StatusInternalServerError)
+		return
+	}
+	var paths []string
+	_ = json.NewDecoder(r.Body).Decode(&paths)
+	count, err := s.auditService.PurgeOrphanFiles(paths)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	_ = json.NewEncoder(w).Encode(map[string]int{"purged": count})
+}
+
+// handleAuditPurgeDBAPI handles POST /api/admin/audit/purge-db
+func (s *BroadcastService) handleAuditPurgeDBAPI(w http.ResponseWriter, r *http.Request) {
+	if s.auditService == nil {
+		http.Error(w, "AuditService not configured", http.StatusInternalServerError)
+		return
+	}
+	var ids []string
+	_ = json.NewDecoder(r.Body).Decode(&ids)
+	count, err := s.auditService.PurgeOrphanDBMedia("./backups/dumps/_trash", ids)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	_ = json.NewEncoder(w).Encode(map[string]int{"purged": count})
+}
+
+// handleAuditRollbackAPI handles POST /api/admin/audit/rollback
+func (s *BroadcastService) handleAuditRollbackAPI(w http.ResponseWriter, r *http.Request) {
+	if s.auditService == nil {
+		http.Error(w, "AuditService not configured", http.StatusInternalServerError)
+		return
+	}
+	count, err := s.auditService.RollbackLastDBPurge("./backups/dumps/_trash")
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	_ = json.NewEncoder(w).Encode(map[string]int{"restored": count})
+}
+
+// handleAuditCanRollbackAPI handles GET /api/admin/audit/can-rollback
+func (s *BroadcastService) handleAuditCanRollbackAPI(w http.ResponseWriter, r *http.Request) {
+	if s.auditService == nil {
+		http.Error(w, "AuditService not configured", http.StatusInternalServerError)
+		return
+	}
+	canRollback := s.auditService.CanRollbackDBPurge("./backups/dumps/_trash")
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	_ = json.NewEncoder(w).Encode(map[string]bool{"can_rollback": canRollback})
+}
 

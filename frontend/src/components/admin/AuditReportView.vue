@@ -4,6 +4,7 @@ import { ref, onMounted } from 'vue';
 import { useAdminAudit } from '../../composables/admin/useAdminAudit';
 import { Server, Database, RefreshCw, ExternalLink } from 'lucide-vue-next';
 import { BrowserOpenURL } from '../../../wailsjs/runtime/runtime';
+import { useStashResolver } from '../../composables/useStashResolver';
 import AuditReportHeader from './audit/AuditReportHeader.vue';
 import AuditReportOrphans from './audit/AuditReportOrphans.vue';
 import AuditReportRestore from './audit/AuditReportRestore.vue';
@@ -22,10 +23,8 @@ const checkStashHealth = async () => {
   } catch { isStashOnline.value = false; stashLatency.value = null; }
 };
 
-const openStash = () => {
-  try { BrowserOpenURL('http://127.0.0.1:9999/'); }
-  catch { window.open('http://127.0.0.1:9999/', '_blank'); }
-};
+const { openStashWebUI } = useStashResolver();
+const openStash = () => openStashWebUI();
 
 onMounted(() => {
   checkStashHealth();
@@ -44,7 +43,7 @@ onMounted(() => {
             <div class="text-xs font-bold text-slate-100 flex items-center gap-1.5">
               <span>Stash Media Server</span>
               <button @click="openStash" class="text-[10px] text-blue-400 hover:text-blue-300 font-normal flex items-center gap-0.5 cursor-pointer underline" title="Stash Web UI を開く">
-                <span>:9999 開く</span><ExternalLink class="w-2.5 h-2.5" />
+                <span>Stashを開く</span><ExternalLink class="w-2.5 h-2.5" />
               </button>
             </div>
             <div class="text-[10px] font-mono text-slate-400">{{ isStashOnline ? `応答時間: ${stashLatency}ms (GraphQL Proxy)` : 'オフライン (接続待機中)' }}</div>

@@ -2,6 +2,7 @@
 <script setup lang="ts">
 import { ref, reactive, watch, onMounted, onUnmounted } from 'vue';
 import { useAdmin } from '../../composables/useAdmin';
+import { useStashResolver } from '../../composables/useStashResolver';
 import { Minus, Square, X, ArrowLeft, Settings2, RefreshCw, Server, ExternalLink, Menu } from 'lucide-vue-next';
 import { WindowMinimise, WindowToggleMaximise, Quit, EventsOn, BrowserOpenURL } from '../../../wailsjs/runtime/runtime';
 import { AdminTabId } from '../../models/adminTabs';
@@ -22,6 +23,7 @@ sessionStorage.removeItem('admin_auto_open_tab');
 const activeTab = ref<AdminTabId>(initialTab), isMobileNavOpen = ref(false), isStashOnline = ref(false);
 const salvageForm = reactive({ platform: 'twitter', account: '', source: 'all', limit: 0 }), importForm = reactive({ warcPath: '', offline: true }), selectedPlatform = ref('twitter');
 const admin = useAdmin();
+const { openStashWebUI } = useStashResolver();
 let unoffStash: (() => void) | null = null;
 const close = () => emit('close');
 const handleKey = (e: KeyboardEvent) => { if (e.key === 'Escape' && props.isOpen) close(); };
@@ -32,13 +34,7 @@ const checkStash = async () => {
     const r = await fetch('/stash-proxy/', { method: 'HEAD' }); isStashOnline.value = r.ok || r.status === 401 || r.status === 404;
   } catch { isStashOnline.value = false; }
 };
-const openStashWeb = () => {
-  if ((window as any)._isWailsPolyfill) {
-    window.open(`http://${window.location.hostname}:9999/`, '_blank');
-  } else {
-    try { BrowserOpenURL('http://127.0.0.1:9999/'); } catch {}
-  }
-};
+const openStashWeb = () => openStashWebUI();
 const handleGlobalHardReload = () => {
   sessionStorage.setItem('admin_auto_open_tab', activeTab.value);
   window.location.reload();

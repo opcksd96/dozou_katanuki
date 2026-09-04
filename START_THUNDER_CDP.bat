@@ -5,8 +5,23 @@ echo   Thunder CDP (Port 9222) Launcher
 echo ===================================================
 echo.
 
-echo [*] Resolving Thunder installation path...
+echo [*] Checking if Thunder is already running with CDP...
 
+set "PS_CHECK=$proc = Get-CimInstance Win32_Process -Filter \"Name='Thunder.exe'\" -ErrorAction SilentlyContinue | Select-Object -First 1; if ($proc) { if ($proc.CommandLine -match '9222') { exit 0 } else { exit 2 } } else { exit 1 }"
+powershell -NoProfile -Command "%PS_CHECK%"
+set PS_EXIT=%errorlevel%
+
+if %PS_EXIT% equ 0 (
+    echo [OK] Thunder is already running in CDP mode (Port 9222).
+    exit /b 0
+) else if %PS_EXIT% equ 2 (
+    echo [*] Thunder is running, but WITHOUT CDP enabled. Terminating to restart with CDP...
+    taskkill /F /IM Thunder.exe /T 2>NUL
+    taskkill /F /IM ThunderApp.exe /T 2>NUL
+    timeout /t 2 /nobreak >NUL
+)
+
+echo [*] Resolving Thunder installation path...
 :: PowerShell script to find Thunder path from registry or running process
 set "PS_CMD=$path = ''; $proc = Get-CimInstance Win32_Process -Filter \"Name='Thunder.exe'\" -ErrorAction SilentlyContinue | Select-Object -First 1; if ($proc) { $path = $proc.ExecutablePath } else { $regPaths = @('HKCU:\Software\Thunder Network\ThunderOem\thunder_backwnd', 'HKLM:\SOFTWARE\WOW6432Node\Thunder Network\ThunderOem\thunder_backwnd', 'HKCU:\Software\Thunder Network\Thunder\Path'); foreach ($rp in $regPaths) { $val = Get-ItemPropertyValue -Path $rp -Name 'Path' -ErrorAction SilentlyContinue; if ($val -and (Test-Path $val)) { $path = $val; break } }; if (-not $path) { $default = 'C:\Program Files (x86)\Thunder Network\Thunder\Program\Thunder.exe'; if (Test-Path $default) { $path = $default } } }; Write-Output $path"
 

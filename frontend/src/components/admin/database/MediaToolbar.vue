@@ -11,11 +11,10 @@ const emit = defineEmits<{
   (e: 'update:searchQuery', v: string): void; (e: 'update:accountFilter', v: string): void;
   (e: 'update:statusFilter', v: string): void; (e: 'update:typeFilter', v: 'all' | 'image' | 'video'): void;
   (e: 'update:viewMode', v: 'large' | 'compact' | 'table'): void; (e: 'update:onlyBookmarked', v: boolean): void;
-  (e: 'openStash'): void; (e: 'startSmartRecovery'): void; (e: 'startThunder'): void; (e: 'reconcileStash'): void;
+  (e: 'openStash'): void; (e: 'startSmartRecovery'): void; (e: 'reconcileStash'): void;
 }>();
 
 const isSmartRunning = computed(() => props.activeJob?.status === 'RUNNING' && props.activeJob?.type?.includes('SMART'));
-const isThunderRunning = computed(() => props.activeJob?.status === 'RUNNING' && props.activeJob?.type?.includes('THUNDER'));
 const isReconcileRunning = computed(() => props.activeJob?.status === 'RUNNING' && props.activeJob?.type?.includes('STASH'));
 </script>
 
@@ -55,10 +54,6 @@ const isReconcileRunning = computed(() => props.activeJob?.status === 'RUNNING' 
       <button @click="emit('startSmartRecovery')" :disabled="isSmartRunning" :class="isSmartRunning ? 'opacity-80 ring-2 ring-blue-400 animate-pulse' : 'hover:from-blue-500 hover:to-indigo-500 active:scale-95 shadow-md shadow-blue-900/30'" class="px-3.5 py-1.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all duration-150 cursor-pointer disabled:cursor-not-allowed whitespace-nowrap" title="自律回収: 直接取得 ➔ Motrix外注 ➔ Stash照合 ➔ 完了バインドを一括自律実行">
         <span :class="isSmartRunning ? 'animate-spin inline-block' : ''">{{ isSmartRunning ? '⏳' : '🪄' }}</span>
         <span class="hidden xl:inline">{{ isSmartRunning ? '回収実行中...' : 'スマート一括回収' }}</span>
-      </button>
-      <button @click="emit('startThunder')" :disabled="isThunderRunning" :class="isThunderRunning ? 'opacity-80 ring-2 ring-amber-400 animate-pulse' : 'hover:bg-amber-500 active:scale-95 shadow-sm'" class="px-2.5 py-1.5 bg-amber-600 text-white rounded-lg text-[11px] font-bold flex items-center gap-1.5 transition-all duration-150 cursor-pointer disabled:cursor-not-allowed whitespace-nowrap" title="迅雷投入: 保留(RETAINED)メディアを Thunder (迅雷) へ一括転送">
-        <span :class="isThunderRunning ? 'animate-spin inline-block' : ''">{{ isThunderRunning ? '⏳' : '⚡' }}</span>
-        <span class="hidden xl:inline">{{ isThunderRunning ? '迅雷投入中...' : '迅雷一括投入' }}</span>
       </button>
       <button @click="emit('reconcileStash')" :disabled="isReconcileRunning" :class="isReconcileRunning ? 'opacity-80 ring-2 ring-purple-400 animate-pulse' : 'hover:bg-purple-500 active:scale-95 shadow-sm'" class="px-2.5 py-1.5 bg-purple-600 text-white rounded-lg text-[11px] font-bold flex items-center gap-1 transition-all duration-150 cursor-pointer disabled:cursor-not-allowed whitespace-nowrap" title="Stash照合: ローカル保存ファイルをStashと照合してCOMPLETEDへ昇格">
         <span :class="isReconcileRunning ? 'animate-spin inline-block' : ''">{{ isReconcileRunning ? '⏳' : '📦' }}</span>

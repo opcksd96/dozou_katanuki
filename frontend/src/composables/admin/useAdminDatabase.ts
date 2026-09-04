@@ -32,7 +32,6 @@ export function useAdminDatabase() {
   const startMediaPoll = async () => { try { addToast('📡 Motrixポーリングを開始しました', 'info', 2500); return await getApp()?.StartMediaPollJob?.('twitter'); } catch {} };
   const startMediaEscalate = async () => { try { addToast('⚡ Motrixエスカレーションを開始しました', 'info', 2500); return await getApp()?.StartMediaEscalateJob?.('twitter'); } catch {} };
   const startSmartRecovery = async () => { try { addToast('🪄 スマート一括回収ジョブを開始しました', 'info', 3000); return await getApp()?.StartSmartRecoveryJob?.('twitter'); } catch {} };
-  const startThunderEscalate = async () => { try { addToast('⚡ 迅雷(Thunder)一括投入ジョブを開始しました', 'info', 3000); return await getApp()?.StartThunderEscalateJob?.('twitter'); } catch {} };
   const requeueMedia = async (status = 'DEAD_404') => { try { const count = await getApp()?.RequeueMediaByStatus?.(status, media.mediaAccount.value); addToast(`🔄 ${count}件を再キューイングしました`, 'success', 2500); await media.fetchMedia(); return count; } catch { return 0; } };
   const reconcileStashMedia = async () => { try { addToast('📦 Stash照合・同期を開始しました', 'info', 2500); const count = await getApp()?.ReconcileStashMedia?.(); addToast(`✅ Stash照合完了 (${count}件)`, 'success', 3000); await media.fetchMedia(); return count; } catch { return 0; } };
   const fetchStashMetadata = async (sId: string, iId: string) => { try { return await getApp()?.GetStashMetadata?.(sId, iId); } catch { return null; } };
@@ -67,6 +66,6 @@ export function useAdminDatabase() {
     trashMedia: media.trashMedia, restoreMedia: media.restoreMedia, batchTrashMedia: media.batchTrashMedia, batchRestoreMedia: media.batchRestoreMedia,
     batchRevertToQueued: media.batchRevertToQueued, updateMediaMetadata: media.updateMediaMetadata,
     escalateMediaToThunder: media.escalateMediaToThunder, openInExplorer: media.openInExplorer, openWithDefaultApp: media.openWithDefaultApp, toggleBookmark: media.toggleBookmark,
-    startMediaDownload, startMediaPoll, startMediaEscalate, startSmartRecovery, startThunderEscalate, requeueMedia, reconcileStashMedia, fetchStashMetadata, updateStashMetadata,
+    startMediaDownload, startMediaPoll, startMediaEscalate, startSmartRecovery, requeueMedia, reconcileStashMedia, fetchStashMetadata, updateStashMetadata,
   };
 }

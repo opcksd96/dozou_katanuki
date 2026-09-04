@@ -14,7 +14,7 @@ func TestHandleRoot(t *testing.T) {
 	service := NewBroadcastService(
 		models.NetworkConfig{MiddlewarePort: 5175, PublicBindAddress: "0.0.0.0"},
 		models.BroadcastConfig{Enabled: true},
-		NewUnifiedHandler("./assets", nil), nil, nil,
+		NewUnifiedHandler("./assets", nil), nil, nil, nil,
 	)
 
 	// Mock FS

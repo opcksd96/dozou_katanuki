@@ -119,7 +119,7 @@ func (w *adminUseCaseWrapper) IgnitePipeline() (interface{}, error) {
 }
 
 func (a *App) broadcastStart(ctx context.Context, netCfg models.NetworkConfig, bcastCfg models.BroadcastConfig, emitter func(string, ...interface{})) {
-	a.BroadcastService = middleware.NewBroadcastService(netCfg, bcastCfg, a.UnifiedHandler, a.TimelineService, emitter)
+	a.BroadcastService = middleware.NewBroadcastService(netCfg, bcastCfg, a.UnifiedHandler, a.TimelineService, a.AuditService, emitter)
 	a.BroadcastService.SetAdminUseCases(&adminUseCaseWrapper{app: a})
 	if a.DistFS != nil {
 		a.BroadcastService.SetDistFS(a.DistFS)

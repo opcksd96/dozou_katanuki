@@ -4,7 +4,9 @@ package app
 import (
 	"encoding/json"
 	"log"
+	"net/url"
 	"os"
+	"strconv"
 
 	"dozou_katanuki/middleware"
 	"dozou_katanuki/models"
@@ -63,6 +65,10 @@ func (a *App) SaveConfig(cfg *models.AppConfig) error {
 	}
 	if a.UnifiedHandler != nil {
 		a.UnifiedHandler.SetMediaDir(cfg.Storage.LocalMediaDir)
+		port := 9999
+		if cfg.Network.StashPort > 0 { port = cfg.Network.StashPort }
+		stashURL, err := url.Parse("http://127.0.0.1:" + strconv.Itoa(port))
+		if err == nil { a.UnifiedHandler.UpdateStashProxy(stashURL) }
 	}
 	if a.BroadcastService != nil {
 		if err := a.BroadcastService.UpdateConfig(cfg.Network, cfg.Broadcast); err != nil {

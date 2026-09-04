@@ -14,6 +14,7 @@ type UnifiedHandler struct {
 	avatarDir  string
 	mediaDir   string
 	stashProxy *httputil.ReverseProxy
+	stashURL   *url.URL
 	jobOrch    *JobOrchestrator
 }
 
@@ -34,7 +35,29 @@ func NewUnifiedHandler(avatarDir string, stashURL *url.URL) *UnifiedHandler {
 			_, _ = w.Write([]byte(`<svg xmlns="http://www.w3.org/2000/svg" width="400" height="250"><rect width="100%" height="100%" fill="#1e293b" rx="8"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" fill="#ef4444" font-family="sans-serif">Stash Offline (502)</text></svg>`))
 		}
 	}
-	return &UnifiedHandler{avatarDir: avatarDir, stashProxy: proxy}
+	return &UnifiedHandler{avatarDir: avatarDir, stashProxy: proxy, stashURL: stashURL}
+}
+
+func (h *UnifiedHandler) UpdateStashProxy(stashURL *url.URL) {
+	if stashURL == nil {
+		h.stashProxy = nil
+		h.stashURL = nil
+		return
+	}
+	proxy := httputil.NewSingleHostReverseProxy(stashURL)
+	orig := proxy.Director
+	proxy.Director = func(req *http.Request) { orig(req); req.Host = stashURL.Host }
+	proxy.ModifyResponse = func(resp *http.Response) error {
+		resp.Header.Set("Access-Control-Allow-Origin", "*")
+		resp.Header.Set("Access-Control-Allow-Methods", "GET, HEAD, OPTIONS, POST")
+		return nil
+	}
+	proxy.ErrorHandler = func(w http.ResponseWriter, r *http.Request, err error) {
+		w.Header().Set("Content-Type", "image/svg+xml"); w.WriteHeader(http.StatusBadGateway)
+		_, _ = w.Write([]byte(`<svg xmlns="http://www.w3.org/2000/svg" width="400" height="250"><rect width="100%" height="100%" fill="#1e293b" rx="8"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" fill="#ef4444" font-family="sans-serif">Stash Offline (502)</text></svg>`))
+	}
+	h.stashProxy = proxy
+	h.stashURL = stashURL
 }
 
 func (h *UnifiedHandler) SetJobOrchestrator(orch *JobOrchestrator) { h.jobOrch = orch }

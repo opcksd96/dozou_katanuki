@@ -2,6 +2,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
 import { BrowserOpenURL } from '../../../../wailsjs/runtime/runtime';
+import { useStashResolver } from '../../../composables/useStashResolver';
 import Avatar from '../../article/Avatar.vue';
 
 const props = withDefaults(defineProps<{ media: any; compact?: boolean; selected?: boolean }>(), { compact: false, selected: false });
@@ -16,10 +17,10 @@ const isHovered = ref(false), imgFailed = ref(false);
 const isWails = computed(() => typeof window !== 'undefined' && !!((window as any)?.go?.app?.App || (window as any)?.go?.main?.App) && !(window as any)?._isWailsPolyfill);
 const isVideo = computed(() => { const t = props.media.type?.toLowerCase(); return t === 'video' || t === 'gif' || !!props.media.stash_scene_id; });
 const formattedTitle = computed(() => props.media.title || `X (@${props.media.username || 'unknown'}): Tweet ${props.media.article_id || props.media.media_id || props.media.id}`);
+const { getStashSceneUrl, getStashImageUrl } = useStashResolver();
 const stashDirectUrl = computed(() => {
-  const host = (typeof window !== 'undefined' && window.location?.hostname && window.location.hostname !== 'wails.localhost') ? window.location.hostname : '127.0.0.1';
-  if (props.media.stash_scene_id) return `http://${host}:9999/scenes/${props.media.stash_scene_id}`;
-  if (props.media.stash_image_id) return `http://${host}:9999/images/${props.media.stash_image_id}`;
+  if (props.media.stash_scene_id) return getStashSceneUrl(props.media.stash_scene_id);
+  if (props.media.stash_image_id) return getStashImageUrl(props.media.stash_image_id);
   return null;
 });
 

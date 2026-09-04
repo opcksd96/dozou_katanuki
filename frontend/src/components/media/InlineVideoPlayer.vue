@@ -2,16 +2,17 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue';
 import Hls from 'hls.js';
+import { useStashResolver } from '../../composables/useStashResolver';
 
 const props = defineProps<{ src: string; poster?: string; stashSceneId?: string }>();
 const emit = defineEmits<{ (e: 'expand'): void }>();
 
 const videoRef = ref<HTMLVideoElement | null>(null), hlsRef = ref<Hls | null>(null), isError = ref(false);
-const host = computed(() => typeof window !== 'undefined' && window.location?.hostname ? window.location.hostname : '127.0.0.1');
+const { getStashSceneUrl } = useStashResolver();
 const stashUrl = computed(() => {
-  if (props.stashSceneId) return `http://${host.value}:9999/scenes/${props.stashSceneId}`;
+  if (props.stashSceneId) return getStashSceneUrl(props.stashSceneId);
   const m = props.src?.match(/\/stash-proxy\/scene\/([^/]+)/);
-  return m?.[1] ? `http://${host.value}:9999/scenes/${m[1]}` : null;
+  return m?.[1] ? getStashSceneUrl(m[1]) : null;
 });
 
 const cleanupHls = () => { if (hlsRef.value) { hlsRef.value.destroy(); hlsRef.value = null; } };

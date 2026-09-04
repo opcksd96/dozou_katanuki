@@ -11,6 +11,7 @@ import { useKeyboardReload } from '../../composables/useKeyboardReload';
 import { useTheme } from '../../composables/useTheme';
 import { useExternalAppsHealth } from '../../composables/useExternalAppsHealth';
 import { useAppRouter } from '../../composables/useAppRouter';
+import { useStashResolver } from '../../composables/useStashResolver';
 import GlobalAppBar from '../../components/layout/GlobalAppBar.vue';
 import AccountScopeSelector from '../../components/timeline/AccountScopeSelector.vue';
 import AccountHeroHeader from '../../components/timeline/AccountHeroHeader.vue';
@@ -28,6 +29,7 @@ const { articles, accounts, selectedAccount, currentFilter, searchQuery, systemL
 const { detail, loading: detailLoading, fetchDetail, clearDetail } = useArticleDetail();
 const { activeMedia, activeArticle, hasNext, hasPrev, openMedia, closeMedia, nextMedia, prevMedia } = useMediaOverlay();
 const { loadSkin } = useSkin();
+const { stashPort } = useStashResolver();
 useKeyboardReload();
 useExternalAppsHealth();
 
@@ -77,7 +79,7 @@ onMounted(() => {
           </div>
           <div class="space-y-2 max-w-sm">
             <h2 class="text-base font-bold text-slate-100 flex items-center justify-center gap-2"><Loader2 class="w-4 h-4 animate-spin text-blue-400" />Stash メディアサーバー接続確認中...</h2>
-            <p class="text-xs text-slate-400 font-mono">ポート9999疎通プロービング中</p>
+            <p class="text-xs text-slate-400 font-mono">ポート{{ stashPort }}疎通プロービング中</p>
           </div>
         </div>
         <!-- タイムライン / 詳細 -->
