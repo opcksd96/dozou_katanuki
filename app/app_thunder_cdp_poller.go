@@ -3,6 +3,7 @@ package app
 
 import (
 	"encoding/json"
+	"fmt"
 	"time"
 )
 
@@ -30,9 +31,9 @@ func (a *App) StartThunderCDPAdaptivePoller() {
 					continue
 				}
 				wsURL = u
+				a.AppendPipelineLog("THUNDER", "INFO", "迅雷 CDP WebSocket 接続を確立しました")
 			}
 
-			// オーケストレーター未稼働または一時停止中は突合・タスク操作をスキップ
 			if !a.isThunderOrchestratorRunning() {
 				interval = 3000 * time.Millisecond
 				continue
@@ -42,6 +43,7 @@ func (a *App) StartThunderCDPAdaptivePoller() {
 			if err != nil {
 				wsURL = ""
 				interval = 3000 * time.Millisecond
+				a.AppendPipelineLog("THUNDER", "WARN", fmt.Sprintf("迅雷 CDP 通信途絶: %v", err))
 				continue
 			}
 
@@ -52,7 +54,10 @@ func (a *App) StartThunderCDPAdaptivePoller() {
 			}
 
 			interval = 2000 * time.Millisecond
-			_, _ = a.ReconcileThunderTasksWithDB()
+			reconciled, _ := a.ReconcileThunderTasksWithDB()
+			if reconciled > 0 {
+				a.AppendPipelineLog("THUNDER", "INFO", fmt.Sprintf("迅雷タスクとDBの突合同期完了 (%d 件更新)", reconciled))
+			}
 		}
 	}()
 }

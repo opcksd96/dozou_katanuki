@@ -2,40 +2,40 @@
 package app
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
 )
 
+var thunderWatchCounter int
+
 // CheckThunderDirectoryStatus は D:\迅雷下载 の *.xltd および実体ファイルを走査してステータスを同期します
 func (a *App) CheckThunderDirectoryStatus(tempDir string) {
-	if tempDir == "" {
-		tempDir = `D:\迅雷下载`
-	}
+	if tempDir == "" { tempDir = `D:\迅雷下载` }
 	entries, err := os.ReadDir(tempDir)
-	if err != nil || a.Repo == nil {
-		return
-	}
+	if err != nil || a.Repo == nil { return }
 
 	xltdMediaIDs := make(map[string]bool)
 	hasCompletedFiles := false
 
 	for _, e := range entries {
-		if e.IsDir() {
-			continue
-		}
+		if e.IsDir() { continue }
 		name := e.Name()
 		ext := strings.ToLower(filepath.Ext(name))
-
-		// *.xltd や *.td (一時ダウンロードファイル) を検知
 		if ext == ".xltd" || ext == ".td" {
 			baseName := strings.TrimSuffix(name, ext)
-			mediaID := resolveMediaIDFromFileName(baseName)
-			xltdMediaIDs[mediaID] = true
+			xltdMediaIDs[resolveMediaIDFromFileName(baseName)] = true
 		} else if ext == ".jpg" || ext == ".jpeg" || ext == ".png" || ext == ".webp" || ext == ".mp4" {
 			hasCompletedFiles = true
 		}
+	}
+
+	thunderWatchCounter++
+	if len(xltdMediaIDs) > 0 || hasCompletedFiles || thunderWatchCounter%6 == 1 {
+		a.AppendPipelineLog("THUNDER", "INFO",
+			fmt.Sprintf("迅雷監視走査: %s (進行中xltd:%d, 完了候補:%v)", tempDir, len(xltdMediaIDs), hasCompletedFiles))
 	}
 
 	// 1. *.xltd が生えているメディアを ESCALATED に同期 (RETAINED からの再浮上復帰)
@@ -49,7 +49,11 @@ func (a *App) CheckThunderDirectoryStatus(tempDir string) {
 
 	// 2. 実体ファイルが完成していればアカウントフォルダへ自動移動 & COMPLETED 同期
 	if hasCompletedFiles {
-		_, _ = a.SyncThunderDownloads(tempDir)
+		synced, err := a.SyncThunderDownloads(tempDir)
+		if err == nil && synced > 0 {
+			a.AppendPipelineLog("THUNDER", "INFO",
+				fmt.Sprintf("迅雷ダウンロード成果物 %d 件を取り込みました", synced))
+		}
 	}
 }
 

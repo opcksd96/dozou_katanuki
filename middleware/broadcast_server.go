@@ -62,7 +62,7 @@ func (s *BroadcastService) startServerLocked() error {
 	mux.HandleFunc("/api/events", s.handleEventsAPI)
 	mux.HandleFunc("/", s.handleRoot)
 
-	server := &http.Server{Handler: s.corsMiddleware(s.securityMiddleware(mux)), ReadTimeout: 30 * time.Second, WriteTimeout: 60 * time.Second}
+	server := &http.Server{Handler: s.corsMiddleware(s.securityMiddleware(s.loggingMiddleware(mux))), ReadTimeout: 30 * time.Second, WriteTimeout: 60 * time.Second}
 	s.server, s.listener, s.running = server, listener, true
 	go func() { _ = server.Serve(listener) }()
 	return nil
