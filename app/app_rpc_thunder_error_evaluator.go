@@ -30,7 +30,14 @@ func EvaluateThunderTaskError(rawText string) ThunderEvaluation {
 	summary, hasSummary := extractSummarySize(rawText)
 	res := ThunderEvaluation{Decision: DecisionNone, SummarySize: summary, HasSummary: hasSummary}
 
-	// 1. 429 等のネットワーク制限・一時異常 (10分クールダウン対象)
+	// 1. メタデータ（サマリサイズ > 1B）取得済みの場合はリソース存在確認済み ➔ HOLD維持
+	if hasSummary {
+		res.Decision = DecisionHold
+		res.Reason = "メタデータ(サマリサイズ>1B)取得済みのためタスク維持 (ESCALATED)"
+		return res
+	}
+
+	// 2. 429 等のネットワーク制限・一時異常 (10分クールダウン対象)
 	if strings.Contains(rawText, "429") || strings.Contains(rawText, "Too Many Requests") ||
 		strings.Contains(rawText, "网络异常") || strings.Contains(rawText, "连接超时") {
 		res.Decision = DecisionCooldown
@@ -38,25 +45,23 @@ func EvaluateThunderTaskError(rawText string) ThunderEvaluation {
 		return res
 	}
 
-	// 2. 「原始资源不存在，且未找到候选资源，无法继续下载」 かつ 0B (サマリ未取得)
-	if strings.Contains(rawText, "原始资源不存在") || strings.Contains(rawText, "未找到候选资源") {
-		if !hasSummary {
+	// 3. サマリ未取得(0B)かつリソース不存在・各種失敗エラーの場合 ➔ RETIRE（取り下げ）
+	retirePatterns := []string{
+		"原始资源不存在", "未找到候选资源", "无法继续下载", "暂无任何有效资源",
+		"请更换下载链接", "下载失败", "任务出错", "资源不足", "下载遇到错误",
+		"文件不存在", "链接失效", "404 Not Found", "403 Forbidden",
+	}
+	for _, p := range retirePatterns {
+		if strings.Contains(rawText, p) {
 			res.Decision = DecisionRetire
-			res.Reason = "原始リソース不存在かつサマリ0B (RETIRED・取り下げ)"
+			res.Reason = p + " かつサマリ0B (RETIRED・取り下げ)"
 			return res
 		}
 	}
 
-	// 3. 「暂无任何有效资源可连接，无法正常下载，请更换下载链接」 かつ >1B (サマリ取得済み)
-	if strings.Contains(rawText, "暂无任何有效资源") || strings.Contains(rawText, "请更换下载链接") {
-		if hasSummary {
-			res.Decision = DecisionHold
-			res.Reason = "有効リソース探索中だがサマリ>1B捕捉済み (タスク維持・ESCALATED)"
-			return res
-		}
-		// サマリも取れていない場合は枯渇として取り下げ
-		res.Decision = DecisionRetire
-		res.Reason = "有効リソースなし・サマリ未取得 (RETIRED・取り下げ)"
+	// 4. アクティブ接続中・ダウンロード中
+	if strings.Contains(rawText, "正在连接") || strings.Contains(rawText, "正在下载") ||
+		strings.Contains(rawText, "资源连接中") || strings.Contains(rawText, "排队") {
 		return res
 	}
 
@@ -65,24 +70,17 @@ func EvaluateThunderTaskError(rawText string) ThunderEvaluation {
 
 func extractSummarySize(text string) (string, bool) {
 	matches := sizeRegex.FindAllStringSubmatch(text, -1)
-	if len(matches) == 0 {
-		return "0B", false
-	}
+	if len(matches) == 0 { return "0B", false }
 	for _, m := range matches {
 		valStr, unit := m[1], strings.ToUpper(m[2])
-		sizeStr := valStr + unit
-		if valStr == "0" || valStr == "0.0" || valStr == "0.00" {
-			continue
-		}
-		return sizeStr, true // > 1B のサマリを捕捉
+		if valStr == "0" || valStr == "0.0" || valStr == "0.00" { continue }
+		return valStr + unit, true
 	}
 	return "0B", false
 }
 
 // IsThunderCooldownActive は前回実行から10分経過しているかを判定します
 func IsThunderCooldownActive(lastAttempt *time.Time) bool {
-	if lastAttempt == nil {
-		return false
-	}
+	if lastAttempt == nil { return false }
 	return time.Since(*lastAttempt) < 10*time.Minute
 }

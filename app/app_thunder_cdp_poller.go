@@ -32,6 +32,12 @@ func (a *App) StartThunderCDPAdaptivePoller() {
 				wsURL = u
 			}
 
+			// オーケストレーター未稼働または一時停止中は突合・タスク操作をスキップ
+			if !a.isThunderOrchestratorRunning() {
+				interval = 3000 * time.Millisecond
+				continue
+			}
+
 			resJSON, err := EvaluateCDPExpression(wsURL, ThunderExtractTaskScript, 1500*time.Millisecond)
 			if err != nil {
 				wsURL = ""

@@ -8,12 +8,12 @@ import (
 	"gorm.io/gorm/clause"
 )
 
-// BatchUpsertThunderTasks は 候補タスクを一括登録します
+// BatchUpsertThunderTasks は 候補タスクを一括登録します (既存タスクのステータスは不変保護)
 func (r *Repository) BatchUpsertThunderTasks(tasks []models.ThunderTask) error {
 	if len(tasks) == 0 || r.db == nil { return nil }
 	return r.db.Clauses(clause.OnConflict{
 		Columns:   []clause.Column{{Name: "id"}},
-		DoUpdates: clause.AssignmentColumns([]string{"url", "file_name", "status", "updated_at"}),
+		DoNothing: true,
 	}).Create(&tasks).Error
 }
 

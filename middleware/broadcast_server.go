@@ -22,9 +22,7 @@ func (s *BroadcastService) startServerLocked() error {
 	s.useTLS = false
 	localIPs := GetLocalIPv4s()
 	fmt.Printf("\n[Broadcast] 📡 LAN HTTP 配信サーバー開通 (0.0.0.0:%d)\n", s.netCfg.MiddlewarePort)
-	for _, ip := range localIPs {
-		fmt.Printf("[Broadcast] 👉 http://%s:%d/\n", ip, s.netCfg.MiddlewarePort)
-	}
+	for _, ip := range localIPs { fmt.Printf("[Broadcast] 👉 http://%s:%d/\n", ip, s.netCfg.MiddlewarePort) }
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/api/timeline", s.handleTimelineAPI)
@@ -36,6 +34,7 @@ func (s *BroadcastService) startServerLocked() error {
 	mux.HandleFunc("/api/admin/pipeline/sync-thunder", s.handleSyncThunderAPI)
 	mux.HandleFunc("/api/admin/pipeline/reset-all", s.handleResetAllAPI)
 	mux.HandleFunc("/api/admin/pipeline/ignite", s.handleIgniteAPI)
+	mux.HandleFunc("/api/admin/pipeline/launch-thunder", s.handleLaunchThunderAPI)
 	mux.HandleFunc("/api/admin/system/journals", s.handleSystemJournalsAPI)
 	mux.HandleFunc("/api/admin/system/restart", s.handleRestartAPI)
 	mux.HandleFunc("/api/admin/audit", s.handleAuditAPI)
@@ -63,12 +62,8 @@ func (s *BroadcastService) startServerLocked() error {
 	mux.HandleFunc("/api/events", s.handleEventsAPI)
 	mux.HandleFunc("/", s.handleRoot)
 
-	server := &http.Server{
-		Handler:     s.corsMiddleware(s.securityMiddleware(mux)),
-		ReadTimeout: 30 * time.Second, WriteTimeout: 60 * time.Second,
-	}
+	server := &http.Server{Handler: s.corsMiddleware(s.securityMiddleware(mux)), ReadTimeout: 30 * time.Second, WriteTimeout: 60 * time.Second}
 	s.server, s.listener, s.running = server, listener, true
-
 	go func() { _ = server.Serve(listener) }()
 	return nil
 }

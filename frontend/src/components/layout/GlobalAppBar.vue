@@ -3,6 +3,7 @@
 import { computed, ref, onMounted, onUnmounted } from 'vue';
 import { reloadWindow } from '../../composables/useKeyboardReload';
 import { useStashResolver } from '../../composables/useStashResolver';
+import { useStashStatus } from '../../composables/useStashStatus';
 import { EventsOn, WindowMinimise, WindowToggleMaximise, Quit, BrowserOpenURL } from '../../../wailsjs/runtime/runtime';
 import { RefreshCw, Settings, Minus, Square, X, Server, Layers, Menu, ExternalLink } from 'lucide-vue-next';
 import GlobalMobileMenu from './GlobalMobileMenu.vue';
@@ -10,20 +11,12 @@ import GlobalMobileMenu from './GlobalMobileMenu.vue';
 const props = defineProps<{ activeArticleHandle?: string; activeArticleId?: string | null; isStashOnline?: boolean }>();
 const emit = defineEmits<{ (e: 'openAdmin'): void; (e: 'backToTimeline'): void }>();
 
-const localOnline = ref(false), isMobileMenuOpen = ref(false);
+const { isStashOnline: localOnline, checkStashHealth: checkStash } = useStashStatus();
+const isMobileMenuOpen = ref(false);
 const isOnline = computed(() => props.isStashOnline ?? localOnline.value);
 let unoff: (() => void) | null = null;
 
 const { openStashWebUI } = useStashResolver();
-
-const checkStash = async () => {
-  try {
-    const getApp = (window as any)?.go?.app?.App || (window as any)?.go?.main?.App;
-    if (getApp?.IsStashReady && await getApp.IsStashReady()) { localOnline.value = true; return; }
-    const res = await fetch('/stash-proxy/', { method: 'HEAD' });
-    localOnline.value = res.ok || res.status === 401 || res.status === 404;
-  } catch { localOnline.value = false; }
-};
 
 const openStashWeb = () => openStashWebUI();
 

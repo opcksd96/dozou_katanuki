@@ -12,83 +12,73 @@ import (
 
 func (a *App) runThunderOrchestrationWorker() {
 	interval := time.Duration(orchState.config.IntervalSeconds) * time.Second
-	if interval <= 0 {
-		interval = 4 * time.Second
-	}
-	ticker := time.NewTicker(interval)
-	defer ticker.Stop()
+	if interval <= 0 { interval = 4 * time.Second }
+	ticker := time.NewTicker(interval); defer ticker.Stop()
 
 	for {
 		select {
-		case <-orchState.stopCh:
-			return
+		case <-orchState.stopCh: return
 		case <-ticker.C:
 			orchState.mu.Lock()
-			if !orchState.isRunning || orchState.isPaused {
-				orchState.mu.Unlock()
-				continue
-			}
-
+			if !orchState.isRunning || orchState.isPaused { orchState.mu.Unlock(); continue }
 			maxSlots := orchState.config.MaxConcurrentSlots
-			if maxSlots <= 0 || maxSlots > 3 {
-				maxSlots = 3
+			if maxSlots <= 0 || maxSlots > 3 { maxSlots = 3 }
+			if !a.GetThunderCDPStatus().IsConnected {
+				a.AppendPipelineLog("THUNDER", "ERROR", "❌ 迅雷CDP (port 9222) 未接続のため待機します。")
+				orchState.mu.Unlock(); continue
 			}
 
-			// 1. CDP接続状態の確認（未接続なら処理をスキップ）
-			cdpStatus := a.GetThunderCDPStatus()
-			if !cdpStatus.IsConnected {
-				a.AppendPipelineLog("THUNDER", "ERROR", "❌ 迅雷CDP (port 9222) に接続できません。オーケストレータを待機します。")
-				orchState.mu.Unlock()
-				continue // 接続回復まで待機
-			}
+			_, activeMap := a.ReconcileThunderTasksWithDB()
+			a.CheckAndReonboardMissingTasks(activeMap, maxSlots)
 
-			// 2. CDPからの最新状態取得とDB同期 (取り下げ・エラー判定等)
-			_, existingFileMap := a.ReconcileThunderTasksWithDB()
-
-			// 3. ローカルの *.xltd も考慮してDB上ONBOARDEDだが迅雷に未登録のタスクを3スロット上限内で再登録
-			a.CheckAndReonboardMissingTasks(existingFileMap, maxSlots)
-
-			destDir := a.getMediaDownloadDir()
-			runningCount := 0
+			destDir, runningCount := a.getMediaDownloadDir(), 0
+			activeMedia := make(map[string]bool)
 			for _, t := range orchState.queue {
-				if t.Status == "running" {
+				if t.Status == "running" || t.Status == "holding" {
 					if fi, err := os.Stat(filepath.Join(destDir, t.FileName)); err == nil && fi.Size() > 0 {
-						t.Status = "completed"
-					} else if len(existingFileMap) > 0 && !existingFileMap[t.FileName] {
-						t.Status = "depleted"
+						t.Status = "completed"; continue
+					}
+				}
+				if t.Status == "running" {
+					isRecent := t.DispatchedAt != nil && time.Since(*t.DispatchedAt) < 15*time.Second
+					if !activeMap[t.FileName] && !isRecent {
+						t.Status = "holding"
 					} else {
 						runningCount++
+						activeMedia[t.MediaID] = true
 					}
 				}
 			}
 
-			// ⑧ 3個を上限にスロット制限
-			if runningCount >= maxSlots || len(existingFileMap) >= maxSlots {
-				orchState.mu.Unlock()
-				continue
-			}
-
-			var nextTask *models.ThunderOrchestratorTask
-			for _, t := range orchState.queue {
-				if t.Status == "pending" {
-					if existingFileMap[t.FileName] || orchState.processedMap[t.ID] {
-						t.Status = "running"
-						continue
+			// スロットの空き枠分だけ、未着手の別メディアタスクを順次ディスパッチ
+			for runningCount < maxSlots {
+				var nextTask *models.ThunderOrchestratorTask
+				for _, t := range orchState.queue {
+					if t.Status == "pending" && !orchState.processedMap[t.ID] && !activeMap[t.FileName] && !activeMedia[t.MediaID] {
+						nextTask = t; break
 					}
-					nextTask = t
-					break
 				}
-			}
-
-			if nextTask == nil {
-				if runningCount == 0 {
-					orchState.isRunning = false
+				if nextTask == nil {
+					for _, mt := range a.buildThunderOrchestratorTasks() {
+						if !orchState.processedMap[mt.ID] { orchState.queue = append(orchState.queue, mt) }
+					}
+					for _, t := range orchState.queue {
+						if t.Status == "pending" && !orchState.processedMap[t.ID] && !activeMap[t.FileName] && !activeMedia[t.MediaID] {
+							nextTask = t; break
+						}
+					}
 				}
-				orchState.mu.Unlock()
-				continue
+				if nextTask == nil { break }
+				if fi, err := os.Stat(filepath.Join(destDir, nextTask.FileName)); err == nil && fi.Size() > 0 {
+					nextTask.Status = "completed"
+					if a.Repo != nil { _ = a.Repo.UpdateMediaMetadata(nextTask.MediaID, "COMPLETED", "", "", "実ファイル確認済み") }
+					continue
+				}
+				a.dispatchTaskDirectly(nextTask)
+				activeMedia[nextTask.MediaID] = true
+				activeMap[nextTask.FileName] = true
+				runningCount++
 			}
-
-			a.dispatchTaskDirectly(nextTask)
 			orchState.mu.Unlock()
 		}
 	}
@@ -96,19 +86,14 @@ func (a *App) runThunderOrchestrationWorker() {
 
 func (a *App) dispatchTaskDirectly(task *models.ThunderOrchestratorTask) {
 	now := time.Now()
-	task.Status = "running"
-	task.DispatchedAt = &now
+	task.Status, task.DispatchedAt = "running", &now
 	orchState.processedMap[task.ID] = true
 	if a.Repo != nil && task.MediaID != "" {
 		_ = a.Repo.UpdateMediaMetadata(task.MediaID, "ESCALATED", "", "", fmt.Sprintf("迅雷投入中 (%s)", task.ResolutionType))
 		_ = a.Repo.MarkThunderTaskOnboarded(task.ID, "")
 	}
 	destDir := a.getMediaDownloadDir()
-	go func(t *models.ThunderOrchestratorTask, dest string) {
-		_ = AddTaskViaThunderCOM(t.URL, t.FileName, dest)
-	}(task, destDir)
+	go func(t *models.ThunderOrchestratorTask, dest string) { _ = AddTaskViaThunderCOM(t.URL, t.FileName, dest) }(task, destDir)
 	orchState.recentTasks = append([]models.ThunderOrchestratorTask{*task}, orchState.recentTasks...)
-	if len(orchState.recentTasks) > 30 {
-		orchState.recentTasks = orchState.recentTasks[:30]
-	}
+	if len(orchState.recentTasks) > 30 { orchState.recentTasks = orchState.recentTasks[:30] }
 }

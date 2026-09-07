@@ -4,6 +4,7 @@ import { ref, reactive, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAdmin } from '../../composables/useAdmin';
 import { useStashResolver } from '../../composables/useStashResolver';
+import { useStashStatus } from '../../composables/useStashStatus';
 import { Minus, Square, X, ArrowLeft, Settings2, RefreshCw, Server, ExternalLink, Menu } from 'lucide-vue-next';
 import { WindowMinimise, WindowToggleMaximise, Quit, EventsOn, BrowserOpenURL } from '../../../wailsjs/runtime/runtime';
 import { AdminTabId } from '../../models/adminTabs';
@@ -20,7 +21,8 @@ import DatabaseView from '../../components/admin/DatabaseView.vue';
 const router = useRouter();
 const initialTab = (sessionStorage.getItem('admin_auto_open_tab') as AdminTabId) || 'plugins';
 sessionStorage.removeItem('admin_auto_open_tab');
-const activeTab = ref<AdminTabId>(initialTab), isMobileNavOpen = ref(false), isStashOnline = ref(false);
+const activeTab = ref<AdminTabId>(initialTab), isMobileNavOpen = ref(false);
+const { isStashOnline, checkStashHealth } = useStashStatus();
 const salvageForm = reactive({ platform: 'twitter', account: '', source: 'all', limit: 0 }), importForm = reactive({ warcPath: '', offline: true }), selectedPlatform = ref('twitter');
 const admin = useAdmin();
 const { openStashWebUI } = useStashResolver();
@@ -28,13 +30,7 @@ let unoffStash: (() => void) | null = null;
 
 const close = () => { router.push('/webui'); };
 const handleKey = (e: KeyboardEvent) => { if (e.key === 'Escape') close(); };
-const checkStash = async () => {
-  try {
-    const getApp = (window as any)?.go?.app?.App || (window as any)?.go?.main?.App;
-    if (getApp?.IsStashReady && await getApp.IsStashReady()) { isStashOnline.value = true; return; }
-    const r = await fetch('/stash-proxy/', { method: 'HEAD' }); isStashOnline.value = r.ok || r.status === 401 || r.status === 404;
-  } catch { isStashOnline.value = false; }
-};
+const checkStash = async () => await checkStashHealth();
 const openStashWeb = () => openStashWebUI();
 const handleGlobalHardReload = () => {
   sessionStorage.setItem('admin_auto_open_tab', activeTab.value);

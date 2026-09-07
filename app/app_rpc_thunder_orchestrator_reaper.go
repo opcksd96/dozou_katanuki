@@ -60,18 +60,21 @@ func (a *App) deleteTaskByFileNameAndTextSilent(wsURL, fileName, requireText str
 			if (!text.includes('` + fileName + `')) continue;
 			if ('` + requireText + `' !== '' && !text.includes('` + requireText + `')) continue;
 			
+			// ⚡ ガード: ダウンロード中・データ転送中のタスクは誤削除防止のため絶対に削除しない
+			if text.includes('正在下载') || (/\d+(\.\d+)?\s*(KB|MB|GB)\/s/i.test(text) && !text.includes('0B/s')) return false;
 			try { it.click(); } catch(e) {}
-			
-			let delBtn = it.querySelector('button[title="删除"], a[title="删除任务记录"], [title="删除"], .td-button[title*="删除"], [title*="彻底删除"]');
-			if (!delBtn) {
-				delBtn = document.querySelector('.xly-download-tab__operate button[title="删除"], button[title="删除"], .td-button[title*="删除"]');
-			}
-			
+			let delBtn = it.querySelector('button[title="删除"], a[title="删除任务记录"], [title="删除"], .td-button[title*="删除"], [title*="彻底删除"]') ||
+				document.querySelector('.xly-download-tab__operate button[title="删除"], button[title="删除"]');
 			if (delBtn) {
 				delBtn.click();
 				setTimeout(() => {
-					const confirmBtn = Array.from(document.querySelectorAll('.td-dialog button, .td-dialog .td-button, .el-button, .xly-modal button, button')).find(b => b.innerText && (b.innerText.includes('确定') || b.innerText.includes('删除')));
-					if (confirmBtn) confirmBtn.click();
+					const dlg = document.querySelector('.td-dialog, .xly-modal, .el-dialog');
+					if (dlg && (dlg.innerText.includes('正在下载') || dlg.innerText.includes('正在'))) {
+						const cancel = Array.from(dlg.querySelectorAll('button')).find(b => b.innerText && b.innerText.includes('取消'));
+						if (cancel) { cancel.click(); return; }
+					}
+					const ok = Array.from(document.querySelectorAll('.td-dialog button, .td-dialog .td-button, button')).find(b => b.innerText && (b.innerText.includes('确定') || b.innerText.includes('删除')));
+					if (ok) ok.click();
 				}, 150);
 				return true;
 			}

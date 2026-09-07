@@ -38,12 +38,14 @@ const kickApp = (key: string) => {
           :title="`${cp.name} を起動/接続する`"
           :class="[
             'px-2 py-0.5 rounded-lg text-[10px] font-mono font-bold border transition-all cursor-pointer flex items-center gap-1 active:scale-90 shadow-sm',
-            cp.is_online
-              ? 'bg-emerald-950/90 text-emerald-300 border-emerald-700/80 hover:bg-emerald-900 shadow-emerald-950'
-              : 'bg-rose-950/90 text-rose-300 border-rose-700/80 hover:bg-rose-900 animate-pulse shadow-rose-950'
+            cp.status_text?.includes('PAUSED')
+              ? 'bg-amber-950/90 text-amber-300 border-amber-700/80 hover:bg-amber-900 shadow-amber-950'
+              : cp.is_online
+                ? 'bg-emerald-950/90 text-emerald-300 border-emerald-700/80 hover:bg-emerald-900 shadow-emerald-950'
+                : 'bg-rose-950/90 text-rose-300 border-rose-700/80 hover:bg-rose-900 animate-pulse shadow-rose-950'
           ]"
         >
-          <span :class="['w-1.5 h-1.5 rounded-full', cp.is_online ? 'bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.8)]' : 'bg-rose-500']"></span>
+          <span :class="['w-1.5 h-1.5 rounded-full', cp.status_text?.includes('PAUSED') ? 'bg-amber-400 shadow-[0_0_6px_rgba(251,191,36,0.8)]' : cp.is_online ? 'bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.8)]' : 'bg-rose-500']"></span>
           <span>{{ cp.status_text }}</span>
         </button>
       </div>

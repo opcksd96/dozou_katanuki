@@ -35,32 +35,45 @@ func KillThunderProcess() bool {
 	return !isThunderProcessRunning()
 }
 
-// LaunchThunder は Thunder.exe を CDP デバッグポート 9222 を有効にして非同期で起動（キック）します。
-// 死活監視やプロセス管理は行わず、単にシェルに展開するだけの責務を持ちます。
+// LaunchThunder は config 設定に従い Thunder.exe を起動（またはCDP再起動）します
 func (a *App) LaunchThunder() (bool, error) {
-	if _, err := os.Stat(defaultThunderPath); err != nil {
-		return false, fmt.Errorf("迅雷バイナリが見つかりません: %s", defaultThunderPath)
+	thunderPath, launchWithCDP, cdpPort := defaultThunderPath, true, 9222
+	if cfg, err := a.GetConfig(); err == nil && cfg != nil {
+		if cfg.Thunder.Path != "" { thunderPath = cfg.Thunder.Path }
+		launchWithCDP = cfg.Thunder.LaunchWithCDP
+		if cfg.Thunder.CDPPort > 0 { cdpPort = cfg.Thunder.CDPPort }
 	}
 
-	a.AppendPipelineLog("THUNDER", "INFO", "⚡ 迅雷プロセスの起動要求を送信します (Fire and Forget)")
+	if _, err := os.Stat(thunderPath); err != nil {
+		return false, fmt.Errorf("迅雷バイナリが見つかりません: %s", thunderPath)
+	}
 
-	// cmd.exe /c start を使って、Goプロセスとは完全に切り離された非同期プロセスとしてキックする
-	cmd := exec.Command("cmd", "/c", "start", "", defaultThunderPath, "--remote-debugging-port=9222")
+	// CDP付き起動が要求されているのに、CDP未疎通のThunderプロセスが居座っている場合は再起動
+	if launchWithCDP && isThunderProcessRunning() && !isThunderCDPListening() {
+		a.AppendPipelineLog("THUNDER", "WARN", "⚠️ 迅雷CDP未開通プロセスを検知。CDP有効化のため再起動します")
+		KillThunderProcess()
+	}
+
+	var args []string
+	args = append(args, "/c", "start", "", thunderPath)
+	if launchWithCDP {
+		args = append(args, fmt.Sprintf("--remote-debugging-port=%d", cdpPort))
+		a.AppendPipelineLog("THUNDER", "INFO", fmt.Sprintf("⚡ 迅雷 (CDP port %d) 起動要求を送信", cdpPort))
+	} else {
+		a.AppendPipelineLog("THUNDER", "INFO", "⚡ 迅雷 (通常モード) 起動要求を送信")
+	}
+
+	cmd := exec.Command("cmd", args...)
 	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true, CreationFlags: 0x08000000}
-	
 	if err := cmd.Start(); err != nil {
-		a.AppendPipelineLog("THUNDER", "ERROR", fmt.Sprintf("❌ 迅雷のキックに失敗しました: %v", err))
+		a.AppendPipelineLog("THUNDER", "ERROR", fmt.Sprintf("❌ 迅雷起動失敗: %v", err))
 		return false, err
 	}
-
-	// 起動の成否やCDPの開通確認は BeaconService (ポート9222のポーリング) に任せる
 	return true, nil
 }
 
 // EnsureThunderCDP は、CDPが未開通の場合にキック処理を呼び出します
 func (a *App) EnsureThunderCDP() (bool, error) {
-	if isThunderCDPListening() {
-		return true, nil
-	}
+	if isThunderCDPListening() { return true, nil }
 	return a.LaunchThunder()
 }

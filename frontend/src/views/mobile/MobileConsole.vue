@@ -4,6 +4,7 @@ import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useTimeline } from '../../composables/useTimeline';
 import { useMediaOverlay } from '../../composables/useMediaOverlay';
+import { useStashStatus } from '../../composables/useStashStatus';
 import MediaOverlay from '../../components/media/MediaOverlay.vue';
 import { ArrowLeft, Server, Settings2, Smartphone, Image as ImageIcon } from 'lucide-vue-next';
 
@@ -11,14 +12,7 @@ const router = useRouter();
 const { articles, systemLang } = useTimeline();
 const { activeMedia, activeArticle, hasNext, hasPrev, openMedia, closeMedia, nextMedia, prevMedia } = useMediaOverlay();
 
-const isStashOnline = ref(false);
-
-const checkStash = async () => {
-  try {
-    const r = await fetch('/stash-proxy/', { method: 'HEAD' }); 
-    isStashOnline.value = r.ok || r.status === 401 || r.status === 404;
-  } catch { isStashOnline.value = false; }
-};
+const { isStashOnline, checkStashHealth: checkStash } = useStashStatus();
 
 const backToWebUI = () => {
   router.push('/webui');

@@ -14,14 +14,14 @@ func TestEvaluateThunderTaskError(t *testing.T) {
 		t.Errorf("expected DecisionRetire for 0B + 原始资源不存在, got %v", res1.Decision)
 	}
 
-	// 2. 暂无任何有效资源 かつ サマリ>1B (363.46KB) ➔ HOLD
-	text2 := "test2.jpg\n363.46KB\n暂无任何有效资源可连接，无法正常下载，请更换下载链接"
+	// 2. 无法继续下载 だがサマリ>1B (1.33MB) ➔ メタデータ取得済みなので絶対に HOLD！
+	text2 := "test2.jpg\n1.33MB\n无法继续下载，暂无任何有效资源"
 	res2 := EvaluateThunderTaskError(text2)
 	if res2.Decision != DecisionHold {
-		t.Errorf("expected DecisionHold for >1B + 暂无任何有效资源, got %v", res2.Decision)
+		t.Errorf("expected DecisionHold for >1B + 无法继续下载, got %v", res2.Decision)
 	}
-	if !res2.HasSummary || res2.SummarySize != "363.46KB" {
-		t.Errorf("expected summary size 363.46KB, got %s (hasSummary=%v)", res2.SummarySize, res2.HasSummary)
+	if !res2.HasSummary || res2.SummarySize != "1.33MB" {
+		t.Errorf("expected summary size 1.33MB, got %s", res2.SummarySize)
 	}
 
 	// 3. 暂无任何有效资源 かつ サマリ0B ➔ RETIRE
@@ -40,12 +40,12 @@ func TestEvaluateThunderTaskError(t *testing.T) {
 
 	// 5. 10分クールダウン判定
 	now := time.Now()
-	recent := now.Add(-5 * time.Minute) // 5分前
+	recent := now.Add(-5 * time.Minute)
 	if !IsThunderCooldownActive(&recent) {
 		t.Errorf("expected cooldown to be active for 5 minutes ago")
 	}
 
-	old := now.Add(-11 * time.Minute) // 11分前
+	old := now.Add(-11 * time.Minute)
 	if IsThunderCooldownActive(&old) {
 		t.Errorf("expected cooldown to be inactive for 11 minutes ago")
 	}

@@ -5,6 +5,7 @@ import { useAdminAudit } from '../../composables/admin/useAdminAudit';
 import { Server, Database, RefreshCw, ExternalLink } from 'lucide-vue-next';
 import { BrowserOpenURL } from '../../../wailsjs/runtime/runtime';
 import { useStashResolver } from '../../composables/useStashResolver';
+import { useStashStatus } from '../../composables/useStashStatus';
 import AuditReportHeader from './audit/AuditReportHeader.vue';
 import AuditReportOrphans from './audit/AuditReportOrphans.vue';
 import AuditReportRestore from './audit/AuditReportRestore.vue';
@@ -13,15 +14,7 @@ const props = defineProps<{ restoring?: boolean }>();
 const emit = defineEmits<{ (e: 'triggerRestore', resetDB?: boolean): void }>();
 const { auditReport, isAuditing, isPurgingFiles, isPurgingDB, auditStatusMessage, runAudit, purgeOrphanFiles, purgeOrphanDBMedia } = useAdminAudit();
 
-const isStashOnline = ref(false), stashLatency = ref<number | null>(null);
-const checkStashHealth = async () => {
-  const start = Date.now();
-  try {
-    const r = await fetch('/stash-proxy/', { method: 'HEAD' });
-    stashLatency.value = Date.now() - start;
-    isStashOnline.value = r.ok || r.status === 401 || r.status === 404;
-  } catch { isStashOnline.value = false; stashLatency.value = null; }
-};
+const { isStashOnline, stashLatency, checkStashHealth } = useStashStatus();
 
 const { openStashWebUI } = useStashResolver();
 const openStash = () => openStashWebUI();

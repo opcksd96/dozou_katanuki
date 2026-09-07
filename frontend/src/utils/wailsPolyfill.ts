@@ -80,6 +80,9 @@ export function initWailsPolyfill() {
     MergeAccounts: async (...args: any[]) => { console.log('[Polyfill] MergeAccounts:', args); return null; },
     SaveAvatarImage: async (p: string, k: string) => `${baseUrl}/avatars/${p || 'twitter'}/${k}.jpg`,
     ListAvailableAvatars: async (p: string) => [`${baseUrl}/avatars/${p || 'twitter'}/msluo14_avatar_001.jpg`, `${baseUrl}/avatars/${p || 'twitter'}/default_avatar.jpg`],
+    ResetAllToQueuedAndBootstrap: async () => { try { const r = await postJson('/api/admin/pipeline/reset-all', {}); return r || 0; } catch { return 0; } },
+    IgnitePipeline: async () => { try { await postJson('/api/admin/pipeline/ignite', {}); return true; } catch { return false; } },
+    LaunchThunder: async () => { try { const r = await postJson('/api/admin/pipeline/launch-thunder', {}); return !!r?.success; } catch { return false; } },
   };
   (window as any)._isWailsPolyfill = true;
   (window as any).go = { app: { App: mockApp }, main: { App: mockApp } };

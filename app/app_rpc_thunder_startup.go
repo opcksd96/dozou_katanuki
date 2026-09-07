@@ -39,7 +39,7 @@ func (a *App) CheckThunderCDPOnStartup() {
 	var escalatedCount int64
 	_ = a.Repo.DB().Model(&models.Media{}).Where("download_status = 'ESCALATED' AND (is_trash = 0 OR is_trash IS NULL)").Count(&escalatedCount).Error
 
-	if escalatedCount > 0 && !a.isThunderOrchestratorRunning() {
+	if escalatedCount > 0 && !a.isThunderOrchestratorRunning() && a.IsPipelineAutoEngineRunning() {
 		a.emitToast("info", fmt.Sprintf("⚡ 迅雷オーケストレーターを自動起動 (残 %d 件)", escalatedCount))
 		_, _ = a.StartThunderOrchestrator(3, 4)
 	}

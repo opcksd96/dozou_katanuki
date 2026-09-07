@@ -41,8 +41,20 @@ export function useThunderOrchestrator() {
   };
 
   const launchThunder = async () => {
-    if (await getApp()?.LaunchThunder?.()) addToast('⚡ Thunder.exe を起動しました', 'success', 3000);
-    else addToast('❌ 起動失敗', 'error', 3000);
+    try {
+      let ok = false;
+      if (getApp()?.LaunchThunder) {
+        ok = await getApp().LaunchThunder();
+      } else {
+        const res = await fetch('/api/admin/pipeline/launch-thunder', { method: 'POST' });
+        const json = await res.json();
+        ok = !!json?.success;
+      }
+      if (ok) addToast('⚡ 迅雷 (Thunder) をキックしました', 'success', 3000);
+      else addToast('❌ 迅雷の起動に失敗しました', 'error', 3000);
+    } catch {
+      addToast('❌ 迅雷の起動リクエストに失敗しました', 'error', 3000);
+    }
   };
 
   const syncDownloads = async () => {

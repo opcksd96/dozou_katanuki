@@ -74,6 +74,11 @@ func (a *App) Startup(ctx context.Context) {
 		log.Printf("[Startup] Synced whitelist groups to %d accounts", synced)
 	}
 
+	// バックエンド起動と同時に完全自動運転エンジンをデフォルトで着火
+	if _, err := a.TogglePipelineAutoEngine(true); err != nil {
+		log.Printf("[Startup] Failed to start Pipeline Auto Engine: %v", err)
+	}
+
 	a.ReadyOnce.Do(func() { close(a.Ready) })
 	a.EmitEvent("app:ready", true)
 }
@@ -116,6 +121,9 @@ func (w *adminUseCaseWrapper) ResetAllToQueuedAndBootstrap() (interface{}, error
 }
 func (w *adminUseCaseWrapper) IgnitePipeline() (interface{}, error) {
 	return w.app.IgnitePipeline()
+}
+func (w *adminUseCaseWrapper) LaunchThunder() (bool, error) {
+	return w.app.LaunchThunder()
 }
 
 func (a *App) broadcastStart(ctx context.Context, netCfg models.NetworkConfig, bcastCfg models.BroadcastConfig, emitter func(string, ...interface{})) {

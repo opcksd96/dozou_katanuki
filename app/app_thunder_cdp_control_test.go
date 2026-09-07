@@ -30,8 +30,4 @@ func TestThunderCDP_ControlTask(t *testing.T) {
 	} else {
 		t.Logf("Detail Result: nil (err=%v)", errDt)
 	}
-
-	t.Logf("Testing CDP Task Restore from Recycle Bin")
-	okRestore, errRestore := a.ControlThunderTaskViaCDP("", "restore")
-	t.Logf("Restore Result: ok=%v, err=%v", okRestore, errRestore)
 }

@@ -91,9 +91,13 @@ func (a *App) bindStashScene(m map[string]interface{}, titleRegex *regexp.Regexp
 						}
 					}
 					if articleID != "" {
-						if db.Model(&models.Media{}).Where("media_id = ?", med.MediaID).Updates(map[string]interface{}{"stash_scene_id": sID, "download_status": "COMPLETED"}).Error == nil {
-							bound = true
-							break
+						if med.StashSceneID.Valid && med.StashSceneID.String == sID {
+							// Already bound
+						} else {
+							if db.Model(&models.Media{}).Where("media_id = ?", med.MediaID).Updates(map[string]interface{}{"stash_scene_id": sID, "download_status": "COMPLETED"}).Error == nil {
+								bound = true
+								break
+							}
 						}
 					}
 				}
@@ -108,8 +112,12 @@ func (a *App) bindStashScene(m map[string]interface{}, titleRegex *regexp.Regexp
 			articleID = postID
 			var med models.Media
 			if err := db.Where("article_id = ? AND type != 'image'", postID).First(&med).Error; err == nil {
-				if db.Model(&models.Media{}).Where("media_id = ?", med.MediaID).Updates(map[string]interface{}{"stash_scene_id": sID, "download_status": "COMPLETED"}).Error == nil {
-					bound = true
+				if med.StashSceneID.Valid && med.StashSceneID.String == sID {
+					// Already bound
+				} else {
+					if db.Model(&models.Media{}).Where("media_id = ?", med.MediaID).Updates(map[string]interface{}{"stash_scene_id": sID, "download_status": "COMPLETED"}).Error == nil {
+						bound = true
+					}
 				}
 			}
 		}
@@ -139,9 +147,13 @@ func (a *App) bindStashImage(m map[string]interface{}, titleRegex *regexp.Regexp
 					var med models.Media
 					if err := db.Where("(media_id = ? OR media_id = ? OR download_url LIKE ?)", base, strings.TrimSuffix(base, filepath.Ext(base)), "%/"+base).First(&med).Error; err == nil {
 						articleID = med.ArticleID
-						if db.Model(&models.Media{}).Where("media_id = ?", med.MediaID).Updates(map[string]interface{}{"stash_image_id": sID, "download_status": "COMPLETED"}).Error == nil {
-							bound = true
-							break
+						if med.StashImageID.Valid && med.StashImageID.String == sID {
+							// Already bound
+						} else {
+							if db.Model(&models.Media{}).Where("media_id = ?", med.MediaID).Updates(map[string]interface{}{"stash_image_id": sID, "download_status": "COMPLETED"}).Error == nil {
+								bound = true
+								break
+							}
 						}
 					}
 				}
@@ -156,8 +168,12 @@ func (a *App) bindStashImage(m map[string]interface{}, titleRegex *regexp.Regexp
 			articleID = postID
 			var med models.Media
 			if err := db.Where("article_id = ? AND type = 'image'", postID).First(&med).Error; err == nil {
-				if db.Model(&models.Media{}).Where("media_id = ?", med.MediaID).Updates(map[string]interface{}{"stash_image_id": sID, "download_status": "COMPLETED"}).Error == nil {
-					bound = true
+				if med.StashImageID.Valid && med.StashImageID.String == sID {
+					// Already bound
+				} else {
+					if db.Model(&models.Media{}).Where("media_id = ?", med.MediaID).Updates(map[string]interface{}{"stash_image_id": sID, "download_status": "COMPLETED"}).Error == nil {
+						bound = true
+					}
 				}
 			}
 		}

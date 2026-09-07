@@ -22,7 +22,7 @@ func (a *App) ResetSpecificMediasToQueued(mediaIDs []string) (int64, error) {
 		Where("media_id IN ?", mediaIDs).
 		Updates(map[string]interface{}{
 			"download_status": "QUEUED",
-			"failed_reason":   nil,
+			"failed_reason":   "",
 		})
 	if res.Error != nil {
 		return 0, res.Error
@@ -38,16 +38,10 @@ func (a *App) ResetSpecificMediasToQueued(mediaIDs []string) (int64, error) {
 	_ = db.Where("media_id IN ?", mediaIDs).
 		Where("download_status = 'QUEUED'").Find(&targetMedias).Error
 
-	var targetMediaIDs []string
-	for _, m := range targetMedias {
-		if m.MediaID != "" {
-			targetMediaIDs = append(targetMediaIDs, m.MediaID)
-		}
-	}
 
-	if len(targetMediaIDs) > 0 {
-		_ = db.Where("media_id IN ?", targetMediaIDs).Delete(&models.DownloadTask{}).Error
-	}
+	// 2. download_tasks と thunder_tasks の旧汚染タスクを削除し、Motrix結果をパージ
+	_ = db.Where("media_id IN ?", mediaIDs).Delete(&models.DownloadTask{}).Error
+	_ = db.Where("media_id IN ?", mediaIDs).Delete(&models.ThunderTask{}).Error
 
 	// 3. QUEUED に差し戻されたメディアの download_tasks を再登録
 	var allTasks []models.DownloadTask

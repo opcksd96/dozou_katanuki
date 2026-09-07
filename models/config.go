@@ -69,6 +69,13 @@ type BroadcastStatus struct {
 	CastURL         string   `json:"cast_url"`
 }
 
+// ThunderConfig は迅雷連携およびCDP起動設定を表します
+type ThunderConfig struct {
+	Path          string `json:"path,omitempty"`
+	LaunchWithCDP bool   `json:"launch_with_cdp"`
+	CDPPort       int    `json:"cdp_port,omitempty"`
+}
+
 // AppConfig は config.json 全体のルート設定モデル (SPEC-CONFIG-001) です
 type AppConfig struct {
 	System      SystemConfig      `json:"system"`
@@ -78,6 +85,7 @@ type AppConfig struct {
 	Broadcast   BroadcastConfig   `json:"broadcast"`
 	Appearance  AppearanceConfig  `json:"appearance"`
 	Translation TranslationConfig `json:"translation"`
+	Thunder     ThunderConfig     `json:"thunder"`
 }
 
 

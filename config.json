@@ -42,5 +42,9 @@
     "provider": "google",
     "deepl_api_key": "",
     "google_translate_api_key": ""
+  },
+  "thunder": {
+    "launch_with_cdp": true,
+    "cdp_port": 9222
   }
 }

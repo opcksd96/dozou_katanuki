@@ -3,12 +3,8 @@ import { ref, onMounted, onUnmounted } from 'vue';
 import { GetPipelineOverview, GetPipelineLogs, SyncThunderDownloads, TogglePipelineAutoEngine, IsPipelineAutoEngineRunning } from '../../../wailsjs/go/app/App';
 
 export function usePipelineConsole() {
-  const overview = ref<any>(null);
-  const logs = ref<any[]>([]);
-  const selectedLogStage = ref<string>('all');
-  const loading = ref(false);
-  const syncing = ref(false);
-  const isAutoEngineRunning = ref(true);
+  const overview = ref<any>(null), logs = ref<any[]>([]), selectedLogStage = ref<string>('all');
+  const loading = ref(false), syncing = ref(false), isAutoEngineRunning = ref(true);
   let pollTimer: any = null;
 
   const isWails = () => typeof (window as any).go !== 'undefined';
@@ -17,13 +13,18 @@ export function usePipelineConsole() {
     try {
       if (isWails()) {
         const res = await GetPipelineOverview();
-        if (res) overview.value = res;
-        isAutoEngineRunning.value = await IsPipelineAutoEngineRunning();
+        if (res) {
+          overview.value = res;
+          if (typeof res.is_auto_engine_running === 'boolean') isAutoEngineRunning.value = res.is_auto_engine_running;
+        }
       } else {
         const res = await fetch('/api/admin/pipeline/overview');
         if (res.ok) {
           const data = await res.json();
-          if (data) overview.value = data;
+          if (data) {
+            overview.value = data;
+            if (typeof data.is_auto_engine_running === 'boolean') isAutoEngineRunning.value = data.is_auto_engine_running;
+          }
         }
       }
     } catch (_) {}
@@ -37,18 +38,12 @@ export function usePipelineConsole() {
         if (res) logs.value = res;
       } else {
         const res = await fetch(`/api/admin/pipeline/logs?stage=${stage}&limit=50`);
-        if (res.ok) {
-          const data = await res.json();
-          if (data) logs.value = data;
-        }
+        if (res.ok) { const data = await res.json(); if (data) logs.value = data; }
       }
     } catch (_) {}
   };
 
-  const setLogStage = async (stage: string) => {
-    selectedLogStage.value = stage;
-    await fetchLogs(stage);
-  };
+  const setLogStage = async (stage: string) => { selectedLogStage.value = stage; await fetchLogs(stage); };
 
   const toggleAutoEngine = async () => {
     try {
@@ -57,8 +52,7 @@ export function usePipelineConsole() {
         isAutoEngineRunning.value = await TogglePipelineAutoEngine(next);
       } else {
         const res = await fetch('/api/admin/pipeline/toggle', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ enable: next })
         });
         if (!res.ok) throw new Error('Failed to toggle pipeline engine');
@@ -78,42 +72,24 @@ export function usePipelineConsole() {
   const syncAndReconcile = async () => {
     syncing.value = true;
     try {
-      if (isWails()) {
-        await SyncThunderDownloads('');
-      } else {
-        await fetch('/api/admin/pipeline/sync-thunder', { method: 'POST' });
-      }
+      if (isWails()) await SyncThunderDownloads('');
+      else await fetch('/api/admin/pipeline/sync-thunder', { method: 'POST' });
       await refreshAll();
-    } catch (_) {}
-    finally { syncing.value = false; }
+    } catch (_) {} finally { syncing.value = false; }
   };
 
-  onMounted(() => {
-    refreshAll();
-    // 起動時に完全自動運転エンジンを自動着火
-    if (isWails()) TogglePipelineAutoEngine(true).then((r) => { isAutoEngineRunning.value = r; }).catch(() => {});
-    pollTimer = setInterval(() => {
-      fetchOverview();
-      fetchLogs();
-    }, 3000);
+  onMounted(async () => {
+    await refreshAll();
+    if (isWails()) {
+      try { isAutoEngineRunning.value = await IsPipelineAutoEngineRunning(); } catch (_) {}
+    }
+    pollTimer = setInterval(() => { fetchOverview(); fetchLogs(); }, 3000);
   });
 
-  onUnmounted(() => {
-    if (pollTimer) clearInterval(pollTimer);
-  });
+  onUnmounted(() => { if (pollTimer) clearInterval(pollTimer); });
 
   return {
-    overview,
-    logs,
-    selectedLogStage,
-    loading,
-    syncing,
-    isAutoEngineRunning,
-    toggleAutoEngine,
-    fetchOverview,
-    fetchLogs,
-    setLogStage,
-    refreshAll,
-    syncAndReconcile,
+    overview, logs, selectedLogStage, loading, syncing, isAutoEngineRunning,
+    toggleAutoEngine, fetchOverview, fetchLogs, setLogStage, refreshAll, syncAndReconcile,
   };
 }

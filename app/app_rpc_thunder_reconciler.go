@@ -3,112 +3,89 @@ package app
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
-
 	"dozou_katanuki/models"
 )
 
-// ReconcileThunderTasksWithDB は 迅雷のCDPタスク一覧とDBを突合・更新し、エラー判定と取り下げを行います
+var parenRegex = regexp.MustCompile(`\(\d+\)(\.[a-zA-Z0-9]+)$`)
+
+func cleanThunderFileName(fn string) string { return parenRegex.ReplaceAllString(fn, "$1") }
+
+// ReconcileThunderTasksWithDB は 迅雷タスク一覧とDBを突合し、アクティブ実行中タスクのマップを返します
 func (a *App) ReconcileThunderTasksWithDB() (int, map[string]bool) {
-	existingMap := make(map[string]bool)
-	status := a.GetThunderCDPStatus()
-	if !status.IsConnected || len(status.CapturedTasks) == 0 {
-		return 0, existingMap
-	}
-
-	wsURL := status.ActiveWSUrl
-	for _, item := range status.CapturedTasks {
-		if item.FileName == "" {
-			continue
+	activeMap := make(map[string]bool)
+	if a.Repo != nil && a.Repo.DB() != nil {
+		var activeTasks []models.ThunderTask
+		_ = a.Repo.DB().Select("file_name").Where("status IN ?", []string{
+			string(models.ThunderTaskOnboarded), string(models.ThunderTaskRunning), string(models.ThunderTaskHolding),
+		}).Find(&activeTasks).Error
+		for _, at := range activeTasks {
+			activeMap[at.FileName] = true
+			activeMap[cleanThunderFileName(at.FileName)] = true
 		}
-		if !a.isDozouManagedTask(item.FileName) {
-			continue
-		} // ユーザー独自タスクは除外
-		existingMap[item.FileName] = true
+	}
+	status := a.GetThunderCDPStatus()
+	if !status.IsConnected || len(status.CapturedTasks) == 0 { return len(activeMap), activeMap }
 
-		// ⑦ エラー文言 × サマリサイズ(>1B vs 0B) の判定
+	for _, item := range status.CapturedTasks {
+		dbFileName := cleanThunderFileName(item.FileName)
+		if dbFileName == "" { continue }
+		activeMap[item.FileName] = true
+		activeMap[dbFileName] = true
+
+		currTask := a.getDozouThunderTask(dbFileName)
+		if currTask == nil { continue } // ユーザー独自タスクは除外
+
 		eval := EvaluateThunderTaskError(item.RawText)
 		switch eval.Decision {
 		case DecisionRetire:
-			// 原始资源不存在 かつ 0B: RETIRED付与、迅雷から削除、全候補全滅(ALL_TRUE)時のみRETAINED
-			if a.Repo != nil {
-				allRetired, mediaID, err := a.Repo.MarkThunderTaskRetiredAndCheckAll(item.FileName, eval.Reason)
+			if strings.Contains(item.RawText, "正在下载") || (strings.Contains(item.RawText, "/s") && !strings.Contains(item.RawText, "0B/s")) {
+				continue
+			}
+			if currTask.Status != models.ThunderTaskRetired && a.Repo != nil {
+				allRetired, mediaID, err := a.Repo.MarkThunderTaskRetiredAndCheckAll(dbFileName, eval.Reason)
 				if err == nil && allRetired && mediaID != "" {
 					_ = a.Repo.UpdateMediaMetadata(mediaID, "RETAINED", "", "", "全候補タスクRETIREDによりRETAINED退避")
-					a.AppendPipelineLog("THUNDER", "INFO", fmt.Sprintf("📦 全候補枯渇(ALL_TRUE)のため退避: %s", mediaID))
+					a.AppendPipelineLog("THUNDER", "INFO", fmt.Sprintf("📦 全候補枯渇のため退避: %s", mediaID))
 				}
+				a.AppendPipelineLog("THUNDER", "INFO", fmt.Sprintf("🛑 ジョブ終了(RETIRED): %s (%s)", item.FileName, eval.Reason))
 			}
-			requireText := ""
-			if strings.Contains(eval.Reason, "原始リソース") {
-				requireText = "原始资源不存在"
+			if wsURL, err := FetchThunderMainRendererWSUrl(9222); err == nil && wsURL != "" {
+				a.deleteTaskByFileNameSilent(wsURL, item.FileName)
 			}
-			a.deleteTaskByFileNameAndTextSilent(wsURL, item.FileName, requireText)
 
 		case DecisionHold:
-			// 暂无任何有效资源 かつ >1B: タスク維持 & media ESCALATED維持
-			if a.Repo != nil {
-				_ = a.Repo.MarkThunderTaskHolding(item.FileName, eval.SummarySize, eval.Reason)
+			// サイズ確定タスク: 継続枠へ昇格させてアクティブスロットから解放
+			if currTask.Status != models.ThunderTaskHolding && a.Repo != nil {
+				_ = a.Repo.MarkThunderTaskHolding(dbFileName, eval.SummarySize, eval.Reason)
+				a.AppendPipelineLog("THUNDER", "INFO", fmt.Sprintf("⚡ サイズ確定により継続枠へ昇格(スロット解放): %s (%s)", dbFileName, eval.SummarySize))
 			}
 
 		case DecisionCooldown:
-			// 429 / ネットワーク異常: 10分クールダウン記録
-			if a.Repo != nil {
-				_ = a.Repo.UpdateThunderTaskCooldown(item.FileName, eval.Reason)
+			if a.Repo != nil { _ = a.Repo.UpdateThunderTaskCooldown(dbFileName, eval.Reason) }
+
+		default:
+			isActive := strings.Contains(item.RawText, "正在") || strings.Contains(item.RawText, "连接") || (eval.HasSummary && eval.SummarySize != "0B")
+			if currTask.Status == models.ThunderTaskRetired && isActive && a.Repo != nil {
+				_ = a.Repo.MarkThunderTaskOnboarded(currTask.ID, currTask.SummarySize)
+				a.AppendPipelineLog("THUNDER", "INFO", fmt.Sprintf("⚡ ユーザー再開を検知しタスク復帰: %s", dbFileName))
 			}
+			activeMap[item.FileName] = true
+			activeMap[dbFileName] = true
 		}
 	}
-
-	return len(existingMap), existingMap
+	return len(activeMap), activeMap
 }
 
-// isDozouManagedTask は ユーザーが個別に追加した独自タスクを排除し、dozou管轄タスクのみ判定します
-func (a *App) isDozouManagedTask(fileName string) bool {
-	if a.Repo == nil || a.Repo.DB() == nil || fileName == "" {
-		return false
-	}
-	var count int64
-	_ = a.Repo.DB().Model(&models.ThunderTask{}).Where("file_name = ?", fileName).Count(&count).Error
-	return count > 0
+func (a *App) getDozouThunderTask(fileName string) *models.ThunderTask {
+	if a.Repo == nil || a.Repo.DB() == nil || fileName == "" { return nil }
+	var t models.ThunderTask
+	if err := a.Repo.DB().Where("file_name = ?", fileName).First(&t).Error; err != nil { return nil }
+	return &t
 }
 
-// CheckAndReonboardMissingTasks は DB上ONBOARDEDだが迅雷から消失したタスクを3個上限内で再投入します
-func (a *App) CheckAndReonboardMissingTasks(existingMap map[string]bool, maxSlots int) int {
-	if a.Repo == nil || a.Repo.DB() == nil {
-		return 0
-	}
-	if maxSlots <= 0 || maxSlots > 3 {
-		maxSlots = 3
-	}
-
-	currentCount := len(existingMap)
-	if currentCount >= maxSlots {
-		return 0
-	}
-
-	var onboardedTasks []models.ThunderTask
-	_ = a.Repo.DB().Where("status = ?", models.ThunderTaskOnboarded).Limit(10).Find(&onboardedTasks).Error
-
-	readded := 0
-	destDir := a.getMediaDownloadDir()
-
-	for _, t := range onboardedTasks {
-		if currentCount >= maxSlots {
-			break
-		}
-		if existingMap[t.FileName] {
-			continue
-		}
-		if IsThunderCooldownActive(t.LastAttemptAt) {
-			continue
-		} // 10分冷却中ならスキップ
-
-		if AddTaskViaThunderCOM(t.URL, t.FileName, destDir) {
-			existingMap[t.FileName] = true
-			currentCount++
-			readded++
-			_ = a.Repo.MarkThunderTaskOnboarded(t.ID, t.SummarySize)
-			a.AppendPipelineLog("THUNDER", "INFO", fmt.Sprintf("⚡ 欠損タスク再登録: %s", t.FileName))
-		}
-	}
-	return readded
+// CheckAndReonboardMissingTasks はゾンビ再投入による重複ダイアログ抑止のため安全に無効化
+func (a *App) CheckAndReonboardMissingTasks(activeMap map[string]bool, maxSlots int) int {
+	return 0
 }

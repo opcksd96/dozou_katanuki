@@ -3,6 +3,7 @@ package app
 
 import (
 	"encoding/json"
+	"regexp"
 	"strings"
 	"time"
 )
@@ -24,13 +25,14 @@ type ThunderCDPStatus struct {
 	CapturedTasks    []ThunderCDPTaskItem `json:"captured_tasks"`
 }
 
+var cdpFileRegex = regexp.MustCompile(`(?i)[\w\-\.\(\)]+\.(?:jpg|mp4|png|webp)`)
+
 // GetThunderCDPStatus は 現在の迅雷 CDP 接続状態・アクティブタブ・タスク一覧を取得します
 func (a *App) GetThunderCDPStatus() ThunderCDPStatus {
 	st := ThunderCDPStatus{Port: 9222, IntervalMs: 200, ActiveTab: "下载中", IsDownloadingTab: true}
 	wsURL, err := FetchThunderMainRendererWSUrl(9222)
 	if err != nil || wsURL == "" {
-		st.IsConnected = false
-		return st
+		st.IsConnected = false; return st
 	}
 	st.IsConnected, st.ActiveWSUrl, st.LastPolledAt = true, wsURL, time.Now().Format("15:04:05")
 
@@ -48,16 +50,12 @@ func (a *App) GetThunderCDPStatus() ThunderCDPStatus {
 	var tabData struct {
 		Result struct {
 			Result struct {
-				Value struct {
-					Tab  string `json:"tab"`
-					IsDl bool   `json:"isDl"`
-				} `json:"value"`
+				Value struct { Tab string `json:"tab"`; IsDl bool `json:"isDl"` } `json:"value"`
 			} `json:"result"`
 		} `json:"result"`
 	}
 	if json.Unmarshal([]byte(tabRes), &tabData) == nil && tabData.Result.Result.Value.Tab != "" {
-		st.ActiveTab = tabData.Result.Result.Value.Tab
-		st.IsDownloadingTab = tabData.Result.Result.Value.IsDl
+		st.ActiveTab, st.IsDownloadingTab = tabData.Result.Result.Value.Tab, tabData.Result.Result.Value.IsDl
 	}
 
 	resJSON, err := EvaluateCDPExpression(wsURL, ThunderExtractTaskScript, 1000*time.Millisecond)
@@ -73,16 +71,14 @@ func (a *App) GetThunderCDPStatus() ThunderCDPStatus {
 // SwitchThunderTabViaCDP は迅雷のタブを指定したもの（"下载中" など）に切り替えます
 func (a *App) SwitchThunderTabViaCDP(targetTab string) bool {
 	wsURL, err := FetchThunderMainRendererWSUrl(9222)
-	if err != nil || wsURL == "" {
-		return false
-	}
+	if err != nil || wsURL == "" { return false }
 	script := `(() => {
 		const tabs = Array.from(document.querySelectorAll('.xly-nav__tab, span, a, .xly-nav__item'));
 		const target = tabs.find(el => el.innerText && el.innerText.trim() === '` + targetTab + `');
 		if (target) { target.click(); return true; }
 		return false;
 	})()`
-	EvaluateCDPExpression(wsURL, script, 1000*time.Millisecond)
+	_, _ = EvaluateCDPExpression(wsURL, script, 1000*time.Millisecond)
 	return true
 }
 
@@ -90,20 +86,19 @@ func parseCDPTargetItems(rawBlocks []string) []ThunderCDPTaskItem {
 	var items []ThunderCDPTaskItem
 	seen := make(map[string]bool)
 	for _, block := range rawBlocks {
-		for _, line := range strings.Split(block, "\n") {
-			line = strings.TrimSpace(line)
-			if (strings.Contains(line, ".jpg") || strings.Contains(line, ".mp4") || strings.Contains(line, ".png")) && !seen[line] {
-				seen[line] = true
-				status := "排队等待 / 探索中"
-				if strings.Contains(block, "无法继续下载") || strings.Contains(block, "暂无任何有效资源") {
-					status = "リソース枯渇 (RETAINED対象)"
-				} else if strings.Contains(block, "连接资源") {
-					status = "ピア探索中 (ESCALATED)"
-				} else if strings.Contains(block, "KB") || strings.Contains(block, "MB") {
-					status = "ダウンロード完了"
-				}
-				items = append(items, ThunderCDPTaskItem{FileName: line, Status: status, RawText: line})
+		matches := cdpFileRegex.FindAllString(block, -1)
+		for _, fileName := range matches {
+			if seen[fileName] { continue }
+			seen[fileName] = true
+			status := "排队等待 / 探索中"
+			if strings.Contains(block, "无法继续下载") || strings.Contains(block, "暂无任何有效资源") || strings.Contains(block, "原始资源不存在") {
+				status = "リソース枯渇 (RETAINED対象)"
+			} else if strings.Contains(block, "连接资源") {
+				status = "ピア探索中 (ESCALATED)"
+			} else if strings.Contains(block, "KB") || strings.Contains(block, "MB") {
+				status = "ダウンロード完了"
 			}
+			items = append(items, ThunderCDPTaskItem{FileName: fileName, Status: status, RawText: block})
 		}
 	}
 	return items

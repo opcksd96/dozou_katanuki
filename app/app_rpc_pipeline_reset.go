@@ -20,15 +20,16 @@ func (a *App) ResetAllToQueuedAndBootstrap() (int64, error) {
 		Where("download_status IN ? AND (is_trash = 0 OR is_trash IS NULL)", targetStatuses).
 		Updates(map[string]interface{}{
 			"download_status": "QUEUED",
-			"failed_reason":   nil,
+			"failed_reason":   "",
 		})
 	if res.Error != nil {
 		return 0, res.Error
 	}
 	count := res.RowsAffected
 
-	// 2. download_tasks の旧汚染タスクを一掃し、Motrix結果をパージ
+	// 2. download_tasks と thunder_tasks の旧汚染タスクを一掃し、Motrix結果をパージ
 	_ = db.Exec("DELETE FROM download_tasks").Error
+	_ = db.Exec("DELETE FROM thunder_tasks").Error
 	_, _ = callMotrixRPC("aria2.purgeDownloadResult", nil)
 
 	// 3. QUEUED メディア全件を取得して download_tasks に正規候補を展開登録

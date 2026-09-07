@@ -3,6 +3,7 @@ import { ref, onMounted, onUnmounted } from 'vue';
 import { GetTimeline, GetAccounts, GetSystemLanguage, SearchArticles, RetryMediaDownload } from '../../wailsjs/go/app/App';
 import { EventsOn } from '../../wailsjs/runtime/runtime';
 import type { RenderTree, RenderAuthor } from '../models/RenderTree';
+import { useStashStatus } from './useStashStatus';
 
 export type LanguageCode = 'original' | 'ja' | 'en' | 'zh';
 export type FilterType = 'all' | 'media' | 'reposts' | 'bookmarks';
@@ -10,7 +11,8 @@ export type FilterType = 'all' | 'media' | 'reposts' | 'bookmarks';
 export function useTimeline(platform = 'twitter') {
   const articles = ref<RenderTree[]>([]), accounts = ref<RenderAuthor[]>([]);
   const selectedAccount = ref('all'), currentFilter = ref<FilterType>('all'), searchQuery = ref('');
-  const systemLang = ref<LanguageCode>('ja'), loading = ref(false), hasMore = ref(true), renderKey = ref(0), isStashReady = ref(false);
+  const systemLang = ref<LanguageCode>('ja'), loading = ref(false), hasMore = ref(true), renderKey = ref(0);
+  const { isStashOnline: isStashReady, checkStashHealth: checkInitialStashState } = useStashStatus();
   const isWails = () => typeof window !== 'undefined' && !!((window as any)?.go?.app?.App || (window as any)?.go?.main?.App);
 
   const fetchSystemLang = async () => {
@@ -51,12 +53,7 @@ export function useTimeline(platform = 'twitter') {
   };
 
   const reloadAll = async () => { loading.value = false; hasMore.value = true; renderKey.value++; await Promise.all([fetchAccounts(), fetchTimeline(true)]); };
-  const checkInitialStashState = async () => {
-    try {
-      if (isWails() && (await ((window as any)?.go?.app?.App || (window as any)?.go?.main?.App)?.IsStashReady?.())) { isStashReady.value = true; return; }
-      const res = await fetch('/stash-proxy/', { method: 'HEAD' }); if (res.ok || res.status === 401 || res.status === 404) isStashReady.value = true;
-    } catch {}
-  };
+
 
   const unoffs: (() => void)[] = [];
   onMounted(async () => {

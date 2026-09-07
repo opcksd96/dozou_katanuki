@@ -47,7 +47,7 @@ func AddBatchTasksViaThunderCOM(tasks []ThunderCOMTask) bool {
 		cleanDest := strings.ReplaceAll(dest, "'", "''")
 		b.WriteString(fmt.Sprintf(`$a.AddTask('%s','%s','%s','','',1,0,5); `, cleanURL, cleanFN, cleanDest))
 	}
-	b.WriteString(`$a.CommitTasks(); exit 0 } }catch{} }; exit 1`)
+	b.WriteString(`try{ $a.CommitTasks2(0); }catch{ $a.CommitTasks(); }; exit 0 } }catch{} }; exit 1`)
 	cmd := exec.Command("powershell.exe", "-NoProfile", "-NonInteractive", "-WindowStyle", "Hidden", "-Command", b.String())
 	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true, CreationFlags: 0x08000000}
 	return cmd.Run() == nil
@@ -78,7 +78,7 @@ func (a *App) EscalateToThunder(mediaID string, downloadURL string) (bool, error
 	if mediaID != "" && a.Repo != nil {
 		_ = a.Repo.UpdateMediaMetadata(mediaID, "ESCALATED", "", "", "迅雷オーケストレーター投入待機 (3スロット制御)")
 		a.AppendPipelineLog("THUNDER", "INFO", fmt.Sprintf("⚡ 迅雷キュー登録: %s (自律オーケストレーターへ委託)", mediaID))
-		if !a.isThunderOrchestratorRunning() {
+		if !a.isThunderOrchestratorRunning() && a.IsPipelineAutoEngineRunning() {
 			_, _ = a.StartThunderOrchestrator(3, 4)
 		}
 	}

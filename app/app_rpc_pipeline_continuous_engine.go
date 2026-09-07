@@ -23,11 +23,13 @@ func (a *App) TogglePipelineAutoEngine(enable bool) (bool, error) {
 		pipeEngineState.isRunning = true
 		pipeEngineState.stopCh = make(chan struct{})
 		a.AppendPipelineLog("SYSTEM", "INFO", "🚀 パイプライン完全自動運転エンジンを起動しました")
+		a.ResumeThunderOrchestrator()
 		go a.runContinuousPipelineLoop(pipeEngineState.stopCh)
 	} else if !enable && pipeEngineState.isRunning {
 		pipeEngineState.isRunning = false
 		close(pipeEngineState.stopCh)
 		a.AppendPipelineLog("SYSTEM", "WARN", "⏸️ パイプライン完全自動運転エンジンを停止しました")
+		a.PauseThunderOrchestrator()
 	}
 	return pipeEngineState.isRunning, nil
 }

@@ -16,18 +16,19 @@ type CheckpointStatus struct {
 }
 
 type PipelineOverviewResult struct {
-	Checkpoints     []CheckpointStatus `json:"checkpoints"`
-	TotalMedia      int64              `json:"total_media"`
-	Completed       int64              `json:"completed"`
-	Escalated       int64              `json:"escalated"`
-	Outsourced      int64              `json:"outsourced"`
-	Retained        int64              `json:"retained"`
-	OverallProgress float64            `json:"overall_progress"`
+	Checkpoints         []CheckpointStatus `json:"checkpoints"`
+	TotalMedia          int64              `json:"total_media"`
+	Completed           int64              `json:"completed"`
+	Escalated           int64              `json:"escalated"`
+	Outsourced          int64              `json:"outsourced"`
+	Retained            int64              `json:"retained"`
+	OverallProgress     float64            `json:"overall_progress"`
+	IsAutoEngineRunning bool               `json:"is_auto_engine_running"`
 }
 
 // GetPipelineOverview は パイプライン全体の4大チェックポイント稼働状態とメディア集計を一括返却します
 func (a *App) GetPipelineOverview() (*PipelineOverviewResult, error) {
-	res := &PipelineOverviewResult{Checkpoints: make([]CheckpointStatus, 4)}
+	res := &PipelineOverviewResult{Checkpoints: make([]CheckpointStatus, 4), IsAutoEngineRunning: a.IsPipelineAutoEngineRunning()}
 
 	// 1. Requests (内蔵)
 	res.Checkpoints[0] = CheckpointStatus{Name: "Requests / 内蔵HTTP", Key: "requests", IsOnline: true, StatusText: "🟢 STANDBY"}
@@ -50,13 +51,21 @@ func (a *App) GetPipelineOverview() (*PipelineOverviewResult, error) {
 
 	tText := "🔴 OFFLINE"
 	if orchState.isRunning {
-		tText = "⚡ RUNNING"
+		if orchState.isPaused {
+			tText = "⏸️ PAUSED"
+		} else {
+			tText = "⚡ RUNNING"
+		}
 	} else if thunderCDP {
 		tText = "⚡ CDP CONNECTED"
 	} else if thunderProc {
 		tText = "🟢 ONLINE"
 	}
-	res.Checkpoints[2] = CheckpointStatus{Name: "迅雷 (Thunder) P2SP", Key: "thunder", IsOnline: thunderOnline, ActiveCount: len(orchState.recentTasks), StatusText: tText}
+	activeCount := len(orchState.recentTasks)
+	if orchState.isPaused || !orchState.isRunning {
+		activeCount = 0
+	}
+	res.Checkpoints[2] = CheckpointStatus{Name: "迅雷 (Thunder) P2SP", Key: "thunder", IsOnline: thunderOnline, ActiveCount: activeCount, StatusText: tText}
 
 	// 4. Stash
 	stashOnline := a.isStashServerOnline()

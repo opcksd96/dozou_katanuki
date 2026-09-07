@@ -38,9 +38,12 @@ export function useDownloaderConsole() {
   };
 
   const launchThunder = async () => {
-    const getApp = () => (window as any)?.go?.app?.App;
-    if (await getApp()?.LaunchThunder?.()) addToast('⚡ Thunder.exe を起動しました', 'success', 3000);
-    else addToast('❌ Thunder.exe の起動に失敗しました', 'error', 3000);
+    try {
+      const getApp = () => (window as any)?.go?.app?.App;
+      let ok = getApp()?.LaunchThunder ? await getApp().LaunchThunder() : (await fetch('/api/admin/pipeline/launch-thunder', { method: 'POST' }).then(r => r.json()).then(j => !!j?.success).catch(() => false));
+      if (ok) addToast('⚡ 迅雷 (Thunder) をキックしました', 'success', 3000);
+      else addToast('❌ 迅雷の起動に失敗しました', 'error', 3000);
+    } catch { addToast('❌ 起動リクエスト失敗', 'error', 3000); }
   };
 
   const escalateToThunder = async (mediaID: string, downloadURL: string) => {
