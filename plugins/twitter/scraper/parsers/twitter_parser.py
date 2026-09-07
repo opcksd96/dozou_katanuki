@@ -1,8 +1,7 @@
-# plugins/twitter/scraper/parsers/twitter_parser.py (100行以下)
+# plugins/twitter/scraper/parsers/twitter_parser.py (SPEC-PLUGIN-001 / 100行以下)
 import datetime, html, json, re
 from typing import Any, Dict, List, Optional
 from .base_parser import BaseParser
-
 
 class TwitterParser(BaseParser):
     """Twitter / X 特化型抽出エンジン（公式JSON / Sotwe / Twistalker / Nitter / 魚拓対応）"""
@@ -14,15 +13,13 @@ class TwitterParser(BaseParser):
         return {"platform": "twitter", "account": m.group(1), "status_id": m.group(2) or ""} if (m and m.group(1).lower() not in self.RESERVED) else None
 
     def parse_record(self, raw_data: Any, uri: str) -> Optional[Dict[str, Any]]:
-        if isinstance(raw_data, dict) and "post" in raw_data and "account" in raw_data:
-            return raw_data
+        if isinstance(raw_data, dict) and "post" in raw_data and "account" in raw_data: return raw_data
         if isinstance(raw_data, (str, bytes)):
             try:
                 data = json.loads(raw_data)
                 if isinstance(data, dict): return self._parse_json(data, uri)
             except Exception: pass
-            html_text = raw_data.decode("utf-8", errors="ignore") if isinstance(raw_data, bytes) else str(raw_data)
-            return self._parse_html(html_text, uri)
+            return self._parse_html(raw_data.decode("utf-8", errors="ignore") if isinstance(raw_data, bytes) else str(raw_data), uri)
         elif isinstance(raw_data, dict): return self._parse_json(raw_data, uri)
         return None
 
@@ -37,34 +34,26 @@ class TwitterParser(BaseParser):
         raw_media = (tweet.get("extended_entities", {}) or tweet.get("entities", {})).get("media", []) or tweet.get("mediaEntities", []) or tweet.get("photos", []) or []
         media_list = []
         for m in raw_media:
-            m_type = m.get("type", "image")
-            base_url = m.get("media_url_https") or m.get("media_url") or m.get("url")
-            width, height = m.get("sizes", {}).get("large", {}).get("w", 0), m.get("sizes", {}).get("large", {}).get("h", 0)
-            media_item = {"url": base_url, "type": m_type, "width": width, "height": height, "variants": []}
+            m_type, base_url = m.get("type", "image"), m.get("media_url_https") or m.get("media_url") or m.get("url")
+            w, h = m.get("sizes", {}).get("large", {}).get("w", 0), m.get("sizes", {}).get("large", {}).get("h", 0)
+            item = {"url": base_url, "type": m_type, "width": w, "height": h, "variants": []}
             if m_type in ["video", "animated_gif"]:
-                variants = m.get("video_info", {}).get("variants", []) or m.get("variants", [])
-                mp4_variants = [v for v in variants if v.get("content_type") == "video/mp4" and "url" in v]
-                mp4_variants = sorted(mp4_variants, key=lambda x: x.get("bit_rate") or 0, reverse=True)
-                for v in mp4_variants:
-                    media_item["variants"].append({"url": v.get("url"), "bit_rate": v.get("bit_rate", 0)})
-                if mp4_variants:
-                    media_item["url"] = mp4_variants[0].get("url")
-            media_list.append(media_item)
+                vars_list = m.get("video_info", {}).get("variants", []) or m.get("variants", [])
+                mp4s = sorted([v for v in vars_list if v.get("content_type") == "video/mp4" and "url" in v], key=lambda x: x.get("bit_rate") or 0, reverse=True)
+                for v in mp4s: item["variants"].append({"url": v.get("url"), "bit_rate": v.get("bit_rate", 0)})
+                if mp4s: item["url"] = mp4s[0].get("url")
+            media_list.append(item)
         raw_urls = (tweet.get("extended_entities", {}) or tweet.get("entities", {})).get("urls", []) or tweet.get("urls", [])
-        urls_list = [{"short_url": u.get("url"), "expanded_url": u.get("expanded_url") or u.get("unwound", {}).get("url") or u.get("url")}
-                     for u in raw_urls if u.get("url")]
-        return {
-            "platform": "twitter",
-            "account": {"numeric_id": str(user.get("id_str") or user.get("id") or u_name), "username": u_name,
-                        "display_name": user.get("name") or user.get("screen_name") or u_name,
-                        "avatar_url": user.get("profile_image_url_https") or user.get("profile_image_url") or user.get("avatar") or ""},
-            "post": {"id": t_id, "conversation_id": str(tweet.get("conversation_id_str") or tweet.get("conversation_id") or t_id),
-                     "reply_to_tweet_id": tweet.get("in_reply_to_status_id_str") or tweet.get("in_reply_to_status_id"),
-                     "reply_to_handle": tweet.get("in_reply_to_screen_name") or tweet.get("in_reply_to_username"),
-                     "created_at": tweet.get("created_at") or tweet.get("createdAt") or "",
-                     "full_text": tweet.get("full_text") or tweet.get("text") or "", "wayback_url": uri, "urls": urls_list},
-            "media": media_list,
-        }
+        urls_list = [{"short_url": u.get("url"), "expanded_url": u.get("expanded_url") or u.get("unwound", {}).get("url") or u.get("url")} for u in raw_urls if u.get("url")]
+        acc = {"numeric_id": str(user.get("id_str") or user.get("id") or u_name), "username": u_name,
+               "display_name": user.get("name") or user.get("screen_name") or u_name,
+               "avatar_url": user.get("profile_image_url_https") or user.get("profile_image_url") or user.get("avatar") or ""}
+        post = {"id": t_id, "conversation_id": str(tweet.get("conversation_id_str") or tweet.get("conversation_id") or t_id),
+                "reply_to_tweet_id": tweet.get("in_reply_to_status_id_str") or tweet.get("in_reply_to_status_id"),
+                "reply_to_handle": tweet.get("in_reply_to_screen_name") or tweet.get("in_reply_to_username"),
+                "created_at": tweet.get("created_at") or tweet.get("createdAt") or "",
+                "full_text": tweet.get("full_text") or tweet.get("text") or "", "wayback_url": uri, "urls": urls_list}
+        return {"platform": "twitter", "account": acc, "post": post, "media": media_list}
 
     def _meta(self, html_text: str, prop: str) -> Optional[str]:
         for tag in re.findall(r'<meta\s+[^>]+>', html_text, re.IGNORECASE):
@@ -101,10 +90,9 @@ class TwitterParser(BaseParser):
         if not created_at and m_time:
             try: created_at = datetime.datetime.fromtimestamp(int(m_time.group(1)), tz=datetime.timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
             except Exception: pass
-        if not created_at and p_id.isdigit() and int(p_id) > 30000000000:
+        elif not created_at and p_id.isdigit() and int(p_id) > 30000000000:
             try: created_at = datetime.datetime.fromtimestamp(((int(p_id) >> 22) + 1288834974657) / 1000, tz=datetime.timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
             except Exception: pass
-        return {
-            "platform": "twitter", "account": {"numeric_id": u_name, "username": u_name, "display_name": display_name, "avatar_url": avatar_url},
-            "post": {"id": p_id, "conversation_id": p_id, "created_at": created_at, "full_text": txt, "wayback_url": uri, "urls": []}, "media": media_list,
-        }
+        acc = {"numeric_id": u_name, "username": u_name, "display_name": display_name, "avatar_url": avatar_url}
+        post = {"id": p_id, "conversation_id": p_id, "created_at": created_at, "full_text": txt, "wayback_url": uri, "urls": []}
+        return {"platform": "twitter", "account": acc, "post": post, "media": media_list}

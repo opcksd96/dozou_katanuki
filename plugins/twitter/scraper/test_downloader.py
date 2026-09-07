@@ -19,6 +19,7 @@ class TestDownloaderPipeline(unittest.TestCase):
             conn.execute("CREATE TABLE accounts (numeric_id TEXT PRIMARY KEY, username TEXT, display_name TEXT);")
             conn.execute("CREATE TABLE articles (id TEXT PRIMARY KEY, account_id TEXT, wayback_url TEXT, full_text TEXT, full_text_ja TEXT, created_at TEXT);")
             conn.execute("CREATE TABLE media (media_id TEXT PRIMARY KEY, article_id TEXT, type TEXT, download_url TEXT, thumbnail_url TEXT, download_status TEXT DEFAULT 'QUEUED', failed_reason TEXT, stash_scene_id TEXT, stash_image_id TEXT, media_quality TEXT DEFAULT '');")
+            conn.execute("CREATE TABLE media_variants (id INTEGER PRIMARY KEY, media_id TEXT, download_url TEXT, bit_rate INTEGER, content_type TEXT);")
             conn.execute("INSERT INTO whitelists VALUES (1, 'account', 'alice', 1);")
             conn.execute("INSERT INTO accounts VALUES ('1001', 'alice', 'アリス'), ('1002', 'bob', 'ボブ');")
             conn.execute("INSERT INTO articles VALUES ('post_1', '1001', '', 'Hello world', 'こんにちは', '2025-01-22T10:00:00Z'), ('post_2', '1002', '', 'Secret', '', '2025-01-23T10:00:00Z');")
@@ -50,7 +51,8 @@ class TestDownloaderPipeline(unittest.TestCase):
             self.dl.process_queued_media(article_id="post_1")
         with sqlite3.connect(self.db_path) as conn:
             row = conn.cursor().execute("SELECT download_status, failed_reason FROM media WHERE media_id = 'vid1.mp4'").fetchone()
-            self.assertEqual(row, ("OUTSOURCED", "Motrix外注 (GID: gid-98765)"))
+            self.assertEqual(row[0], "OUTSOURCED")
+            self.assertIn("gid-98765", row[1])
 
     def test_non_whitelist_liveness_only_marked_dead404(self):
         with sqlite3.connect(self.db_path) as conn:

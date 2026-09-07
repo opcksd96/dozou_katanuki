@@ -6,11 +6,9 @@ from seleniumbase import SB
 try:
     from plugins.twitter.scraper.parsers.sotwe_parser import parse_sotwe_vue_tweets, parse_sotwe_html_tweets
     from plugins.twitter.scraper.parsers.sotwe_extractors import VUE_EXTRACT_JS
-    from plugins.twitter.scraper.core.warc_archiver import WarcArchiver
 except ImportError:
     from parsers.sotwe_parser import parse_sotwe_vue_tweets, parse_sotwe_html_tweets
     from parsers.sotwe_extractors import VUE_EXTRACT_JS
-    from core.warc_archiver import WarcArchiver
 
 
 class SotweSource:
@@ -52,6 +50,7 @@ class SotweSource:
             result = records[:limit] if limit > 0 else records
             if result:
                 try:
+                    from plugins.twitter.scraper.core.warc_archiver import WarcArchiver
                     c = WarcArchiver().archive_posts(result, platform="twitter")
                     if log_fn: log_fn(f"[SotweSource:WARC] Dumped & enriched {c} posts to backups/dumps/twitter/{clean_acc}/")
                 except Exception as we:
