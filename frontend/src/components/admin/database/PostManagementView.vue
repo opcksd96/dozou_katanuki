@@ -21,7 +21,7 @@ const emit = defineEmits<{
   (e: 'autoTranslate', autoSave: boolean): void; (e: 'batchTranslate'): void; (e: 'cancelJob', id: string): void;
   (e: 'trash', id: string, reason: string): void; (e: 'batchTrash', ids: string[], reason: string): void;
   (e: 'batchResetTranslations', ids: string[]): void; (e: 'undo'): void; (e: 'redo'): void;
-  (e: 'update:includeTrash', val: boolean): void;
+  (e: 'update:includeTrash', val: boolean): void; (e: 'jumpToTimelinePost', articleId: string): void;
 }>();
 
 const { selectedIds, selectedCount, toggleSelect, selectAll, clearSelection } = useArticleBatchOps();
@@ -85,7 +85,7 @@ onMounted(() => emit('search'));
           <button @click="emit('batchTranslate')" class="w-full py-1 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded shadow cursor-pointer text-xs">🚀 未翻訳を一括自動翻訳 (最大500件)</button>
         </div>
         <div class="flex-1 min-h-[300px]">
-          <DatabaseTranslationEditor :article="selectedArticle" :saving="saving" :translating="translating" @auto-translate="(autoSave) => emit('autoTranslate', autoSave)" @save="(j, e, z) => emit('save', j, e, z)" @trash="(id, r) => emit('trash', id, r)" />
+          <DatabaseTranslationEditor :article="selectedArticle" :saving="saving" :translating="translating" @auto-translate="(autoSave) => emit('autoTranslate', autoSave)" @save="(j, e, z) => emit('save', j, e, z)" @trash="(id, r) => emit('trash', id, r)" @jump-to-timeline="(id) => emit('jumpToTimelinePost', id)" />
         </div>
       </div>
     </div>

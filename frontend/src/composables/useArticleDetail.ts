@@ -16,19 +16,29 @@ export function useArticleDetail(platform: string = 'twitter') {
     loading.value = true;
     error.value = null;
     try {
-      if (typeof GetArticleDetail === 'function') {
-        const res = await GetArticleDetail(platform, id);
-        // Map the new array format ([]dto.RenderTree) back to expected format
-        if (Array.isArray(res) && res.length > 0) {
-          detail.value = {
-            article: res[0],
-            thread: res.slice(1)
-          } as unknown as ArticleDetailResult;
-        } else {
-          detail.value = null;
-        }
+      const getApp = (window as any)?.go?.app?.App || (window as any)?.go?.main?.App;
+      let res: any = null;
+      if (getApp?.GetArticleDetail) {
+        res = await getApp.GetArticleDetail(platform, id);
+      } else if (typeof GetArticleDetail === 'function') {
+        res = await GetArticleDetail(platform, id);
       } else {
-        error.value = 'GetArticleDetail is not available';
+        const resp = await fetch(`/api/article?platform=${encodeURIComponent(platform)}&id=${encodeURIComponent(id)}`);
+        res = await resp.json();
+      }
+
+      if (res && res.article) {
+        detail.value = {
+          article: res.article,
+          thread: Array.isArray(res.thread) ? res.thread : [],
+        };
+      } else if (Array.isArray(res) && res.length > 0) {
+        detail.value = {
+          article: res[0],
+          thread: res.slice(1),
+        };
+      } else {
+        detail.value = null;
       }
     } catch (e: any) {
       error.value = e?.message || 'Failed to fetch article detail';

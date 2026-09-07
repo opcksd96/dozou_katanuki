@@ -40,7 +40,7 @@ const openReport = async () => {
       :salvage-form="salvageForm"
       :import-form="importForm"
       :action-loading="actionLoading"
-      :is-job-running="Boolean(activeJob && activeJob.status === 'running')"
+      :is-job-running="Boolean(activeJob && (activeJob.status || '').toLowerCase() === 'running')"
       @start-salvage="$emit('startSalvage')"
       @start-import="$emit('startImport')"
     />

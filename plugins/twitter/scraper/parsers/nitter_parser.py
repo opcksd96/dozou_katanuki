@@ -57,7 +57,8 @@ def parse_nitter_card(card, default_account: str = "", fallback_id: str = "") ->
             "created_at": created_at, "full_text": full_text, "via": "Nitter",
             "source_name": "nitter", "source_domain": "nitter.space", "is_repost": is_rt,
             "is_pinned": is_pinned, "retweeted_by": retweeted_by, "wayback_url": "",
-            "original_url": f"https://x.com/{u_name}/status/{p_id}", "metrics": metrics, "urls": []
+            "original_url": f"https://x.com/{u_name}/status/{p_id}",
+            "nitter_url": f"https://nitter.space/{u_name}/status/{p_id}", "metrics": metrics, "urls": []
         },
         "media": media
     }

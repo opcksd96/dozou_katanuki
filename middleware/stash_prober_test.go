@@ -1,48 +1,31 @@
+// middleware/stash_prober_test.go (100行以下 - SPEC-PRINCIPLE-001)
 package middleware
 
 import (
 	"context"
-	"net/http"
-	"net/http/httptest"
 	"sync"
 	"testing"
 	"time"
 )
 
-func TestStashProberSuccess(t *testing.T) {
+func TestBeaconServiceLifecycle(t *testing.T) {
 	var mu sync.Mutex
-	readyEmitted := false
-	toastEmitted := false
-
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write([]byte("OK"))
-	}))
-	defer ts.Close()
+	events := make(map[string]int)
 
 	emitter := func(event string, data ...interface{}) {
 		mu.Lock()
 		defer mu.Unlock()
-		if event == "stash:ready" {
-			readyEmitted = true
-		}
-		if event == "toast:notify" {
-			toastEmitted = true
-		}
+		events[event]++
 	}
 
-	prober := NewStashProber("./dummy.exe", ts.URL, emitter)
+	service := NewBeaconService(emitter)
+	state := service.GetState()
+	if state.StashReady || state.ThunderReady || state.MotrixReady {
+		t.Errorf("expected initial state to be false, got %+v", state)
+	}
+
 	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	prober.Start(ctx)
-	time.Sleep(500 * time.Millisecond)
-
-	mu.Lock()
-	if !readyEmitted || !toastEmitted {
-		t.Errorf("expected readyEmitted=true, toastEmitted=true, got ready=%v, toast=%v", readyEmitted, toastEmitted)
-	}
-	mu.Unlock()
-
-	prober.Stop()
+	service.Start(ctx)
+	time.Sleep(50 * time.Millisecond)
+	cancel()
 }

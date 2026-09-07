@@ -30,10 +30,11 @@ func (a *App) GetTimeline(platform, accountID, filter string, limit, offset int)
 }
 
 // GetArticleDetail は指定された個別記事およびスレッド会話ツリーを取得する Wails バインドメソッドです
-func (a *App) GetArticleDetail(platform, id string) ([]dto.RenderTree, error) {
+func (a *App) GetArticleDetail(platform, id string) (*models.ArticleDetailResult, error) {
 	if err := a.WaitForReady(); err != nil {
 		return nil, err
 	}
-	// Use Application Layer (UseCase)
-	return a.TimelineUseCase.GetThread(a.Ctx, id)
+	res, err := a.TimelineService.GetArticleDetail(platform, id)
+	log.Printf("[Wails RPC] GetArticleDetail(platform=%s, id=%s) -> res: %v (err: %v)", platform, id, res != nil, err)
+	return res, err
 }

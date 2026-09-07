@@ -3,10 +3,25 @@ package middleware
 
 import (
 	"bufio"
+	"fmt"
 	"io"
+	"os"
 	"regexp"
 	"strconv"
+	"strings"
+	"time"
 )
+
+func writeScraperLog(line string) {
+	_ = os.MkdirAll("logs", 0755)
+	f, err := os.OpenFile("logs/scraper.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil { return }
+	defer f.Close()
+	lvl := "INFO"
+	if strings.Contains(line, "[STDERR") || strings.Contains(line, "ERR") { lvl = "ERROR" }
+	ts := time.Now().Format("2006-01-02 15:04:05")
+	_, _ = f.WriteString(fmt.Sprintf("[%s] [%s] %s\n", ts, lvl, line))
+}
 
 var progressRegex = regexp.MustCompile(`^PROGRESS:\s*(\d+)/(\d+)\s*\|\s*(.*)$`)
 
@@ -44,6 +59,9 @@ func (j *JobOrchestrator) scanStdoutProgress(jobID string, r io.Reader) {
 			}
 		}
 	}
+	if err := scanner.Err(); err != nil {
+		j.appendLog(jobID, "[SCAN_ERR] "+err.Error())
+	}
 }
 
 func (j *JobOrchestrator) scanStderr(jobID string, r io.Reader) {
@@ -52,9 +70,13 @@ func (j *JobOrchestrator) scanStderr(jobID string, r io.Reader) {
 		line := scanner.Text()
 		j.appendLog(jobID, "[STDERR] "+line)
 	}
+	if err := scanner.Err(); err != nil {
+		j.appendLog(jobID, "[STDERR_SCAN_ERR] "+err.Error())
+	}
 }
 
 func (j *JobOrchestrator) appendLog(jobID, line string) {
+	go writeScraperLog(line)
 	j.mu.Lock()
 	if p, ok := j.jobs[jobID]; ok {
 		p.Logs = append(p.Logs, line)

@@ -20,7 +20,9 @@ def run_batch_translate(db_path: str, article_id: str = "", account: str = "", o
         if article_id: rows = cur.execute("SELECT id, full_text FROM articles WHERE id = ?", (article_id,)).fetchall()
         else:
             q, p = "SELECT id, full_text FROM articles WHERE 1=1", []
-            if account: q += " AND account_id = (SELECT numeric_id FROM accounts WHERE username = ? OR numeric_id = ?)"; p.extend([account, account])
+            if account:
+                q += " AND account_id IN (SELECT numeric_id FROM accounts WHERE username = ? OR numeric_id = ? OR alias_of = ? OR alias_of IN (SELECT username FROM accounts WHERE username = ? OR numeric_id = ?))"
+                p.extend([account, account, account, account, account])
             if not overwrite: q += " AND (full_text_ja IS NULL OR full_text_ja = '' OR (full_text_ja = full_text AND full_text_en = full_text AND lang != 'ja'))"
             q += " LIMIT ?"; p.append(limit); rows = cur.execute(q, p).fetchall()
         if dry_run and article_id and rows: return print(f"JSON:{json.dumps(trans.translate_article(rows[0][1]), ensure_ascii=False)}")
@@ -73,7 +75,7 @@ def main():
     p = argparse.ArgumentParser(description="Twitter Multi-Source Scraper Sidecar")
     p.add_argument("-m", "--mode", choices=["auto", "manual", "download", "escalate", "poll", "restore", "translate", "smart_recovery", "thunder"], default="auto")
     p.add_argument("-p", "--platform", default="twitter"); p.add_argument("-a", "--account", default=""); p.add_argument("-l", "--limit", type=int, default=0)
-    p.add_argument("-s", "--source", default="all", choices=["all", "wayback", "sotwe", "twistalker", "nitter", "official"])
+    p.add_argument("-s", "--source", default="all", choices=["all", "wayback", "sotwe", "twistalker", "nitter", "official", "x"])
     p.add_argument("-w", "--warc-path", default=""); p.add_argument("--dumps-dir", default="backups/dumps"); p.add_argument("--avatar-dir", default="assets/avatars")
     p.add_argument("--media-id", default=""); p.add_argument("--article-id", default=""); p.add_argument("--offline", action="store_true")
     p.add_argument("--no-translate", action="store_true"); p.add_argument("--overwrite", action="store_true"); p.add_argument("--dry-run", action="store_true")

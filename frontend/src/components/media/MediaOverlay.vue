@@ -19,6 +19,7 @@ const emit = defineEmits<{
   (e: 'next'): void;
   (e: 'prev'): void;
   (e: 'toggleLike', id: string): void;
+  (e: 'viewDetail', id: string): void;
 }>();
 
 const handleKeyDown = (e: KeyboardEvent) => {
@@ -66,6 +67,7 @@ onUnmounted(() => window.removeEventListener('keydown', handleKeyDown));
           :article="article"
           :target-lang="targetLang"
           @toggle-like="(id) => $emit('toggleLike', id)"
+          @view-detail="(id) => $emit('viewDetail', id)"
         />
       </div>
     </div>

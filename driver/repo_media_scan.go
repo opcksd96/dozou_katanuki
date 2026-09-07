@@ -28,13 +28,18 @@ func (r *Repository) FetchRawMediaItems(accountID, status, mediaType string, lim
 	newQ := func() *gorm.DB {
 		q := r.db.Table("media").
 			Joins("LEFT JOIN articles ON articles.id = media.article_id").
-			Joins("LEFT JOIN accounts ON accounts.numeric_id = articles.account_id")
-		if accountID != "" && accountID != "all" { q = q.Where("accounts.numeric_id = ? OR accounts.username = ? OR articles.account_id = ?", accountID, accountID, accountID) }
+			Joins("LEFT JOIN accounts ON (accounts.numeric_id = articles.account_id OR accounts.username = articles.account_id)")
+		if accountID != "" && accountID != "all" {
+			q = q.Where("articles.account_id = ? OR articles.account_id IN (SELECT numeric_id FROM accounts WHERE numeric_id = ? OR username = ? OR alias_of = ? OR alias_of IN (SELECT username FROM accounts WHERE numeric_id = ? OR username = ?) OR username IN (SELECT alias_of FROM accounts WHERE (numeric_id = ? OR username = ?) AND alias_of != ''))", accountID, accountID, accountID, accountID, accountID, accountID, accountID, accountID)
+		}
 		if status == "TRASH" || status == "trash" { q = q.Where("media.is_trash = ?", true) } else {
-			q = q.Where("media.is_trash = 0 AND articles.is_trash = 0")
+			q = q.Where("media.is_trash = 0 AND (articles.is_trash = 0 OR articles.is_trash IS NULL)")
 			if status != "" && status != "all" { q = q.Where("media.download_status = ?", status) }
 		}
-		if mediaType == "image" { q = q.Where("media.type = 'image'") } else if mediaType == "video" { q = q.Where("media.type != 'image'") }
+		switch mediaType {
+		case "image": q = q.Where("media.type = 'image'")
+		case "video": q = q.Where("media.type != 'image'")
+		}
 		return q
 	}
 

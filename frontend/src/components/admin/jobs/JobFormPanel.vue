@@ -35,8 +35,8 @@ const showManualImport = ref(false);
           <option value="sotwe">🧬 Sotwe (スレッド/メディア)</option>
           <option value="twistalker">📜 Twistalker</option>
           <option value="nitter">🌐 Nitter</option>
+          <option value="official">🐦 X (公式 / x.com)</option>
           <option value="wayback">🏛️ Wayback 魚拓</option>
-          <option value="official">🐦 X Syndication</option>
         </select>
       </div>
       <div class="sm:col-span-2">

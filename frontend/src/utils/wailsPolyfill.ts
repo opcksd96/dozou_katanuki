@@ -2,27 +2,31 @@
 
 export function initWailsPolyfill() {
   if (typeof window === 'undefined') return;
+  const win = window as any;
+  if (win.runtime?.EventsEmit && !win._isWailsPolyfill) return;
 
   const isDev = window.location.port === '5173';
-  const baseUrl = ''; // Use relative paths to leverage Vite proxy or backend directly
-
+  const baseUrl = '';
   let sseListeners: Record<string, Function[]> = {};
-
-  if (!window.runtime) (window as any).runtime = {};
+  if (!win.runtime) win.runtime = {};
+  const rt = win.runtime;
   
-  window.runtime.EventsOn = (eventName: string, callback: Function) => {
+  rt.EventsOn = (eventName: string, callback: Function) => {
     if (!sseListeners[eventName]) sseListeners[eventName] = [];
     sseListeners[eventName].push(callback);
-    return () => { sseListeners[eventName] = sseListeners[eventName].filter(cb => cb !== callback); };
+    return () => { sseListeners[eventName] = sseListeners[eventName].filter((cb: any) => cb !== callback); };
   };
-  window.runtime.EventsOnMultiple = () => () => {};
-  window.runtime.EventsOff = () => {};
-  window.runtime.EventsOffAll = () => {};
-  window.runtime.EventsOnce = () => () => {};
-  window.runtime.EventsEmit = () => {};
-  window.runtime.BrowserOpenURL = (url: string) => window.open(url, '_blank', 'noopener,noreferrer');
-  window.runtime.LogPrint = console.log; window.runtime.LogTrace = console.trace; window.runtime.LogDebug = console.debug;
-  window.runtime.LogInfo = console.info; window.runtime.LogWarning = console.warn; window.runtime.LogError = console.error;
+  rt.EventsOnMultiple = (eventName: string, callback: Function) => rt.EventsOn(eventName, callback);
+  rt.EventsOff = (eventName: string) => { delete sseListeners[eventName]; };
+  rt.EventsOffAll = () => { sseListeners = {}; };
+  rt.EventsOnce = (eventName: string, callback: Function) => {
+    const unsub = rt.EventsOn(eventName, (...args: any[]) => { unsub(); callback(...args); });
+    return unsub;
+  };
+  rt.EventsEmit = () => {};
+  rt.BrowserOpenURL = (url: string) => window.open(url, '_blank', 'noopener,noreferrer');
+  rt.LogPrint = console.log; rt.LogTrace = console.trace; rt.LogDebug = console.debug;
+  rt.LogInfo = console.info; rt.LogWarning = console.warn; rt.LogError = console.error;
 
   const sseUrl = `${baseUrl}/api/events`;
   const evtSource = new EventSource(sseUrl);
@@ -69,6 +73,12 @@ export function initWailsPolyfill() {
     StartMediaEscalateJob: async () => ({ id: 'esc_job', status: 'RUNNING', percentage: 0 }),
     StartSmartRecoveryJob: async () => ({ id: 'smart_job', status: 'RUNNING', percentage: 0 }),
     StartThunderEscalateJob: async () => ({ id: 'thun_job', status: 'RUNNING', percentage: 0 }),
+    StartSalvageJob: async (p: string, a: string, s: string, l: number) => postJson('/api/jobs/salvage', { Platform: p, Account: a, Source: s, Limit: l }),
+    StartManualImportJob: async (w: string, o: boolean) => postJson('/api/jobs/import-manual', { warc_path: w, offline: o }),
+    TriggerRestore: async (d: string) => postJson('/api/jobs/restore', { dumps_dir: d }),
+    GetActiveJob: async () => getJson('/api/jobs/status', null),
+    ListJobs: async () => getJson('/api/jobs/status', []),
+    CancelJob: async (id: string) => postJson('/api/jobs/cancel', { id }),
     GetSkinPackage: async (p: string) => {
       try {
         const [cssRes, yamlRes] = await Promise.all([fetch(`${baseUrl}/plugins/${p}/skin/design.css`), fetch(`${baseUrl}/plugins/${p}/skin/layout.yaml`)]);

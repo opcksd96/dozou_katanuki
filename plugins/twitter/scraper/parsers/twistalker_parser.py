@@ -34,6 +34,7 @@ def parse_twistalker_api_tweets(tweets_data: Any, default_account: str) -> List[
                 "is_repost": bool(tw.get("is_retweet")), "is_pinned": False,
                 "retweeted_by": default_account if tw.get("is_retweet") else "", "wayback_url": "",
                 "original_url": f"https://x.com/{u_name}/status/{p_id}" if p_id else "",
+                "twistalker_url": f"https://twstalker.com/{u_name}/status/{p_id}" if p_id else "",
                 "metrics": {
                     "replies": int(tw.get("reply_count") or 0), "likes": int(tw.get("favorite_count") or 0),
                     "retweets": int(tw.get("retweet_count") or 0), "bookmarks": int(tw.get("bookmark_count") or 0),
@@ -89,7 +90,8 @@ def parse_twistalker_html_tweets(html_str: str, default_account: str) -> List[Di
                 "created_at": created_at, "full_text": full_text, "via": "TwStalker", "source_name": "twistalker",
                 "source_domain": "twstalker.com", "is_repost": is_rt, "is_pinned": False,
                 "retweeted_by": default_account if is_rt else "", "wayback_url": "",
-                "original_url": f"https://x.com/{u_name}/status/{p_id}", "metrics": metrics, "urls": []
+                "original_url": f"https://x.com/{u_name}/status/{p_id}",
+                "twistalker_url": f"https://twstalker.com/{u_name}/status/{p_id}", "metrics": metrics, "urls": []
             }, "media": media
         })
     return results

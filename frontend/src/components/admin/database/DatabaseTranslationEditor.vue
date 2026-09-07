@@ -10,6 +10,7 @@ const emit = defineEmits<{
   (e: 'save', ja: string, en: string, zh: string): void;
   (e: 'autoTranslate', autoSave: boolean): void;
   (e: 'trash', id: string, reason: string): void;
+  (e: 'jumpToTimeline', id: string): void;
 }>();
 
 const autoSave = ref(false), showTrashModal = ref(false);
@@ -30,12 +31,13 @@ watch(() => [props.article, props.article?.content?.ja, props.article?.content?.
   <div v-if="article" class="space-y-2 bg-slate-900/60 border border-slate-800 rounded-xl p-3 flex flex-col h-full">
     <!-- ヘッダー -->
     <div class="flex justify-between items-center border-b border-slate-800 pb-1.5 flex-wrap gap-1.5">
-      <h4 class="text-xs font-bold text-slate-200">記事 ID: <span class="font-mono text-blue-400">{{ article.id }}</span></h4>
+      <h4 class="text-xs font-bold text-slate-200 flex items-center gap-1">記事 ID: <button @click="emit('jumpToTimeline', article.id)" class="font-mono text-blue-400 hover:text-blue-300 hover:underline cursor-pointer" title="タイムラインで開く">{{ article.id }} ↗</button></h4>
       <div class="flex items-center gap-1 flex-wrap">
         <label class="text-[10px] text-slate-400 flex items-center gap-1 cursor-pointer select-none mr-1">
           <input type="checkbox" v-model="autoSave" class="rounded border-slate-700 bg-slate-950 text-blue-600 focus:ring-0 w-3 h-3">
           <span>自動保存</span>
         </label>
+        <button @click="emit('jumpToTimeline', article.id)" class="px-2 py-0.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-[11px] font-bold rounded shadow cursor-pointer active:scale-95" title="タイムラインで該当ツイートを表示">📱 タイムライン</button>
         <button @click="emit('autoTranslate', autoSave)" :disabled="translating || saving" class="px-2 py-0.5 bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] font-bold rounded disabled:opacity-50 cursor-pointer">🤖 自動翻訳</button>
         <button @click="emit('save', editBuffer.ja, editBuffer.en, editBuffer.zh)" :disabled="saving || translating" class="px-2 py-0.5 bg-blue-600 hover:bg-blue-500 text-white text-[11px] font-bold rounded disabled:opacity-50 cursor-pointer">💾 保存</button>
         <button @click="showTrashModal = true" class="px-2 py-0.5 bg-rose-950/80 hover:bg-rose-900 border border-rose-700/60 text-rose-300 text-[11px] font-bold rounded cursor-pointer" title="ゴミ箱へ移動">🗑️ 削除</button>

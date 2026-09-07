@@ -12,7 +12,7 @@ func (r *Repository) applyAccountFilter(query *gorm.DB, accountID string) *gorm.
 		grp := accountID[6:]
 		return query.Where("account_id IN (SELECT numeric_id FROM accounts WHERE group_name = ?)", grp)
 	}
-	return query.Where("account_id = ? OR account_id IN (SELECT numeric_id FROM accounts WHERE alias_of = (SELECT username FROM accounts WHERE numeric_id = ?) OR (alias_of != '' AND alias_of = (SELECT alias_of FROM accounts WHERE numeric_id = ?)))", accountID, accountID, accountID)
+	return query.Where("account_id = ? OR account_id IN (SELECT numeric_id FROM accounts WHERE numeric_id = ? OR username = ? OR alias_of = ? OR alias_of IN (SELECT username FROM accounts WHERE numeric_id = ? OR username = ?) OR username IN (SELECT alias_of FROM accounts WHERE (numeric_id = ? OR username = ?) AND alias_of != ''))", accountID, accountID, accountID, accountID, accountID, accountID, accountID, accountID)
 }
 
 func (r *Repository) FetchArticles(accountID, filter string, limit, offset int) ([]models.Article, error) {
@@ -53,11 +53,12 @@ func (r *Repository) SearchArticles(searchQuery, accountID, filter string, limit
 		query = query.Where("full_text LIKE ? OR full_text_ja LIKE ? OR full_text_en LIKE ? OR full_text_zh LIKE ? OR id LIKE ?", pat, pat, pat, pat, pat)
 	}
 	query = r.applyAccountFilter(query, accountID)
-	if filter == "trash" {
+	switch filter {
+	case "trash":
 		query = query.Where("is_trash = ?", true)
-	} else if filter == "all_with_trash" {
+	case "all_with_trash":
 		// ゴミ箱データも含めて全件検索
-	} else {
+	default:
 		query = query.Where("is_trash = ?", false)
 		switch filter {
 		case "reposts": query = query.Where("is_repost = ?", true)

@@ -7,7 +7,7 @@ import { useStashResolver } from '../../composables/useStashResolver';
 import Avatar from '../article/Avatar.vue';
 
 const props = defineProps<{ media: RenderMedia; article: RenderTree; targetLang?: LanguageCode }>();
-defineEmits<{ (e: 'toggleLike', id: string): void }>();
+defineEmits<{ (e: 'toggleLike', id: string): void; (e: 'viewDetail', id: string): void }>();
 
 const isExpanded = ref(false), selectedLang = ref<LanguageCode>(props.targetLang || 'ja');
 const displayText = computed(() => {
@@ -31,10 +31,10 @@ const stashDirectUrl = computed(() => {
   <div class="w-full flex items-end justify-between gap-4 p-4 md:p-8 select-text pointer-events-none">
     <!-- 左側: 文字情報オーバーレイ -->
     <div class="flex-1 max-w-xl space-y-2 pointer-events-auto text-left">
-      <div class="flex items-center gap-2.5">
-        <Avatar :avatar-url="article.author.avatar_url" :handle="article.author.handle" :author="article.author" class="w-8 h-8 md:w-9 md:h-9 rounded-full shadow-lg border border-white/40" />
+      <div class="flex items-center gap-2.5 cursor-pointer group" @click="$emit('viewDetail', article.id)" title="タイムラインで投稿詳細を表示">
+        <Avatar :avatar-url="article.author.avatar_url" :handle="article.author.handle" :author="article.author" class="w-8 h-8 md:w-9 md:h-9 rounded-full shadow-lg border border-white/40 group-hover:border-blue-400 transition-colors" />
         <div class="flex items-center gap-2 leading-tight">
-          <span class="text-base font-bold text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">@{{ article.author.display_name || article.author.handle }}</span>
+          <span class="text-base font-bold text-white group-hover:text-blue-300 transition-colors drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">@{{ article.author.display_name || article.author.handle }}</span>
           <span class="text-xs text-white/70 font-mono drop-shadow-[0_1px_3px_rgba(0,0,0,0.8)]">@{{ article.author.handle }}</span>
         </div>
       </div>
@@ -57,10 +57,14 @@ const stashDirectUrl = computed(() => {
 
     <!-- 右側: アクション列 -->
     <div class="flex flex-col items-center gap-4 pb-2 pointer-events-auto shrink-0">
-      <Avatar :avatar-url="article.author.avatar_url" :handle="article.author.handle" :author="article.author" class="w-11 h-11 rounded-full border-2 border-white/80 shadow-lg" />
+      <Avatar :avatar-url="article.author.avatar_url" :handle="article.author.handle" :author="article.author" class="w-11 h-11 rounded-full border-2 border-white/80 shadow-lg cursor-pointer hover:border-blue-400" @click="$emit('viewDetail', article.id)" title="投稿詳細を表示" />
+      <button @click="$emit('viewDetail', article.id)" class="flex flex-col items-center gap-1 cursor-pointer group active:scale-125 transition-transform" title="タイムラインで会話ツリー・投稿詳細を見る">
+        <div class="w-10 h-10 rounded-full bg-black/40 hover:bg-blue-600/80 text-white border border-white/20 flex items-center justify-center text-base backdrop-blur-md shadow-lg group-hover:border-blue-400 transition-colors">📱</div>
+        <span class="text-[10px] text-white font-mono">詳細 ↗</span>
+      </button>
       <button @click="$emit('toggleLike', article.id)" class="flex flex-col items-center gap-1 cursor-pointer active:scale-125 transition-transform">
         <div class="w-10 h-10 rounded-full flex items-center justify-center text-xl backdrop-blur-md shadow-lg" :class="article.is_liked ? 'bg-rose-600/80 text-white' : 'bg-black/40 text-white border border-white/20'">{{ article.is_liked ? '❤️' : '🤍' }}</div>
-        <span class="text-[10px] text-white font-mono">{{ article.metrics?.like_count || (article.is_liked ? 1 : 0) }}</span>
+        <span class="text-[10px] text-white font-mono">{{ article.metrics?.likes || (article.is_liked ? 1 : 0) }}</span>
       </button>
       <a :href="stashDirectUrl" target="_blank" rel="noopener noreferrer" class="flex flex-col items-center gap-1 cursor-pointer">
         <div class="w-10 h-10 rounded-full bg-black/40 hover:bg-purple-600/80 text-white border border-white/20 flex items-center justify-center text-lg backdrop-blur-md shadow-lg">📦</div>

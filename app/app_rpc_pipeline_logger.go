@@ -25,6 +25,7 @@ func mapStageToComponent(stage string) string {
 	case "stash": return "stash"
 	case "system": return "system"
 	case "requests": return "crawler"
+	case "scraper": return "scraper"
 	default: return "downloader"
 	}
 }
@@ -53,7 +54,7 @@ func (a *App) AppendPipelineLog(stage, level, msg string) {
 func (a *App) GetPipelineLogs(stage string, limit int) ([]PipelineLogEntry, error) {
 	if limit <= 0 { limit = 50 }
 	var entries []PipelineLogEntry
-	stages := []string{"requests", "motrix", "thunder", "stash"}
+	stages := []string{"scraper", "requests", "motrix", "thunder", "stash"}
 	if stage != "" && stage != "all" { stages = []string{strings.ToLower(stage)} }
 
 	for _, st := range stages {
@@ -76,6 +77,7 @@ func (a *App) GetPipelineLogs(stage string, limit int) ([]PipelineLogEntry, erro
 				}
 			}
 		}
+		_ = scanner.Err()
 		_ = f.Close()
 		if len(fileEntries) > limit { fileEntries = fileEntries[len(fileEntries)-limit:] }
 		entries = append(entries, fileEntries...)

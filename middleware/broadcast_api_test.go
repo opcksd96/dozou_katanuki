@@ -35,7 +35,7 @@ func TestBroadcastStatusAPI(t *testing.T) {
 	service := NewBroadcastService(
 		models.NetworkConfig{MiddlewarePort: 5175, PublicBindAddress: "0.0.0.0"},
 		models.BroadcastConfig{Enabled: true, AllowedNetworks: []string{"192.168.0.0/16"}},
-		nil, nil, nil,
+		nil, nil, nil, nil,
 	)
 	req := httptest.NewRequest("GET", "/api/broadcast/status", nil)
 	rec := httptest.NewRecorder()

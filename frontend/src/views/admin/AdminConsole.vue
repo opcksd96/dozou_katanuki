@@ -78,11 +78,11 @@ onUnmounted(() => { window.removeEventListener('keydown', handleKey); if (unoffS
       <AdminNavSidebar :active-tab="activeTab" @select="(t) => activeTab = t" />
       <main class="flex-1 min-h-0 overflow-y-auto p-2 sm:p-3 bg-slate-950 flex flex-col">
         <PluginHubView v-if="activeTab === 'plugins'" :admin="admin" :salvage-form="salvageForm" :import-form="importForm" v-model:selected-platform="selectedPlatform" @start-salvage="admin.startSalvage(salvageForm.platform, salvageForm.account, salvageForm.limit, salvageForm.source)" @start-import="admin.startManualImport(importForm.warcPath, importForm.offline)" />
-        <PipelineConsoleView v-else-if="activeTab === 'pipeline'" class="overflow-y-auto flex-1" @jump-to-media="(mId) => { activeTab = 'media'; admin.fetchMedia?.(); }" />
-        <AuditReportView v-else-if="activeTab === 'audit'" class="overflow-y-auto flex-1" :restoring="admin.isJobRunning?.value ?? admin.isJobRunning" @trigger-restore="(resetDB) => { admin.triggerRestore('', resetDB); activeTab = 'plugins'; }" />
+        <PipelineConsoleView v-else-if="activeTab === 'pipeline'" class="overflow-y-auto flex-1" @jump-to-media="() => { activeTab = 'media'; admin.fetchMedia?.(); }" />
+        <AuditReportView v-else-if="activeTab === 'audit'" class="overflow-y-auto flex-1" :restoring="admin.isJobRunning?.value ?? admin.isJobRunning" @trigger-restore="(resetDB?: boolean) => { admin.triggerRestore('', !!resetDB); activeTab = 'plugins'; }" />
         <SystemConsoleView v-else-if="activeTab === 'console'" class="flex-1 min-h-0" />
         <RelationExplorerView v-else-if="activeTab === 'explorer'" class="overflow-y-auto flex-1" />
-        <DatabaseView v-else-if="activeTab === 'posts' || activeTab === 'media' || activeTab === 'accounts'" class="flex-1 min-h-0" :admin="admin" :view="activeTab" @navigate="(t) => activeTab = t" @jump-to-timeline-post="(artId) => { router.push('/webui'); }" />
+        <DatabaseView v-else-if="activeTab === 'posts' || activeTab === 'media' || activeTab === 'accounts'" class="flex-1 min-h-0" :admin="admin" :view="activeTab" @navigate="(t) => activeTab = t" @jump-to-timeline-post="(artId) => { router.push({ path: '/webui', query: { post: artId } }); }" />
         <ConfigPortal v-else-if="activeTab === 'config'" class="overflow-y-auto flex-1" :config="admin.configForm" :loading-config="admin.isConfigLoading?.value ?? admin.isConfigLoading" :saving-config="admin.isConfigLoading?.value ?? admin.isConfigLoading" :save-status="admin.configSaved?.value ?? admin.configSaved ? { success: true, message: '設定を保存しました' } : null" @save-config="admin.saveConfig" @load-config="admin.fetchConfig" />
       </main>
     </div>

@@ -13,14 +13,8 @@ const isWails = () => typeof (window as any).go !== 'undefined';
 
 const handleManualIgnite = async () => {
   try {
-    if (isWails()) {
-      const res = await IgnitePipeline();
-      alert(`🔥 点火完了: QUEUED ${res.queued_count} 件 / 迅雷 ${res.escalated_count} 件 を再発火しました！`);
-    } else {
-      const r = await fetch('/api/admin/pipeline/ignite', { method: 'POST' });
-      const res = await r.json();
-      alert(`🔥 点火完了: QUEUED ${res.queued_count} 件 / 迅雷 ${res.escalated_count} 件 を再発火しました！`);
-    }
+    const res = isWails() ? await IgnitePipeline() : await (await fetch('/api/admin/pipeline/ignite', { method: 'POST' })).json();
+    alert(`🔥 点火完了: QUEUED ${res.queued_count} 件 / 迅雷 ${res.escalated_count} 件 を再発火しました！`);
     await refreshAll();
   } catch (e: any) { alert(`エラー: ${e?.message || e}`); }
 };
@@ -28,13 +22,7 @@ const handleManualIgnite = async () => {
 const handleResetAll = async () => {
   if (!confirm('全タスクを QUEUED に初期化して最上流から流し直しますか？')) return;
   try {
-    let count: number;
-    if (isWails()) {
-      count = await ResetAllToQueuedAndBootstrap();
-    } else {
-      const r = await fetch('/api/admin/pipeline/reset-all', { method: 'POST' });
-      count = await r.json();
-    }
+    const count = isWails() ? await ResetAllToQueuedAndBootstrap() : await (await fetch('/api/admin/pipeline/reset-all', { method: 'POST' })).json();
     alert(`初期化完了: ${count} 件を QUEUED に差し戻しました。完全自動運転により最上流から順次処理されます。`);
     await refreshAll();
   } catch (e: any) { alert(`初期化エラー: ${e?.message || e}`); }

@@ -15,7 +15,7 @@ export function usePipelineConsole() {
         const res = await GetPipelineOverview();
         if (res) {
           overview.value = res;
-          if (typeof res.is_auto_engine_running === 'boolean') isAutoEngineRunning.value = res.is_auto_engine_running;
+          if (typeof res?.is_auto_engine_running === 'boolean') isAutoEngineRunning.value = res.is_auto_engine_running;
         }
       } else {
         const res = await fetch('/api/admin/pipeline/overview');
@@ -23,7 +23,7 @@ export function usePipelineConsole() {
           const data = await res.json();
           if (data) {
             overview.value = data;
-            if (typeof data.is_auto_engine_running === 'boolean') isAutoEngineRunning.value = data.is_auto_engine_running;
+            if (typeof data?.is_auto_engine_running === 'boolean') isAutoEngineRunning.value = data.is_auto_engine_running;
           }
         }
       }

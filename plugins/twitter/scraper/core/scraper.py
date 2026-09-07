@@ -15,7 +15,10 @@ class Scraper(BaseScraper):
     def __init__(self, platform: str = "twitter", output_dir: str = "backups/dumps"):
         super().__init__(platform=platform, output_dir=output_dir)
         self.orchestrator = SourceOrchestrator()
-        self.orchestrator.register(OfficialSource())
+        official = OfficialSource()
+        self.orchestrator.register(official)
+        self.orchestrator._sources["x"] = official
+        self.orchestrator._sources["x.com"] = official
         self.orchestrator.register(SotweSource())
         self.orchestrator.register(TwistalkerSource())
         self.orchestrator.register(NitterSource())

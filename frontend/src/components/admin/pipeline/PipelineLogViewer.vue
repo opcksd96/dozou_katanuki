@@ -7,6 +7,7 @@ const emit = defineEmits<{ (e: 'selectStage', stage: string): void }>();
 
 const tabs = [
   { id: 'all', label: '混合ログ (All)' },
+  { id: 'scraper', label: '🕷️ スクレイパー' },
   { id: 'requests', label: '🌐 Requests' },
   { id: 'motrix', label: '🚀 Motrix' },
   { id: 'thunder', label: '⚡ Thunder' },

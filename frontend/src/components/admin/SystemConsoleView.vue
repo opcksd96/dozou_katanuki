@@ -49,7 +49,7 @@ onUnmounted(() => { if (timer) clearInterval(timer); });
       </div>
       <div class="flex items-center gap-1.5">
         <select v-model="filterComp" class="bg-slate-950 border border-slate-700 text-xs text-slate-200 rounded-lg px-2 py-1">
-          <option value="all">全区分</option><option value="stash">Stash</option><option value="downloader">Downloader</option><option value="system">System</option>
+          <option value="all">全区分</option><option value="scraper">Scraper</option><option value="stash">Stash</option><option value="downloader">Downloader</option><option value="system">System</option>
         </select>
         <select v-model="filterLevel" class="bg-slate-950 border border-slate-700 text-xs text-slate-200 rounded-lg px-2 py-1">
           <option value="all">全レベル</option><option value="INFO">INFO</option><option value="WARN">WARN</option><option value="ERROR">ERROR</option>

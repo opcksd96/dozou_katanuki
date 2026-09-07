@@ -83,9 +83,10 @@ func (s *BroadcastService) handleMediaOpenActionAPI(w http.ResponseWriter, r *ht
 	p, err := s.timelineService.ResolveMediaFilePath(req.MediaID)
 	if err != nil { http.Error(w, err.Error(), 404); return }
 	absPath, _ := filepath.Abs(p)
-	if req.Action == "explorer" {
+	switch req.Action {
+	case "explorer":
 		_ = exec.Command("explorer", "/select,"+absPath).Start()
-	} else if req.Action == "default" {
+	case "default":
 		_ = exec.Command("rundll32", "url.dll,FileProtocolHandler", absPath).Start()
 	}
 	w.Header().Set("Content-Type", "application/json"); _ = json.NewEncoder(w).Encode(map[string]any{"success": true, "path": absPath})

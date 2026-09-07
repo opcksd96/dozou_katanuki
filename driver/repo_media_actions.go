@@ -71,7 +71,7 @@ func (r *Repository) RenameMedia(mediaID, newMediaID string) error {
 func (r *Repository) RequeueMediaByStatus(status, accountID string) (int64, error) {
 	q := r.db.Table("media")
 	if accountID != "" && accountID != "all" {
-		q = q.Where("article_id IN (SELECT id FROM articles WHERE account_id = ? OR account_id IN (SELECT numeric_id FROM accounts WHERE username = ?))", accountID, accountID)
+		q = q.Where("article_id IN (SELECT id FROM articles WHERE account_id = ? OR account_id IN (SELECT numeric_id FROM accounts WHERE numeric_id = ? OR username = ? OR alias_of = ? OR alias_of IN (SELECT username FROM accounts WHERE numeric_id = ? OR username = ?) OR username IN (SELECT alias_of FROM accounts WHERE (numeric_id = ? OR username = ?) AND alias_of != '')))", accountID, accountID, accountID, accountID, accountID, accountID, accountID, accountID)
 	}
 	if status == "DEAD_404" {
 		q = q.Where("download_status = 'DEAD_404'")

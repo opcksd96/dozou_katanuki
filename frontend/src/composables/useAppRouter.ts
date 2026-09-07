@@ -1,5 +1,6 @@
 // frontend/src/composables/useAppRouter.ts (100行以下 - SPEC-PRINCIPLE-001)
 import { onMounted, watch, type Ref } from 'vue';
+import { useRoute } from 'vue-router';
 
 export interface RouteState {
   account?: string;
@@ -22,49 +23,42 @@ export function useAppRouter(
     onOpenAdmin: (tab?: string) => void;
   }
 ) {
+  const route = useRoute();
+
   const parseUrlParams = (): RouteState => {
     const params = new URLSearchParams(window.location.search);
-    const hash = window.location.hash.replace('#', '');
-    const hashParams = new URLSearchParams(hash);
+    const hash = window.location.hash.replace(/^#/, '');
+    const hashQuery = hash.includes('?') ? hash.split('?')[1] : '';
+    const hashParams = new URLSearchParams(hashQuery);
     return {
-      account: params.get('account') || hashParams.get('account') || undefined,
-      post: params.get('post') || hashParams.get('post') || undefined,
-      adminTab: params.get('tab') || hashParams.get('tab') || undefined,
-      showAdmin: params.has('admin') || hashParams.has('admin'),
+      account: (route?.query?.account as string) || params.get('account') || hashParams.get('account') || undefined,
+      post: (route?.query?.post as string) || params.get('post') || hashParams.get('post') || undefined,
+      adminTab: (route?.query?.tab as string) || params.get('tab') || hashParams.get('tab') || undefined,
+      showAdmin: !!route?.query?.admin || params.has('admin') || hashParams.has('admin'),
     };
   };
 
-  const updateUrl = () => {
-    const url = new URL(window.location.href);
-    if (state.activeArticleId.value) url.searchParams.set('post', state.activeArticleId.value);
-    else url.searchParams.delete('post');
-
-    if (state.selectedAccount.value !== 'all') url.searchParams.set('account', state.selectedAccount.value);
-    else url.searchParams.delete('account');
-
-    if (state.isAdminOpen.value) url.searchParams.set('admin', 'true');
-    else url.searchParams.delete('admin');
-
-    window.history.replaceState({}, '', url);
+  const applyRoute = (r: RouteState) => {
+    if (r.showAdmin || r.adminTab) {
+      callbacks.onOpenAdmin(r.adminTab || 'accounts');
+    } else if (r.post) {
+      callbacks.onSelectPost(r.post);
+    } else if (r.account) {
+      callbacks.onSelectAccount(r.account);
+    }
   };
 
   onMounted(() => {
-    const route = parseUrlParams();
-    if (route.showAdmin || route.adminTab) {
-      callbacks.onOpenAdmin(route.adminTab || 'accounts');
-    } else if (route.post) {
-      callbacks.onSelectPost(route.post);
-    } else if (route.account) {
-      callbacks.onSelectAccount(route.account);
-    }
-
+    applyRoute(parseUrlParams());
     window.addEventListener('beforeunload', () => {
       sessionStorage.setItem('katana_scroll_y', window.scrollY.toString());
     });
   });
 
-  watch([state.activeArticleId, state.selectedAccount, state.isAdminOpen], () => {
-    updateUrl();
+  watch(() => route?.query?.post, (newPost) => {
+    if (newPost && typeof newPost === 'string' && newPost !== state.activeArticleId.value) {
+      callbacks.onSelectPost(newPost);
+    }
   });
 
   watch([state.isTimelineLoading, state.isDetailLoading], ([timelineLoad, detailLoad]) => {

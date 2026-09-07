@@ -36,7 +36,7 @@ useExternalAppsHealth();
 const currentAccountObj = computed(() => accounts.value.find((a) => a.numeric_id === selectedAccount.value) || null);
 const currentNavItems = computed(() => (activeArticleId.value && detail.value) ? [detail.value.article, ...(detail.value.thread || [])] : articles.value);
 const openDetail = (id: string) => { activeArticleId.value = id; fetchDetail(id); window.scrollTo({ top: 0, behavior: 'smooth' }); };
-const closeDetail = () => { activeArticleId.value = null; clearDetail(); };
+const closeDetail = () => { activeArticleId.value = null; clearDetail(); if (router.currentRoute.value.query.post) router.replace({ query: {} }); };
 
 const openAdmin = () => { router.push('/admin'); };
 const isAdminOpenRef = ref(false);
@@ -91,7 +91,7 @@ onMounted(() => {
       </main>
     </div>
     <KeyboardShortcutModal :is-open="isHelpOpen" @close="isHelpOpen = false" />
-    <MediaOverlay :media="activeMedia" :article="activeArticle" :target-lang="systemLang" :has-next="hasNext" :has-prev="hasPrev" @close="closeMedia" @next="nextMedia" @prev="prevMedia" @toggle-like="toggleLike" />
+    <MediaOverlay :media="activeMedia" :article="activeArticle" :target-lang="systemLang" :has-next="hasNext" :has-prev="hasPrev" @close="closeMedia" @next="nextMedia" @prev="prevMedia" @toggle-like="toggleLike" @view-detail="(id) => { closeMedia(); openDetail(id); }" />
     <ToastContainer />
   </div>
 </template>

@@ -24,10 +24,11 @@ func (a *App) CheckThunderDirectoryStatus(tempDir string) {
 		if e.IsDir() { continue }
 		name := e.Name()
 		ext := strings.ToLower(filepath.Ext(name))
-		if ext == ".xltd" || ext == ".td" {
+		switch ext {
+		case ".xltd", ".td":
 			baseName := strings.TrimSuffix(name, ext)
 			xltdMediaIDs[resolveMediaIDFromFileName(baseName)] = true
-		} else if ext == ".jpg" || ext == ".jpeg" || ext == ".png" || ext == ".webp" || ext == ".mp4" {
+		case ".jpg", ".jpeg", ".png", ".webp", ".mp4":
 			hasCompletedFiles = true
 		}
 	}

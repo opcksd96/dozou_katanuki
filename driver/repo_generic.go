@@ -22,10 +22,8 @@ func (r *Repository) GetAccountDetail(numericID string) (*models.AccountDetailRe
 	var hist []models.AccountProfileHistory
 	_ = r.db.Where("account_id = ?", acc.NumericID).Order("avatar_seq ASC").Find(&hist).Error
 
-	var postCount int64 = acc.PostCount
-	if postCount == 0 {
-		_ = r.db.Model(&models.Article{}).Where("account_id = ?", acc.NumericID).Count(&postCount).Error
-	}
+	var postCount int64
+	_ = r.db.Model(&models.Article{}).Where("account_id = ? OR account_id IN (SELECT numeric_id FROM accounts WHERE alias_of = ? OR (alias_of != '' AND alias_of = ?))", acc.NumericID, acc.Username, acc.AliasOf).Count(&postCount).Error
 	return &models.AccountDetailResult{Account: acc, Histories: hist, PostCount: postCount}, nil
 }
 

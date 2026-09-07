@@ -29,7 +29,7 @@ const emit = defineEmits<{
   (e: 'requeueFailed'): void; (e: 'reconcileStash'): void; (e: 'openExplorer', id: string): void; (e: 'openDefault', id: string): void;
   (e: 'toggleBookmark', id: string): void; (e: 'cancelJob', id: string): void;
   (e: 'batchTrashMedia', mediaIds: string[], reason?: string): void; (e: 'batchRestoreMedia', mediaIds: string[]): void;
-  (e: 'batchRevertToQueued', mediaIds: string[]): void;
+  (e: 'batchRevertToQueued', mediaIds: string[]): void; (e: 'saveMetadata', payload: any): void; (e: 'viewPostTimeline', articleId: string): void;
 }>();
 
 const viewMode = ref<'large' | 'compact' | 'table'>('large');

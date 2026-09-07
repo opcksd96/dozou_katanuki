@@ -18,11 +18,18 @@ export function useTimelineThread(platform = 'twitter') {
       loadingMap.value[articleId] = true;
       try {
         const getApp = (window as any)?.go?.app?.App || (window as any)?.go?.main?.App;
+        let res: any = null;
         if (getApp?.GetArticleDetail) {
-          const res = await getApp.GetArticleDetail(platform, articleId);
-          if (res?.thread) {
-            threadsMap.value[articleId] = res.thread;
-          }
+          res = await getApp.GetArticleDetail(platform, articleId);
+        } else if (typeof GetArticleDetail === 'function') {
+          res = await GetArticleDetail(platform, articleId);
+        } else {
+          res = await (await fetch(`/api/article?platform=${encodeURIComponent(platform)}&id=${encodeURIComponent(articleId)}`)).json();
+        }
+        if (res && res.thread) {
+          threadsMap.value[articleId] = res.thread;
+        } else if (Array.isArray(res) && res.length > 1) {
+          threadsMap.value[articleId] = res.slice(1);
         }
       } catch (err) {
         console.error('Failed to load thread:', err);

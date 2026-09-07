@@ -22,7 +22,7 @@ func (a *App) ResetSpecificMediasToQueued(mediaIDs []string) (int64, error) {
 		Where("media_id IN ?", mediaIDs).
 		Updates(map[string]interface{}{
 			"download_status": "QUEUED",
-			"failed_reason":   "",
+			"failed_reason":   nil,
 		})
 	if res.Error != nil {
 		return 0, res.Error

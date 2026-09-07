@@ -13,7 +13,7 @@ func TestBroadcastSecurityIPAllowed(t *testing.T) {
 	service := NewBroadcastService(
 		models.NetworkConfig{MiddlewarePort: 5175, PublicBindAddress: "0.0.0.0"},
 		models.BroadcastConfig{Enabled: true, AllowedNetworks: []string{"192.168.1.0/24", "10.0.0.0/8", "172.16.50.10"}},
-		nil, nil, nil,
+		nil, nil, nil, nil,
 	)
 
 	allowed := []string{"127.0.0.1", "::1", "192.168.1.1", "192.168.1.254", "192.168.10.50", "192.168.3.100", "10.0.0.1", "10.254.254.254", "172.16.50.10", "::ffff:192.168.10.15"}
@@ -31,7 +31,7 @@ func TestBroadcastSecurityMiddleware(t *testing.T) {
 	service := NewBroadcastService(
 		models.NetworkConfig{MiddlewarePort: 5175},
 		models.BroadcastConfig{Enabled: true, AllowedNetworks: []string{"192.168.1.0/24"}},
-		nil, nil, nil,
+		nil, nil, nil, nil,
 	)
 	handler := service.securityMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK); _, _ = w.Write([]byte("OK"))
