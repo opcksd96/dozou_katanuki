@@ -31,9 +31,7 @@ var cdpFileRegex = regexp.MustCompile(`(?i)[\w\-\.\(\)]+\.(?:jpg|mp4|png|webp)`)
 func (a *App) GetThunderCDPStatus() ThunderCDPStatus {
 	st := ThunderCDPStatus{Port: 9222, IntervalMs: 200, ActiveTab: "下载中", IsDownloadingTab: true}
 	wsURL, err := FetchThunderMainRendererWSUrl(9222)
-	if err != nil || wsURL == "" {
-		st.IsConnected = false; return st
-	}
+	if err != nil || wsURL == "" { st.IsConnected = false; return st }
 	st.IsConnected, st.ActiveWSUrl, st.LastPolledAt = true, wsURL, time.Now().Format("15:04:05")
 
 	tabRes, _ := EvaluateCDPExpression(wsURL, `(() => {
@@ -48,11 +46,7 @@ func (a *App) GetThunderCDPStatus() ThunderCDPStatus {
 	})()`, 500*time.Millisecond)
 
 	var tabData struct {
-		Result struct {
-			Result struct {
-				Value struct { Tab string `json:"tab"`; IsDl bool `json:"isDl"` } `json:"value"`
-			} `json:"result"`
-		} `json:"result"`
+		Result struct { Result struct { Value struct { Tab string `json:"tab"`; IsDl bool `json:"isDl"` } `json:"value"` } `json:"result"` } `json:"result"`
 	}
 	if json.Unmarshal([]byte(tabRes), &tabData) == nil && tabData.Result.Result.Value.Tab != "" {
 		st.ActiveTab, st.IsDownloadingTab = tabData.Result.Result.Value.Tab, tabData.Result.Result.Value.IsDl
@@ -86,8 +80,7 @@ func parseCDPTargetItems(rawBlocks []string) []ThunderCDPTaskItem {
 	var items []ThunderCDPTaskItem
 	seen := make(map[string]bool)
 	for _, block := range rawBlocks {
-		matches := cdpFileRegex.FindAllString(block, -1)
-		for _, fileName := range matches {
+		for _, fileName := range cdpFileRegex.FindAllString(block, -1) {
 			if seen[fileName] { continue }
 			seen[fileName] = true
 			status := "排队等待 / 探索中"
@@ -95,8 +88,8 @@ func parseCDPTargetItems(rawBlocks []string) []ThunderCDPTaskItem {
 				status = "リソース枯渇 (RETAINED対象)"
 			} else if strings.Contains(block, "连接资源") {
 				status = "ピア探索中 (ESCALATED)"
-			} else if strings.Contains(block, "KB") || strings.Contains(block, "MB") {
-				status = "ダウンロード完了"
+			} else if strings.Contains(block, "正在下载") || strings.Contains(block, "KB") || strings.Contains(block, "MB") || strings.Contains(block, "GB") {
+				status = "ダウンロード中 (サイズ確定)"
 			}
 			items = append(items, ThunderCDPTaskItem{FileName: fileName, Status: status, RawText: block})
 		}

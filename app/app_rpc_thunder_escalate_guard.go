@@ -46,9 +46,6 @@ func (a *App) CheckThunderEscalationEligibility(mediaID string, downloadURL stri
 				if strings.Contains(task.Status, "リソース枯渇") {
 					return EscalationCheckResult{ShouldEscalate: false, Reason: fmt.Sprintf("迅雷内でリソース枯渇判定されています (%s)", task.FileName), ExistingStatus: "DEPLETED_RETAINED"}
 				}
-				if strings.Contains(task.Status, "完了") {
-					return EscalationCheckResult{ShouldEscalate: false, Reason: fmt.Sprintf("迅雷内で既にダウンロード完了しています (%s)", task.FileName), ExistingStatus: "ALREADY_COMPLETED"}
-				}
 				return EscalationCheckResult{ShouldEscalate: false, Reason: fmt.Sprintf("迅雷のダウンロードリストに既に登録されています (%s)", task.FileName), ExistingStatus: "ALREADY_IN_THUNDER"}
 			}
 		}
