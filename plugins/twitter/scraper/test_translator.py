@@ -26,14 +26,24 @@ class TestTranslatorPipeline(unittest.TestCase):
         self.assertEqual(t.detect_lang("先輩、おはようございます！"), "ja")
         self.assertEqual(t.detect_lang("NES APU register emulation test"), "en")
         self.assertEqual(t.detect_lang("红白机音频测试"), "zh")
+        self.assertEqual(t.detect_lang("Check this out! https://t.co/xyz123 @senpai #nes"), "en")
+        self.assertEqual(t.detect_lang("한국어 에ミュレータ 테스트"), "ko")
+
+    def test_determine_targets(self):
+        t = Translator()
+        self.assertEqual(t.determine_targets("ja"), ["en", "zh"])
+        self.assertEqual(t.determine_targets("en"), ["ja", "zh"])
+        self.assertEqual(t.determine_targets("zh"), ["ja", "en"])
+        self.assertEqual(t.determine_targets("ko"), ["ja", "en", "zh"])
 
     def test_translate_fallback_without_keys(self):
         t = Translator(provider="none")
-        res = t.translate_article("先輩、おはようございます！")
-        self.assertEqual(res["lang"], "ja")
-        self.assertEqual(res["ja"], "先輩、おはようございます！")
-        self.assertIsNone(res["en"])
-        self.assertIsNone(res["zh"])
+        res_ja = t.translate_article("先輩、おはようございます！")
+        self.assertEqual(res_ja["lang"], "ja"); self.assertEqual(res_ja["ja"], "先輩、おはようございます！")
+        self.assertIsNone(res_ja["en"]); self.assertIsNone(res_ja["zh"])
+        res_en = t.translate_article("NES APU register emulation test")
+        self.assertEqual(res_en["lang"], "en"); self.assertEqual(res_en["en"], "NES APU register emulation test")
+        self.assertIsNone(res_en["ja"])
 
     @patch("requests.Session.post")
     def test_deepl_mock_translation(self, mock_post):
