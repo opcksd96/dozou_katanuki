@@ -125,6 +125,12 @@ func (w *adminUseCaseWrapper) IgnitePipeline() (interface{}, error) {
 func (w *adminUseCaseWrapper) LaunchThunder() (bool, error) {
 	return w.app.LaunchThunder()
 }
+func (w *adminUseCaseWrapper) SyncStashNow() (bool, error) {
+	return w.app.SyncStashNow()
+}
+func (w *adminUseCaseWrapper) ExecutePipelineCycleNow() (interface{}, error) {
+	return w.app.ExecutePipelineCycleNow()
+}
 
 func (a *App) broadcastStart(ctx context.Context, netCfg models.NetworkConfig, bcastCfg models.BroadcastConfig, emitter func(string, ...interface{})) {
 	a.BroadcastService = middleware.NewBroadcastService(netCfg, bcastCfg, a.UnifiedHandler, a.TimelineService, a.AuditService, emitter)

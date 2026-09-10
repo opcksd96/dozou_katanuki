@@ -11,7 +11,6 @@ type PipelineEngineState struct {
 	isRunning bool
 	stopCh    chan struct{}
 }
-
 var pipeEngineState = PipelineEngineState{}
 
 // TogglePipelineAutoEngine はパイプラインの完全自動運転ループを開始/停止します
@@ -41,6 +40,12 @@ func (a *App) IsPipelineAutoEngineRunning() bool {
 	return pipeEngineState.isRunning
 }
 
+type PipelineCycleResult struct {
+	QueuedCount    int64 `json:"queued_count"`
+	EscalatedCount int64 `json:"escalated_count"`
+	Success        bool  `json:"success"`
+}
+
 func (a *App) runContinuousPipelineLoop(stopCh chan struct{}) {
 	ticker := time.NewTicker(12 * time.Second)
 	defer ticker.Stop()
@@ -50,45 +55,45 @@ func (a *App) runContinuousPipelineLoop(stopCh chan struct{}) {
 		case <-stopCh:
 			return
 		case <-ticker.C:
-			a.executeAutonomousPipelineCycle()
+			_, _ = a.ExecutePipelineCycleNow()
 		}
 	}
 }
 
-func (a *App) executeAutonomousPipelineCycle() {
+// ExecutePipelineCycleNow は統括契約に基づき、4つの副次契約（Requests ➔ Motrix ➔ 迅雷 ➔ Stash）を1サイクル完走します
+func (a *App) ExecutePipelineCycleNow() (*PipelineCycleResult, error) {
 	if a.Repo == nil || a.Repo.DB() == nil {
-		return
+		return &PipelineCycleResult{Success: false}, nil
 	}
 	db := a.Repo.DB()
 
-	// 1. QUEUED があれば Requests ➔ Motrix 投入を自動キック
-	var qCount int64
+	var qCount, eCount int64
 	_ = db.Model(&models_Media{}).Where("download_status = 'QUEUED' AND (is_trash = 0 OR is_trash IS NULL)").Count(&qCount).Error
+	_ = db.Model(&models_Media{}).Where("download_status = 'ESCALATED' AND (is_trash = 0 OR is_trash IS NULL)").Count(&eCount).Error
+
+	// 1. 突貫突撃契約 (Requests)
 	if qCount > 0 {
 		_, _ = a.ProcessQueuedViaRequests()
 	}
 
-	// 2. Motrix (OUTSOURCED) の完了同期と脱落タスクの再投入を自動実行
+	// 2. バッチ契約 (Motrix Next)
 	_, _ = a.SyncCompletedDownloads()
 	_, _ = a.ReconcileMotrixTasks()
 
-	// 3. ESCALATED がありオーケストレータ未稼働なら迅雷自律投入を開始
-	var eCount int64
-	_ = db.Model(&models_Media{}).Where("download_status = 'ESCALATED' AND (is_trash = 0 OR is_trash IS NULL)").Count(&eCount).Error
+	// 3. P2SP捜索契約 (迅雷 COM+CDP)
 	if eCount > 0 && !a.isThunderOrchestratorRunning() {
 		_, _ = a.StartThunderOrchestrator(3, 4)
 	}
-
-	// 4. 迅雷ダウンロード完了の回収
 	_, _ = a.SyncThunderDownloads("")
 
-	// 5. Stash 連携 (独立した非同期監視)
+	// 4. 資産取り込み契約 (Stash)
 	go a.ScanUnsyncedMediaAndTriggerStash()
+
+	return &PipelineCycleResult{QueuedCount: qCount, EscalatedCount: eCount, Success: true}, nil
 }
 
 type models_Media struct {
 	DownloadStatus string `gorm:"column:download_status"`
 	IsTrash        int    `gorm:"column:is_trash"`
 }
-
 func (models_Media) TableName() string { return "media" }

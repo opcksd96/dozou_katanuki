@@ -2,36 +2,22 @@
 package models
 
 type RenderContent struct {
-	Original string `json:"original"`
-	JA       string `json:"ja,omitempty"`
-	EN       string `json:"en,omitempty"`
-	ZH       string `json:"zh,omitempty"`
+	Original string `json:"original"`; JA string `json:"ja,omitempty"`; EN string `json:"en,omitempty"`; ZH string `json:"zh,omitempty"`
 }
 
 type RenderAuthor struct {
-	NumericID   string `json:"numeric_id"`
-	Handle      string `json:"handle"`
-	Username    string `json:"username,omitempty"`
-	DisplayName string `json:"display_name"`
-	AvatarURL   string `json:"avatar_url"`
-	Bio         string `json:"bio,omitempty"`
-	GroupName   string `json:"group_name,omitempty"`
-	AliasOf     string `json:"alias_of,omitempty"`
+	NumericID string `json:"numeric_id"`; Handle string `json:"handle"`; Username string `json:"username,omitempty"`
+	DisplayName string `json:"display_name"`; AvatarURL string `json:"avatar_url"`; Bio string `json:"bio,omitempty"`
+	GroupName string `json:"group_name,omitempty"`; AliasOf string `json:"alias_of,omitempty"`
 }
 
 type RenderMediaURLs struct {
-	Stream    string `json:"stream,omitempty"`
-	Image     string `json:"image,omitempty"`
-	Thumbnail string `json:"thumbnail,omitempty"`
-	Preview   string `json:"preview,omitempty"`
-	VTT       string `json:"vtt,omitempty"`
-	Original  string `json:"original,omitempty"`
+	Stream string `json:"stream,omitempty"`; Image string `json:"image,omitempty"`; Thumbnail string `json:"thumbnail,omitempty"`
+	Preview string `json:"preview,omitempty"`; VTT string `json:"vtt,omitempty"`; Original string `json:"original,omitempty"`
 }
 
 type RenderMediaVariant struct {
-	VariantHash string `json:"variant_hash"`
-	DownloadURL string `json:"download_url"`
-	BitRate     int    `json:"bit_rate"`
+	VariantHash string `json:"variant_hash"`; DownloadURL string `json:"download_url"`; BitRate int `json:"bit_rate"`
 }
 
 type RenderMedia struct {
@@ -79,11 +65,13 @@ type RenderTree struct {
 	SotweURL       string        `json:"sotwe_url,omitempty"`
 	NitterURL      string        `json:"nitter_url,omitempty"`
 	TwistalkerURL  string        `json:"twistalker_url,omitempty"`
-	ParentID       string        `json:"parent_id,omitempty"`
-	ReplyToHandle  string        `json:"reply_to_handle,omitempty"`
-	IsTrash        bool          `json:"is_trash,omitempty"`
-	TrashedBy      string        `json:"trashed_by,omitempty"`
-	TrashReason    string        `json:"trash_reason,omitempty"`
+	IsRepost         bool          `json:"is_repost,omitempty"`
+	RetweetedArticle *RenderTree   `json:"retweeted_article,omitempty"`
+	ParentID         string        `json:"parent_id,omitempty"`
+	ReplyToHandle    string        `json:"reply_to_handle,omitempty"`
+	IsTrash          bool          `json:"is_trash,omitempty"`
+	TrashedBy        string        `json:"trashed_by,omitempty"`
+	TrashReason      string        `json:"trash_reason,omitempty"`
 }
 
 // ArticleSearchResult は記事検索のページネーション付き結果構造体です

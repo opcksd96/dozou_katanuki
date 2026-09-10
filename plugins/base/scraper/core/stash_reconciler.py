@@ -3,8 +3,6 @@ import base64, os, re, requests, sqlite3, time
 from typing import Any, Callable, Dict, List, Optional
 from .stash_client import StashClient
 
-TITLE_PATTERN = re.compile(r"^([A-Za-z0-9_]+)\s\(@([A-Za-z0-9_]+)\):\s([A-Za-z]+)\s([A-Za-z0-9_]+)$")
-
 class StashReconciler:
     """Stashapp メディア登録・DB双方向照合エンジン (SPEC-STASH-DB-001)"""
     def __init__(self, stash: Optional[StashClient] = None):
@@ -50,6 +48,9 @@ class StashReconciler:
                 col = "stash_scene_id" if is_scn else "stash_image_id"
                 for item in items:
                     s_id, title, files, matched, art_id = str(item.get("id", "")), item.get("title", ""), item.get("files", []), False, None
+                    if not s_id: continue
+                    cur.execute(f"SELECT 1 FROM media WHERE {col} = ? LIMIT 1", (s_id,))
+                    if cur.fetchone(): continue
                     for f in files:
                         bn = os.path.basename(f.get("path", ""))
                         if bn:
@@ -58,13 +59,7 @@ class StashReconciler:
                             cur.execute(f"UPDATE media SET {col} = ?, download_status = 'COMPLETED' WHERE rowid = (SELECT rowid FROM media WHERE (media_id = ? OR media_id = ? OR media_id LIKE ? OR download_url LIKE ? OR download_url LIKE ?) AND ({col} IS NULL OR {col} = '') LIMIT 1) AND NOT EXISTS (SELECT 1 FROM media WHERE {col} = ?)",
                                         (s_id, bn, os.path.splitext(bn)[0], f"%_{bn}", f"%/{bn}", f"%/{bn}?%", s_id))
                             if cur.rowcount > 0: bound += cur.rowcount; matched = True; _log(f"Bound media '{bn}' -> Stash #{s_id}")
-                    if not matched:
-                        m = TITLE_PATTERN.match(title)
-                        if m:
-                            art_id = m.group(4)
-                            cur.execute(f"UPDATE media SET {col} = ?, download_status = 'COMPLETED' WHERE media_id IN (SELECT media_id FROM media WHERE article_id = ? AND {col} IS NULL LIMIT 1)", (s_id, art_id))
-                            if cur.rowcount > 0: bound += cur.rowcount; _log(f"Bound title pattern '{title}' -> Stash #{s_id}")
-                    if art_id: self._sync_parent_article(cur, art_id, s_id, title, is_scn)
+                    if art_id and matched: self._sync_parent_article(cur, art_id, s_id, title, is_scn)
             conn.commit()
         _log(f"Reconciliation completed: Bound {bound} assets into archive.db."); return bound
 

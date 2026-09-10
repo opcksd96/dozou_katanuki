@@ -86,13 +86,14 @@ export function initWailsPolyfill() {
       } catch { return { platform: p, design_css: '', layout_yaml: '', controller: '' }; }
     },
     GetSkinCSS: async (p: string) => { try { const r = await fetch(`${baseUrl}/plugins/${p}/skin/design.css`); return r.ok ? await r.text() : ''; } catch { return ''; } },
-    UpdateAccount: async (...args: any[]) => { console.log('[Polyfill] UpdateAccount:', args); },
-    MergeAccounts: async (...args: any[]) => { console.log('[Polyfill] MergeAccounts:', args); return null; },
-    SaveAvatarImage: async (p: string, k: string) => `${baseUrl}/avatars/${p || 'twitter'}/${k}.jpg`,
-    ListAvailableAvatars: async (p: string) => [`${baseUrl}/avatars/${p || 'twitter'}/msluo14_avatar_001.jpg`, `${baseUrl}/avatars/${p || 'twitter'}/default_avatar.jpg`],
+    ListAllAccounts: async () => getJson('/api/accounts', []), ListTrashedAccounts: async () => getJson('/api/accounts?trash=true', []),
+    UpdateAccount: async (...args: any[]) => { console.log('[Polyfill] UpdateAccount:', args); }, MergeAccounts: async (...args: any[]) => null,
+    SaveAvatarImage: async (p: string, k: string) => `${baseUrl}/avatars/${p || 'twitter'}/${k}.jpg`, ListAvailableAvatars: async (p: string) => [`${baseUrl}/avatars/${p || 'twitter'}/default_avatar.jpg`],
     ResetAllToQueuedAndBootstrap: async () => { try { const r = await postJson('/api/admin/pipeline/reset-all', {}); return r || 0; } catch { return 0; } },
     IgnitePipeline: async () => { try { await postJson('/api/admin/pipeline/ignite', {}); return true; } catch { return false; } },
+    ExecutePipelineCycleNow: async () => { try { const r = await postJson('/api/admin/pipeline/cycle-now', {}); return r || { success: true }; } catch { return { success: false }; } },
     LaunchThunder: async () => { try { const r = await postJson('/api/admin/pipeline/launch-thunder', {}); return !!r?.success; } catch { return false; } },
+    SyncStashNow: async () => { try { await postJson('/api/admin/pipeline/sync-stash', {}); return true; } catch { return false; } },
   };
   (window as any)._isWailsPolyfill = true;
   (window as any).go = { app: { App: mockApp }, main: { App: mockApp } };

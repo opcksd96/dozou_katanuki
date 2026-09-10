@@ -48,7 +48,9 @@ func (s *BroadcastService) handleArticleAPI(w http.ResponseWriter, r *http.Reque
 
 func (s *BroadcastService) handleAccountsAPI(w http.ResponseWriter, r *http.Request) {
 	if s.timelineService == nil { http.Error(w, `{"error":"Service unavailable"}`, 503); return }
-	accounts, err := s.timelineService.ListRawAccounts()
+	fn := s.timelineService.ListRawAccounts
+	if r.URL.Query().Get("trash") == "true" { fn = s.timelineService.ListTrashedAccounts }
+	accounts, err := fn()
 	if err != nil {
 		w.Header().Set("Content-Type", "application/json; charset=utf-8"); w.WriteHeader(500)
 		_ = json.NewEncoder(w).Encode(map[string]string{"error": err.Error()}); return

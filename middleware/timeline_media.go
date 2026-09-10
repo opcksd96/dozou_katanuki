@@ -58,12 +58,16 @@ func (s *TimelineService) FetchDownloadStatusStats(accountID string) (*models.Do
 // ListRawAccounts は登録済みアカウントRawエンティティ（usernameフィールド付き）一覧を取得します
 func (s *TimelineService) ListRawAccounts() ([]models.Account, error) {
 	accs, err := s.repo.ListAccounts()
-	if err != nil {
-		return nil, err
-	}
-	for i := range accs {
-		accs[i].AvatarURL = ResolveAccountAvatar("twitter", time.Now(), accs[i])
-	}
+	if err != nil { return nil, err }
+	for i := range accs { accs[i].AvatarURL = ResolveAccountAvatar("twitter", time.Now(), accs[i]) }
+	return accs, nil
+}
+
+// ListTrashedAccounts はゴミ箱に入っているアカウント一覧を取得します
+func (s *TimelineService) ListTrashedAccounts() ([]models.Account, error) {
+	accs, err := s.repo.GetTrashedAccounts()
+	if err != nil { return nil, err }
+	for i := range accs { accs[i].AvatarURL = ResolveAccountAvatar("twitter", time.Now(), accs[i]) }
 	return accs, nil
 }
 

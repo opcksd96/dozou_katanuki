@@ -63,5 +63,14 @@ class MediaUrlBuilder:
         return deduped
 
     @classmethod
+    def build_grouped_candidates(cls, raw_url: str) -> List[Tuple[str, List[str]]]:
+        if not raw_url: return []
+        groups: dict = {}
+        for u, tag in cls.build_all_candidates(raw_url):
+            main_tag = tag.replace("wb_", "")
+            groups.setdefault(main_tag, []).append(u)
+        return [(t, urls) for t, urls in groups.items()]
+
+    @classmethod
     def build_url_list(cls, raw_url: str) -> List[str]:
         return [u for u, _ in cls.build_all_candidates(raw_url)]

@@ -32,7 +32,7 @@ if "%ERRORLEVEL%"=="0" (
 )
 tasklist /FI "IMAGENAME eq Motrix.exe" 2>NUL | find /I /N "Motrix.exe">NUL
 if "%ERRORLEVEL%"=="0" (
-    echo [OK] Motrix (Legacy) is running.
+    echo "[OK] Motrix (Legacy) is running."
 ) else (
     echo [!] Motrix Next is NOT running. (Please kick it manually if needed)
 )

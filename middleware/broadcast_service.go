@@ -52,14 +52,12 @@ type AdminUseCases interface {
 	ResetAllToQueuedAndBootstrap() (interface{}, error)
 	IgnitePipeline() (interface{}, error)
 	LaunchThunder() (bool, error)
+	SyncStashNow() (bool, error)
+	ExecutePipelineCycleNow() (interface{}, error)
 }
 
-func (s *BroadcastService) SetBeaconCallback(cb func(req dto.BeaconRequestDTO)) {
-	s.mu.Lock(); defer s.mu.Unlock(); s.beaconCallback = cb
-}
-func (s *BroadcastService) SetAdminUseCases(uc AdminUseCases) {
-	s.mu.Lock(); defer s.mu.Unlock(); s.adminUseCases = uc
-}
+func (s *BroadcastService) SetBeaconCallback(cb func(req dto.BeaconRequestDTO)) { s.mu.Lock(); defer s.mu.Unlock(); s.beaconCallback = cb }
+func (s *BroadcastService) SetAdminUseCases(uc AdminUseCases) { s.mu.Lock(); defer s.mu.Unlock(); s.adminUseCases = uc }
 func (s *BroadcastService) Start(ctx context.Context) error {
 	s.mu.Lock(); defer s.mu.Unlock()
 	if s.running { return nil }

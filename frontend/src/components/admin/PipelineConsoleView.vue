@@ -2,21 +2,20 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import { usePipelineConsole } from '../../composables/admin/usePipelineConsole';
-import { ResetAllToQueuedAndBootstrap, IgnitePipeline } from '../../../wailsjs/go/app/App';
+import { ResetAllToQueuedAndBootstrap } from '../../../wailsjs/go/app/App';
 import PipelineCheckpointRibbon from './pipeline/PipelineCheckpointRibbon.vue';
 import PipelineLogViewer from './pipeline/PipelineLogViewer.vue';
 
-const { overview, logs, selectedLogStage, loading, isAutoEngineRunning, toggleAutoEngine, refreshAll, syncAndReconcile, setLogStage } = usePipelineConsole();
+const { overview, logs, selectedLogStage, loading, isAutoEngineRunning, toggleAutoEngine, refreshAll, executePipelineCycleNow, setLogStage } = usePipelineConsole();
 const logViewerRef = ref<HTMLElement | null>(null);
 const scrollToLogs = () => { logViewerRef.value?.scrollIntoView({ behavior: 'smooth' }); };
 const isWails = () => typeof (window as any).go !== 'undefined';
 
-const handleManualIgnite = async () => {
+const handleExecuteCycleNow = async () => {
   try {
-    const res = isWails() ? await IgnitePipeline() : await (await fetch('/api/admin/pipeline/ignite', { method: 'POST' })).json();
-    alert(`🔥 点火完了: QUEUED ${res.queued_count} 件 / 迅雷 ${res.escalated_count} 件 を再発火しました！`);
+    await executePipelineCycleNow();
     await refreshAll();
-  } catch (e: any) { alert(`エラー: ${e?.message || e}`); }
+  } catch (e: any) { alert(`パイプライン実行エラー: ${e?.message || e}`); }
 };
 
 const handleResetAll = async () => {
@@ -61,11 +60,8 @@ const handleResetAll = async () => {
           <button @click="toggleAutoEngine" :class="['px-3 py-1 font-bold rounded-lg text-xs cursor-pointer active:scale-95 shadow transition', isAutoEngineRunning ? 'bg-amber-600 hover:bg-amber-500 text-white' : 'bg-emerald-600 hover:bg-emerald-500 text-white']">
             {{ isAutoEngineRunning ? '⏸️ 自動運転を一時停止' : '▶️ 自動運転を開始' }}
           </button>
-          <button @click="handleManualIgnite" class="px-2.5 py-1 bg-orange-600 hover:bg-orange-500 text-white font-bold rounded-lg text-xs cursor-pointer active:scale-95 shadow" title="今すぐ全ステージの未処理タスクを強制点火">
-            🔥 即時点火
-          </button>
-          <button @click="syncAndReconcile" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold rounded-lg text-xs cursor-pointer active:scale-95" title="Stash同期を手動キック">
-            🎬 Stash手動同期
+          <button @click="handleExecuteCycleNow" :disabled="loading" class="px-3 py-1 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white font-bold rounded-lg text-xs cursor-pointer active:scale-95 shadow" title="統括契約: Requests ➔ Motrix ➔ 迅雷 ➔ Stash のサイクルを1回即時実行">
+            ⚡ パイプラインを今すぐ実行
           </button>
         </div>
       </div>

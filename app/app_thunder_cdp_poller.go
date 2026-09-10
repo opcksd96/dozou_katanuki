@@ -4,6 +4,7 @@ package app
 import (
 	"encoding/json"
 	"fmt"
+	"sync"
 	"time"
 )
 
@@ -15,28 +16,47 @@ type CDPEvalResult struct {
 	} `json:"result"`
 }
 
-// StartThunderCDPAdaptivePoller は 2000ms 間隔の軽量サイレントバックグラウンド同期を実行します
+var (
+	cdpPollerMu     sync.Mutex
+	isCDPPollerBusy bool
+)
+
+// StartThunderCDPAdaptivePoller は 軽量サイレントバックグラウンド同期を実行します (単一常駐)
 func (a *App) StartThunderCDPAdaptivePoller() {
+	cdpPollerMu.Lock()
+	if isCDPPollerBusy {
+		cdpPollerMu.Unlock()
+		return
+	}
+	isCDPPollerBusy = true
+	cdpPollerMu.Unlock()
+
 	go func() {
+		defer func() {
+			cdpPollerMu.Lock()
+			isCDPPollerBusy = false
+			cdpPollerMu.Unlock()
+		}()
+
 		wsURL := ""
-		interval := 2000 * time.Millisecond
+		interval := 3000 * time.Millisecond
 
 		for {
 			time.Sleep(interval)
 
+			if !a.IsPipelineAutoEngineRunning() || !a.isThunderOrchestratorRunning() {
+				interval = 3000 * time.Millisecond
+				continue
+			}
+
 			if wsURL == "" {
 				u, err := FetchThunderMainRendererWSUrl(9222)
 				if err != nil {
-					interval = 3000 * time.Millisecond
+					interval = 4000 * time.Millisecond
 					continue
 				}
 				wsURL = u
 				a.AppendPipelineLog("THUNDER", "INFO", "迅雷 CDP WebSocket 接続を確立しました")
-			}
-
-			if !a.isThunderOrchestratorRunning() {
-				interval = 3000 * time.Millisecond
-				continue
 			}
 
 			resJSON, err := EvaluateCDPExpression(wsURL, ThunderExtractTaskScript, 1500*time.Millisecond)

@@ -24,3 +24,21 @@ type MediaExcluded struct {
 func (MediaExcluded) TableName() string {
 	return "media_excluded"
 }
+
+// ToRenderMedia converts MediaExcluded to RenderMedia directly serving external URLs
+func (m MediaExcluded) ToRenderMedia() RenderMedia {
+	var urls RenderMediaURLs
+	urls.Original = m.DownloadURL
+	thumb := m.ThumbnailURL
+	if thumb == "" { thumb = m.DownloadURL }
+	if m.Type == "video" || m.Type == "gif" {
+		urls.Stream = m.DownloadURL; urls.Thumbnail = thumb; urls.Preview = thumb
+	} else {
+		urls.Image = m.DownloadURL; urls.Thumbnail = thumb
+	}
+	return RenderMedia{
+		ID: m.MediaID, Type: m.Type, DownloadStatus: "EXCLUDED",
+		FailedReason: m.QuarantineReason, URLs: urls, Width: m.Width, Height: m.Height,
+		DownloadURL: m.DownloadURL,
+	}
+}

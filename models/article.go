@@ -34,7 +34,9 @@ type Article struct {
 	TrashReason    sql.NullString `gorm:"column:trash_reason;type:text" json:"trash_reason,omitempty"`
 	TrashedAt      sql.NullTime   `gorm:"column:trashed_at;type:datetime" json:"trashed_at,omitempty"`
 
-	Account      Account       `gorm:"foreignKey:AccountID;references:NumericID;constraint:OnDelete:CASCADE;" json:"account,omitempty"`
-	Media        []Media       `gorm:"foreignKey:ArticleID;references:ID;constraint:OnDelete:CASCADE;" json:"media,omitempty"`
-	UrlRedirects []UrlRedirect `gorm:"foreignKey:ArticleID;references:ID;constraint:OnDelete:CASCADE;" json:"url_redirects,omitempty"`
+	Account          Account         `gorm:"foreignKey:AccountID;references:NumericID;constraint:OnDelete:CASCADE;" json:"account,omitempty"`
+	Media            []Media         `gorm:"foreignKey:ArticleID;references:ID;constraint:OnDelete:CASCADE;" json:"media,omitempty"`
+	MediaExcluded    []MediaExcluded `gorm:"foreignKey:ArticleID;references:ID;" json:"media_excluded,omitempty"`
+	UrlRedirects     []UrlRedirect   `gorm:"foreignKey:ArticleID;references:ID;constraint:OnDelete:CASCADE;" json:"url_redirects,omitempty"`
+	RetweetedArticle *Article        `gorm:"foreignKey:ReplyToID;references:ID;" json:"retweeted_article,omitempty"`
 }

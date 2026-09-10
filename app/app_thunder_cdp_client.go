@@ -51,17 +51,25 @@ const ThunderExtractTaskScript = `(() => {
 		return (b / Math.pow(k, i)).toFixed(2) + s[i];
 	};
 	let sizeMap = {};
+	const clean = (t) => t ? t.replace(/\(\d+\)(\.[a-zA-Z0-9]+)$/, '$1').trim() : '';
 	const tb = document.querySelector('.xly-download-tab__operate');
 	if (tb && tb.__vue__ && tb.__vue__.taskBaseMap) {
 		const m = tb.__vue__.taskBaseMap;
-		for (let k in m) { if (m[k] && m[k].taskName) sizeMap[m[k].taskName] = fmt(m[k].fileSize); }
+		for (let k in m) {
+			if (m[k] && m[k].taskName) {
+				const sz = fmt(m[k].fileSize);
+				sizeMap[m[k].taskName] = sz;
+				sizeMap[clean(m[k].taskName)] = sz;
+			}
+		}
 	}
 	const items = Array.from(document.querySelectorAll('.xly-side-item'));
 	return items.filter(el => !el.querySelector('.xly-icon-restore')).map(el => {
 		let text = el.innerText || '';
 		const titleEl = el.querySelector('.xly-file-name__ad, .xly-file-name, .xly-side-title');
 		const title = titleEl ? titleEl.innerText.trim() : '';
-		if (title && sizeMap[title]) { text = text + '\n' + sizeMap[title]; }
+		const sz = sizeMap[title] || sizeMap[clean(title)];
+		if (sz && sz !== '0B') { text = text + '\n' + sz; }
 		return text;
 	}).filter(t => t && (t.includes('.jpg') || t.includes('.mp4') || t.includes('.png') || t.includes('.webp')));
 })()`

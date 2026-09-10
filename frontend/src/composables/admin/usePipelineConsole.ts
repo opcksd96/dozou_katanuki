@@ -69,13 +69,18 @@ export function usePipelineConsole() {
     loading.value = false;
   };
 
-  const syncAndReconcile = async () => {
-    syncing.value = true;
+  const executePipelineCycleNow = async () => {
+    loading.value = true;
     try {
-      if (isWails()) await SyncThunderDownloads('');
-      else await fetch('/api/admin/pipeline/sync-thunder', { method: 'POST' });
+      if (isWails()) {
+        const app = (window as any).go?.app?.App;
+        if (app?.ExecutePipelineCycleNow) await app.ExecutePipelineCycleNow();
+        else if (app?.IgnitePipeline) await app.IgnitePipeline();
+      } else {
+        await fetch('/api/admin/pipeline/cycle-now', { method: 'POST' });
+      }
       await refreshAll();
-    } catch (_) {} finally { syncing.value = false; }
+    } catch (_) {} finally { loading.value = false; }
   };
 
   onMounted(async () => {
@@ -90,6 +95,6 @@ export function usePipelineConsole() {
 
   return {
     overview, logs, selectedLogStage, loading, syncing, isAutoEngineRunning,
-    toggleAutoEngine, fetchOverview, fetchLogs, setLogStage, refreshAll, syncAndReconcile,
+    toggleAutoEngine, fetchOverview, fetchLogs, setLogStage, refreshAll, executePipelineCycleNow,
   };
 }

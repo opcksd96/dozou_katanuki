@@ -8,13 +8,22 @@ import (
 	"dozou_katanuki/models"
 )
 
-// GetAccounts は登録されている全アカウントのリストを供給する Wails バインドメソッドです
+// GetAccounts は登録されているホワイトリスト対象アカウントのリストを供給する Wails バインドメソッドです
 func (a *App) GetAccounts(platform string) ([]*dto.AccountDTO, error) {
 	if err := a.WaitForReady(); err != nil {
 		return nil, err
 	}
-	// Use Application Layer (UseCase)
-	return a.AccountUseCase.ListAllAccounts(a.Ctx)
+	dtos, err := a.AccountUseCase.ListAllAccounts(a.Ctx)
+	if err != nil {
+		return nil, err
+	}
+	var res []*dto.AccountDTO
+	for _, d := range dtos {
+		if d.IsWhitelist {
+			res = append(res, d)
+		}
+	}
+	return res, nil
 }
 
 // GetTimeline はフロントエンドへ RenderTree 配列を供給する Wails バインドメソッドです

@@ -7,22 +7,25 @@ import (
 )
 
 func (r *Repository) applyAccountFilter(query *gorm.DB, accountID string) *gorm.DB {
-	if accountID == "" || accountID == "all" { return query }
+	if accountID == "" || accountID == "all" {
+		return query.Where("articles.account_id IN (SELECT numeric_id FROM accounts WHERE is_whitelist = 1 OR username IN (SELECT value FROM whitelists WHERE is_active = 1))")
+	}
 	if len(accountID) > 6 && accountID[:6] == "group:" {
 		grp := accountID[6:]
-		return query.Where("account_id IN (SELECT numeric_id FROM accounts WHERE group_name = ?)", grp)
+		return query.Where("articles.account_id IN (SELECT numeric_id FROM accounts WHERE group_name = ?)", grp)
 	}
-	return query.Where("account_id = ? OR account_id IN (SELECT numeric_id FROM accounts WHERE numeric_id = ? OR username = ? OR alias_of = ? OR alias_of IN (SELECT username FROM accounts WHERE numeric_id = ? OR username = ?) OR username IN (SELECT alias_of FROM accounts WHERE (numeric_id = ? OR username = ?) AND alias_of != ''))", accountID, accountID, accountID, accountID, accountID, accountID, accountID, accountID)
+	return query.Where("articles.account_id = ? OR articles.account_id IN (SELECT numeric_id FROM accounts WHERE numeric_id = ? OR username = ? OR alias_of = ? OR alias_of IN (SELECT username FROM accounts WHERE numeric_id = ? OR username = ?) OR username IN (SELECT alias_of FROM accounts WHERE (numeric_id = ? OR username = ?) AND alias_of != ''))", accountID, accountID, accountID, accountID, accountID, accountID, accountID, accountID)
 }
 
 func (r *Repository) FetchArticles(accountID, filter string, limit, offset int) ([]models.Article, error) {
-	query := r.db.Model(&models.Article{}).Preload("Account").Preload("Account.ProfileHistory").Preload("Media").Preload("Media.Variants").Preload("UrlRedirects").Order("created_at DESC")
-	query = query.Where("is_trash = ? AND (is_repost = ? OR reply_to_handle IN (SELECT value FROM whitelists WHERE is_active = ?))", false, false, true)
+	query := r.db.Model(&models.Article{}).Preload("Account").Preload("Account.ProfileHistory").Preload("Media").Preload("Media.Variants").Preload("MediaExcluded").Preload("RetweetedArticle").Preload("RetweetedArticle.Account").Preload("RetweetedArticle.Media").Preload("RetweetedArticle.MediaExcluded").Preload("UrlRedirects").Order("articles.created_at DESC")
+	query = query.Where("articles.is_trash = ?", false)
 	query = r.applyAccountFilter(query, accountID)
 	switch filter {
-	case "reposts": query = query.Where("is_repost = ?", true)
-	case "media": query = query.Joins("JOIN media ON media.article_id = articles.id").Group("articles.id")
-	case "bookmarks": query = query.Where("is_liked = ?", true)
+	case "reposts": query = query.Where("articles.is_repost = ?", true)
+	case "media": query = query.Where("articles.is_repost = ?", false).Joins("JOIN media ON media.article_id = articles.id").Group("articles.id")
+	case "bookmarks": query = query.Where("articles.is_repost = ? AND articles.is_liked = ?", false, true)
+	default: query = query.Where("articles.is_repost = ?", false)
 	}
 	var articles []models.Article
 	return articles, query.Limit(limit).Offset(offset).Find(&articles).Error
@@ -59,20 +62,20 @@ func (r *Repository) SearchArticles(searchQuery, accountID, filter string, limit
 	case "all_with_trash":
 		// ゴミ箱データも含めて全件検索
 	default:
-		query = query.Where("is_trash = ?", false)
+		query = query.Where("articles.is_trash = ?", false)
 		switch filter {
-		case "reposts": query = query.Where("is_repost = ?", true)
-		case "media": query = query.Joins("JOIN media ON media.article_id = articles.id").Group("articles.id")
-		case "bookmarks": query = query.Where("is_liked = ?", true)
+		case "reposts": query = query.Where("articles.is_repost = ?", true)
+		case "media": query = query.Where("articles.is_repost = ?", false).Joins("JOIN media ON media.article_id = articles.id").Group("articles.id")
+		case "bookmarks": query = query.Where("articles.is_repost = ? AND articles.is_liked = ?", false, true)
+		default: query = query.Where("articles.is_repost = ?", false)
 		}
 	}
 	var total int64
 	if err := query.Count(&total).Error; err != nil { return nil, 0, err }
 	var articles []models.Article
 	if limit <= 0 { limit = 20 }
-	return articles, total, query.Order("created_at DESC").Limit(limit).Offset(offset).Find(&articles).Error
+	return articles, total, query.Order("articles.created_at DESC").Limit(limit).Offset(offset).Find(&articles).Error
 }
-
 
 func (r *Repository) GetArticleByID(id string) (*models.Article, error) {
 	var a models.Article

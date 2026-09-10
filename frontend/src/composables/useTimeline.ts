@@ -23,7 +23,7 @@ export function useTimeline(platform = 'twitter') {
     try {
       if (isWails()) { const a = await ((window as any)?.go?.app?.App || (window as any)?.go?.main?.App)?.GetAccounts?.(platform); if (a) { accounts.value = a; return; } }
       const raw = await (await fetch(`/api/accounts?platform=${encodeURIComponent(platform)}`)).json();
-      accounts.value = (raw || []).map((a: any) => ({
+      accounts.value = (raw || []).filter((a: any) => a.is_whitelist !== false && a.is_whitelist !== 0).map((a: any) => ({
         ...a, numeric_id: a.numeric_id || a.NumericID || '', handle: a.handle || a.username || a.Handle || '',
         display_name: a.display_name || a.DisplayName || a.handle || a.username || '', avatar_url: a.avatar_url || a.AvatarURL || '',
         bio: a.bio || a.description || a.Bio || '', group_name: a.group_name || a.GroupName || '', alias_of: a.alias_of || a.AliasOf || '',

@@ -53,6 +53,8 @@ export interface RenderTree {
   source_url: string;
   is_liked: boolean;
   is_pinned: boolean;
+  is_repost?: boolean;
+  retweeted_article?: RenderTree;
   parent_id?: string;
   reply_to_handle?: string;
 }

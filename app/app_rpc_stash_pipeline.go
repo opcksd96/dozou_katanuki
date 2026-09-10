@@ -66,3 +66,11 @@ func (a *App) TriggerStashImagePipeline() {
 func (a *App) TriggerStashAllPipelines() {
 	a.TriggerStashPipelineForPaths(nil)
 }
+
+// SyncStashNow は手動で即時Stash同期（未同期メディアのスキャン＆バインド）を実行します
+func (a *App) SyncStashNow() (bool, error) {
+	a.AppendPipelineLog("STASH", "INFO", "🎬 手動操作によりStash同期パイプラインを開始しました")
+	go a.ScanUnsyncedMediaAndTriggerStash()
+	return true, nil
+}
+

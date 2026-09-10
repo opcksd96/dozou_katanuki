@@ -11,7 +11,7 @@ export function useAdminDatabaseAccounts() {
   const fetchAccounts = async () => {
     isAccountLoading.value = true; errorMessage.value = null;
     try {
-      const app = getApp(), raw = showTrash.value ? ((await app?.ListTrashedAccounts?.()) || []) : (app?.ListAllAccounts ? await app.ListAllAccounts() : await (await fetch('/api/accounts')).json());
+      const app = getApp(), raw = showTrash.value ? (app?.ListTrashedAccounts ? await app.ListTrashedAccounts() : await (await fetch('/api/accounts?trash=true')).json()) : (app?.ListAllAccounts ? await app.ListAllAccounts() : await (await fetch('/api/accounts')).json());
       accountsList.value = (raw || []).filter((a: any) => showTrash.value ? !!a?.is_trash : !a?.is_trash).map((a: any) => ({ ...a, username: a.username || a.handle || a.numeric_id || '', display_name: a.display_name || a.username || a.handle || '' }));
     } catch (e: any) { errorMessage.value = `取得失敗: ${e?.message || e}`; }
     finally { isAccountLoading.value = false; }

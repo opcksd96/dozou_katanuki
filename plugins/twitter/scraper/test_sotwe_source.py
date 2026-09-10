@@ -56,12 +56,22 @@ class TestSotweSource(unittest.TestCase):
         records = parse_sotwe_vue_tweets([SAMPLE_VUE_TWEET, SAMPLE_UNRELATED_TWEET], "MsLuo14", whitelist={"random_sidebar_user"})
         self.assertEqual(len(records), 2)
 
-    def test_parse_sotwe_html_fallback(self):
-        html_sample = '<div class="tweet-card"><div class="tweet-profile"><a href="/test_user"></a></div><div class="tweet-text"><div class="dynamic-link-content">Hello</div></div></div><div class="tweet-card"><div class="tweet-profile"><a href="/stranger"></a></div></div>'
-        res = parse_sotwe_html_tweets(html_sample, "test_user")
+    def test_parse_sotwe_vue_tweets_allows_retweets(self):
+        rt_item = {"id": "12345", "user": {"screenName": "xVictorialynnx"}, "text": "RT target", "_is_retweet": True, "_retweeted_by": "subyike"}
+        records = parse_sotwe_vue_tweets([rt_item], "subyike")
+        self.assertEqual(len(records), 1)
+        self.assertTrue(records[0]["post"]["is_repost"])
+        self.assertEqual(records[0]["post"]["retweeted_by"], "subyike")
+        self.assertEqual(records[0]["account"]["username"], "xVictorialynnx")
+
+    def test_parse_sotwe_html_extracts_retweet_and_metrics(self):
+        html = '<div class="tweet-card"><div class="v-card__title"><div class="caption"><i class="fa-retweet"></i><a href="/subyike">subyike</a></div><div class="tweet-profile"><a href="/xVictorialynnx"></a><span class="font-weight-medium">Author</span></div></div><div class="tweet-text"><div class="dynamic-link-content">Dance</div></div><div class="tweet-stats-item" aria-label="1093 likes"></div></div>'
+        res = parse_sotwe_html_tweets(html, "subyike")
         self.assertEqual(len(res), 1)
-        self.assertEqual(res[0]["post"]["full_text"], "Hello")
-        self.assertEqual(res[0]["account"]["username"], "test_user")
+        self.assertTrue(res[0]["post"]["is_repost"])
+        self.assertEqual(res[0]["post"]["retweeted_by"], "subyike")
+        self.assertEqual(res[0]["account"]["username"], "xVictorialynnx")
+        self.assertEqual(res[0]["post"]["metrics"]["likes"], 1093)
 
 if __name__ == "__main__":
     unittest.main()

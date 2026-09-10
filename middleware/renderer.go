@@ -54,16 +54,24 @@ func ToRenderTree(item models.Article, platform string) models.RenderTree {
 		zh = decorateText(item.FullTextZH.String, platform, item.UrlRedirects, hasMedia)
 	} else if item.Lang == "zh" { zh = orig }
 
-	domain := ""
-	if item.SourceDomain.Valid { domain = item.SourceDomain.String }
-	origURL := ""
-	if item.OriginalURL.Valid { origURL = item.OriginalURL.String }
-	sotweURL := ""
-	if item.SotweURL.Valid { sotweURL = item.SotweURL.String }
-	nitterURL := ""
-	if item.NitterURL.Valid { nitterURL = item.NitterURL.String }
-	twistalkerURL := ""
-	if item.TwistalkerURL.Valid { twistalkerURL = item.TwistalkerURL.String }
+	domain := ""; if item.SourceDomain.Valid { domain = item.SourceDomain.String }
+	origURL := ""; if item.OriginalURL.Valid { origURL = item.OriginalURL.String }
+	sotweURL := ""; if item.SotweURL.Valid { sotweURL = item.SotweURL.String }
+	nitterURL := ""; if item.NitterURL.Valid { nitterURL = item.NitterURL.String }
+	twistalkerURL := ""; if item.TwistalkerURL.Valid { twistalkerURL = item.TwistalkerURL.String }
+
+	var renderMedia []models.RenderMedia
+	if len(item.Media) > 0 {
+		renderMedia = MapMediaToRenderMediaWithContext(item.Media, platform, item.Account.Username)
+	} else if len(item.MediaExcluded) > 0 {
+		for _, me := range item.MediaExcluded { renderMedia = append(renderMedia, me.ToRenderMedia()) }
+	}
+
+	var rtTree *models.RenderTree
+	if item.RetweetedArticle != nil && item.RetweetedArticle.ID != "" {
+		child := ToRenderTree(*item.RetweetedArticle, platform)
+		rtTree = &child
+	}
 
 	return models.RenderTree{
 		ID: item.ID, ConversationID: item.ConversationID,
@@ -72,13 +80,11 @@ func ToRenderTree(item models.Article, platform string) models.RenderTree {
 		Author: models.RenderAuthor{
 			NumericID: item.Account.NumericID, Handle: item.Account.Username,
 			DisplayName: item.Account.DisplayName, AvatarURL: avatarURL,
-			Bio: item.Account.Description, GroupName: item.Account.GroupName,
-			AliasOf: item.Account.AliasOf,
+			Bio: item.Account.Description, GroupName: item.Account.GroupName, AliasOf: item.Account.AliasOf,
 		},
-
-		Media: MapMediaToRenderMediaWithContext(item.Media, platform, item.Account.Username), Metrics: models.RenderMetrics{},
-		IsLiked: item.IsLiked, SourceURL: item.WaybackURL,
-		SourceDomain: domain, OriginalURL: origURL, WaybackURL: item.WaybackURL,
+		Media: renderMedia, Metrics: models.RenderMetrics{},
+		IsLiked: item.IsLiked, IsPinned: false, IsRepost: item.IsRepost, RetweetedArticle: rtTree,
+		SourceURL: item.WaybackURL, SourceDomain: domain, OriginalURL: origURL, WaybackURL: item.WaybackURL,
 		SotweURL: sotweURL, NitterURL: nitterURL, TwistalkerURL: twistalkerURL,
 		ParentID: item.ReplyToID.String, ReplyToHandle: item.ReplyToHandle.String,
 		IsTrash: item.IsTrash, TrashedBy: item.TrashedBy.String, TrashReason: item.TrashReason.String,
