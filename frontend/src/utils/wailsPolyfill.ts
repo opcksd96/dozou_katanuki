@@ -58,6 +58,7 @@ export function initWailsPolyfill() {
     GetConfig: async () => getJson('/api/config', { system: { language: 'ja', default_framework: 'twitter', env: 'production' } }),
     GetPipelineOverview: async () => getJson('/api/admin/pipeline/overview', null),
     GetPipelineLogs: async (stage: string, limit: number) => getJson(`/api/admin/pipeline/logs?stage=${encodeURIComponent(stage || 'all')}&limit=${limit || 50}`, []),
+    GetMediaWithCandidateTasks: async (status: string, limit: number) => getJson(`/api/admin/pipeline/media-tasks?status=${encodeURIComponent(status || 'ESCALATED')}&limit=${limit || 50}`, []),
     IsPipelineAutoEngineRunning: async () => { try { const o = await getJson('/api/admin/pipeline/overview', null); return o?.auto_engine_running || false; } catch { return false; } },
     TogglePipelineAutoEngine: async (enable: boolean) => { try { const r = await postJson('/api/admin/pipeline/toggle', { enable }); return !!r?.isRunning; } catch { return false; } },
     GetSystemJournals: async (limit: number) => getJson(`/api/admin/system/journals?limit=${limit || 200}`, []),

@@ -1,6 +1,6 @@
 // frontend/src/composables/admin/usePipelineConsole.ts (100行以下 - SPEC-PRINCIPLE-001)
 import { ref, onMounted, onUnmounted } from 'vue';
-import { GetPipelineOverview, GetPipelineLogs, SyncThunderDownloads, TogglePipelineAutoEngine, IsPipelineAutoEngineRunning } from '../../../wailsjs/go/app/App';
+import { GetPipelineOverview, GetPipelineLogs, TogglePipelineAutoEngine, IsPipelineAutoEngineRunning } from '../../../wailsjs/go/app/App';
 
 export function usePipelineConsole() {
   const overview = ref<any>(null), logs = ref<any[]>([]), selectedLogStage = ref<string>('all');

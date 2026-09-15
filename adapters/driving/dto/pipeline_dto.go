@@ -10,8 +10,9 @@ type CheckpointStatus struct {
 	IsOnline    bool   `json:"is_online"`
 	ActiveCount int    `json:"active_count"`
 	TotalCount  int    `json:"total_count"`
-	SpeedText   string `json:"speed_text"`
+	SpeedText   string `json:"speed_text,omitempty"`
 	StatusText  string `json:"status_text"`
+	SummaryText string `json:"summary_text,omitempty"`
 }
 
 // PipelineOverviewDTO はパイプライン全体の稼働状態とメディア集計です

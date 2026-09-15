@@ -112,6 +112,26 @@ func (s *BroadcastService) handlePipelineLogsAPI(w http.ResponseWriter, r *http.
 	_ = json.NewEncoder(w).Encode(logs)
 }
 
+func (s *BroadcastService) handlePipelineMediaTasksAPI(w http.ResponseWriter, r *http.Request) {
+	if ports.GetScope(r.Context()) != ports.ScopeAdmin {
+		http.Error(w, "Forbidden", http.StatusForbidden); return
+	}
+	if s.adminUseCases == nil {
+		http.Error(w, "Admin use cases not initialized", http.StatusInternalServerError); return
+	}
+	status := r.URL.Query().Get("status")
+	limit := 50
+	if lStr := r.URL.Query().Get("limit"); lStr != "" {
+		if l, err := strconv.Atoi(lStr); err == nil && l > 0 { limit = l }
+	}
+	res, err := s.adminUseCases.GetMediaWithCandidateTasks(status, limit)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError); return
+	}
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	_ = json.NewEncoder(w).Encode(res)
+}
+
 func (s *BroadcastService) handleSyncThunderAPI(w http.ResponseWriter, r *http.Request) {
 	if ports.GetScope(r.Context()) != ports.ScopeAdmin {
 		http.Error(w, "Forbidden", http.StatusForbidden); return

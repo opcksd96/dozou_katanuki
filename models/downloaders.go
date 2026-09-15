@@ -28,9 +28,14 @@ type MotrixGlobalStat struct {
 // ThunderGlobalStat は Thunder (迅雷) の状態情報です
 type ThunderGlobalStat struct {
 	IsInstalled    bool   `json:"is_installed"`
+	IsConnected    bool   `json:"is_connected"`
 	Executable     string `json:"executable"`
 	EscalatedCount int64  `json:"escalated_count"`
 	RetainedCount  int64  `json:"retained_count"`
+	PendingCount   int    `json:"pending_count"`
+	RunningCount   int    `json:"running_count"`
+	FailedCount    int    `json:"failed_count"`
+	TotalCount     int    `json:"total_count"`
 }
 
 // DownloaderDashboardStatus は管理コンソール向けの総合ステータスです

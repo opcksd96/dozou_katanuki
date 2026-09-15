@@ -28,6 +28,14 @@ type ThunderTask struct {
 	Status         ThunderTaskStatus `gorm:"index;default:'PENDING'" json:"status"`
 	SummarySize    string            `json:"summary_size,omitempty"`
 	ErrorReason    string            `json:"error_reason,omitempty"`
+	ThunderTaskID  int64             `gorm:"column:thunder_task_id;default:0" json:"thunder_task_id"`
+	FileSize       int64             `gorm:"column:file_size;default:0" json:"file_size"`
+	DownloadSize   int64             `gorm:"column:download_size;default:0" json:"download_size"`
+	SavePath       string            `gorm:"column:save_path;default:''" json:"save_path"`
+	TaskStatusCode int               `gorm:"column:task_status_code;default:0" json:"task_status_code"`
+	ErrorCode      int               `gorm:"column:error_code;default:0" json:"error_code"`
+	DetailText     string            `gorm:"column:detail_text;default:''" json:"detail_text"`
+	RawJSON        string            `gorm:"column:raw_json;type:text" json:"raw_json,omitempty"`
 	LastAttemptAt  *time.Time        `json:"last_attempt_at,omitempty"`
 	DispatchedAt   *time.Time        `json:"dispatched_at,omitempty"`
 	CompletedAt    *time.Time        `json:"completed_at,omitempty"`

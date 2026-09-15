@@ -42,9 +42,9 @@ type ThunderOrchestratorSlot struct {
 
 // ThunderOrchestratorConfig はオーケストレーションの制御設定です
 type ThunderOrchestratorConfig struct {
-	MaxConcurrentSlots int `json:"max_concurrent_slots"` // デフォルト: 12
-	IntervalSeconds    int `json:"interval_seconds"`      // 間欠ディスパッチ間隔 (秒, デフォルト: 5)
-	TopResolutionsOnly bool `json:"top_resolutions_only"` // 厳選3種類 (orig, large, wayback_orig) のみ対象
+	MaxConcurrentSlots int  `json:"max_concurrent_slots"`
+	IntervalSeconds    int  `json:"interval_seconds"`
+	TopResolutionsOnly bool `json:"top_resolutions_only"`
 }
 
 // ThunderOrchestratorStatus はフロントエンドへ配信するリアルタイムステータスです
@@ -57,7 +57,11 @@ type ThunderOrchestratorStatus struct {
 	RunningJobs     int                       `json:"running_jobs"`
 	SuccessJobs     int                       `json:"success_jobs"`
 	FailedJobs      int                       `json:"failed_jobs"`
+	HoldingJobs     int                       `json:"holding_jobs"`
+	OccupiedSlots   int                       `json:"occupied_slots"`
+	TotalSlots      int                       `json:"total_slots"`
 	TotalMediaCount int                       `json:"total_media_count"`
 	Slots           []ThunderOrchestratorSlot `json:"slots"`
 	RecentTasks     []ThunderOrchestratorTask `json:"recent_tasks"`
+	CDPTasks        []ActiveThunderTask       `json:"cdp_tasks,omitempty"`
 }

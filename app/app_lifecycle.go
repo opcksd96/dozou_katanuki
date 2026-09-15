@@ -113,6 +113,9 @@ func (w *adminUseCaseWrapper) GetPipelineOverview() (interface{}, error) {
 func (w *adminUseCaseWrapper) GetPipelineLogs(stage string, limit int) (interface{}, error) {
 	return w.app.GetPipelineLogs(stage, limit)
 }
+func (w *adminUseCaseWrapper) GetMediaWithCandidateTasks(status string, limit int) (interface{}, error) {
+	return w.app.GetMediaWithCandidateTasks(status, limit)
+}
 func (w *adminUseCaseWrapper) SyncThunderDownloads(req string) (interface{}, error) {
 	return w.app.SyncThunderDownloads(req)
 }

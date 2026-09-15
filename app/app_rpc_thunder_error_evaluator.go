@@ -30,22 +30,7 @@ func EvaluateThunderTaskError(rawText string) ThunderEvaluation {
 	summary, hasSummary := extractSummarySize(rawText)
 	res := ThunderEvaluation{Decision: DecisionNone, SummarySize: summary, HasSummary: hasSummary}
 
-	// 1. メタデータ（サマリサイズ > 1B）取得済みの場合はリソース存在確認済み ➔ HOLD維持
-	if hasSummary {
-		res.Decision = DecisionHold
-		res.Reason = "メタデータ(サマリサイズ>1B)取得済みのためタスク維持 (ESCALATED)"
-		return res
-	}
-
-	// 2. 429 等のネットワーク制限・一時異常 (10分クールダウン対象)
-	if strings.Contains(rawText, "429") || strings.Contains(rawText, "Too Many Requests") ||
-		strings.Contains(rawText, "网络异常") || strings.Contains(rawText, "连接超时") {
-		res.Decision = DecisionCooldown
-		res.Reason = "ネットワーク制限または429検知 (10分クールダウン)"
-		return res
-	}
-
-	// 3. サマリ未取得(0B)かつリソース不存在・各種失敗エラーの場合 ➔ RETIRE（取り下げ）
+	// 1. サマリ未取得または明確な枯渇停止エラーの場合 ➔ 最優先で RETIRE（取り下げ）
 	retirePatterns := []string{
 		"原始资源不存在", "未找到候选资源", "无法继续下载", "暂无任何有效资源",
 		"请更换下载链接", "下载失败", "任务出错", "资源不足", "下载遇到错误",
@@ -54,14 +39,32 @@ func EvaluateThunderTaskError(rawText string) ThunderEvaluation {
 	for _, p := range retirePatterns {
 		if strings.Contains(rawText, p) {
 			res.Decision = DecisionRetire
-			res.Reason = p + " かつサマリ0B (RETIRED・取り下げ)"
+			res.Reason = p + " により取り下げ (RETIRED)"
 			return res
 		}
 	}
 
-	// 4. アクティブ接続中・ダウンロード中
-	if strings.Contains(rawText, "正在连接") || strings.Contains(rawText, "正在下载") ||
-		strings.Contains(rawText, "资源连接中") || strings.Contains(rawText, "排队") {
+	// 2. ⚡ 排队等待・アクティブ接続中・ダウンロード中 ➔ 最優先で保護 (RETIREさせない！)
+	if strings.Contains(rawText, "排队") || strings.Contains(rawText, "等待") ||
+		strings.Contains(rawText, "正在连接") || strings.Contains(rawText, "正在下载") ||
+		strings.Contains(rawText, "资源连接中") || strings.Contains(rawText, "待机") {
+		res.Decision = DecisionNone
+		res.Reason = "待機中・排队中・通信中タスクのため維持"
+		return res
+	}
+
+	// 3. メタデータ（サマリサイズ > 1B）取得済みの場合はリソース存在確認済み ➔ HOLD維持
+	if hasSummary {
+		res.Decision = DecisionHold
+		res.Reason = "メタデータ(サマリサイズ>1B)取得済みのためタスク維持 (ESCALATED)"
+		return res
+	}
+
+	// 3. 429 等のネットワーク制限・一時異常 (10分クールダウン対象)
+	if strings.Contains(rawText, "429") || strings.Contains(rawText, "Too Many Requests") ||
+		strings.Contains(rawText, "网络异常") || strings.Contains(rawText, "连接超时") {
+		res.Decision = DecisionCooldown
+		res.Reason = "ネットワーク制限または429検知 (10分クールダウン)"
 		return res
 	}
 

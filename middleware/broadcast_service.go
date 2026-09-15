@@ -48,6 +48,7 @@ type AdminUseCases interface {
 	IsPipelineAutoEngineRunning() bool
 	GetPipelineOverview() (interface{}, error)
 	GetPipelineLogs(stage string, limit int) (interface{}, error)
+	GetMediaWithCandidateTasks(status string, limit int) (interface{}, error)
 	SyncThunderDownloads(req string) (interface{}, error)
 	ResetAllToQueuedAndBootstrap() (interface{}, error)
 	IgnitePipeline() (interface{}, error)

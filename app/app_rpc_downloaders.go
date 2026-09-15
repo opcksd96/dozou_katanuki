@@ -4,13 +4,12 @@ package app
 import (
 	"encoding/json"
 	"os"
-	"path/filepath"
 	"strconv"
 
 	"dozou_katanuki/models"
 )
 
-// GetDownloaderDashboardStatus は Motrix (Aria2) と Thunder の最新ステータスを取得します
+// GetDownloaderDashboardStatus は Motrix と Thunder の実態ステータスを取得します
 func (a *App) GetDownloaderDashboardStatus() (models.DownloaderDashboardStatus, error) {
 	var result models.DownloaderDashboardStatus
 	result.Motrix = a.fetchMotrixStatus()
@@ -18,9 +17,19 @@ func (a *App) GetDownloaderDashboardStatus() (models.DownloaderDashboardStatus, 
 	if _, err := os.Stat(thunderPath); err == nil {
 		result.Thunder.IsInstalled, result.Thunder.Executable = true, thunderPath
 	}
-	if stats, err := a.Repo.FetchDownloadStatusStats(""); err == nil && stats != nil {
-		result.Thunder.EscalatedCount = stats.Escalated
-		result.Thunder.RetainedCount = stats.Retained
+	result.Thunder.IsConnected = a.GetThunderCDPStatus().IsConnected
+
+	if a.Repo != nil {
+		if c, err := a.Repo.GetThunderTaskCounts(); err == nil {
+			result.Thunder.TotalCount = c.Total
+			result.Thunder.PendingCount = c.Pending
+			result.Thunder.RunningCount = c.Running
+			result.Thunder.FailedCount = c.Failed
+		}
+		if stats, err := a.Repo.FetchDownloadStatusStats(""); err == nil && stats != nil {
+			result.Thunder.EscalatedCount = stats.Escalated
+			result.Thunder.RetainedCount = stats.Retained
+		}
 	}
 	return result, nil
 }
@@ -51,61 +60,19 @@ func (a *App) ControlMotrix(action string) (bool, error) {
 
 func (a *App) fetchMotrixStatus() models.MotrixGlobalStat {
 	raw, err := callMotrixRPC("aria2.getGlobalStat", nil)
-	if err != nil {
-		return models.MotrixGlobalStat{IsOnline: false}
-	}
+	if err != nil { return models.MotrixGlobalStat{IsOnline: false} }
 	var res struct {
-		Result struct {
-			DownloadSpeed, UploadSpeed, NumActive, NumWaiting, NumStopped string
-		} `json:"result"`
+		Result struct { DownloadSpeed, UploadSpeed, NumActive, NumWaiting, NumStopped string } `json:"result"`
 	}
-	if err := json.Unmarshal(raw, &res); err != nil {
-		return models.MotrixGlobalStat{IsOnline: false}
-	}
+	if err := json.Unmarshal(raw, &res); err != nil { return models.MotrixGlobalStat{IsOnline: false} }
 	ds, _ := strconv.ParseInt(res.Result.DownloadSpeed, 10, 64)
 	us, _ := strconv.ParseInt(res.Result.UploadSpeed, 10, 64)
 	na, _ := strconv.Atoi(res.Result.NumActive)
 	nw, _ := strconv.Atoi(res.Result.NumWaiting)
 	ns, _ := strconv.Atoi(res.Result.NumStopped)
-	return models.MotrixGlobalStat{IsOnline: true, DownloadSpeed: ds, UploadSpeed: us, NumActive: na, NumWaiting: nw, NumStopped: ns, ActiveTasks: a.fetchMotrixActiveTasks()}
-}
-
-func (a *App) fetchMotrixActiveTasks() []models.DownloaderTaskInfo {
-	raw, err := callMotrixRPC("aria2.tellActive", []interface{}{[]string{"gid", "status", "totalLength", "completedLength", "downloadSpeed", "files", "errorMessage"}})
-	if err != nil {
-		return nil
+	return models.MotrixGlobalStat{
+		IsOnline: true, DownloadSpeed: ds, UploadSpeed: us,
+		NumActive: na, NumWaiting: nw, NumStopped: ns,
+		ActiveTasks: a.fetchMotrixActiveTasks(),
 	}
-	var res struct {
-		Result []struct {
-			GID, Status, TotalLength, CompletedLength, DownloadSpeed, ErrorMessage string
-			Files                                                                  []struct {
-				Path string `json:"path"`
-				URIs []struct {
-					URI string `json:"uri"`
-				} `json:"uris"`
-			} `json:"files"`
-		} `json:"result"`
-	}
-	if err := json.Unmarshal(raw, &res); err != nil {
-		return nil
-	}
-	var tasks []models.DownloaderTaskInfo
-	for _, t := range res.Result {
-		tl, _ := strconv.ParseInt(t.TotalLength, 10, 64)
-		cl, _ := strconv.ParseInt(t.CompletedLength, 10, 64)
-		ds, _ := strconv.ParseInt(t.DownloadSpeed, 10, 64)
-		fn, uri := "", ""
-		if len(t.Files) > 0 {
-			fn = filepath.Base(t.Files[0].Path)
-			if len(t.Files[0].URIs) > 0 {
-				uri = t.Files[0].URIs[0].URI
-			}
-		}
-		prog := 0.0
-		if tl > 0 {
-			prog = float64(cl) / float64(tl) * 100
-		}
-		tasks = append(tasks, models.DownloaderTaskInfo{GID: t.GID, Status: t.Status, FileName: fn, URL: uri, TotalLength: tl, CompletedLength: cl, DownloadSpeed: ds, Progress: prog, ErrorMessage: t.ErrorMessage})
-	}
-	return tasks
 }

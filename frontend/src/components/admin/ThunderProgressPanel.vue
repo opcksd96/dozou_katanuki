@@ -33,7 +33,7 @@ const progressPercent = () => {
     <!-- 全体プログレスバー -->
     <div class="bg-slate-950 p-2 rounded-xl border border-slate-800 space-y-1">
       <div class="flex items-center justify-between text-[11px] font-mono">
-        <span class="text-slate-400">救出エスカレーション進捗 (全 {{ status?.total_jobs ?? 303 }} ジョブ)</span>
+        <span class="text-slate-400">救出エスカレーション進捗 (全 {{ status?.total_jobs ?? 0 }} ジョブ)</span>
         <span class="font-bold text-purple-400">{{ progressPercent().toFixed(1) }}%</span>
       </div>
       <div class="w-full bg-slate-900 rounded-full h-1.5 overflow-hidden">

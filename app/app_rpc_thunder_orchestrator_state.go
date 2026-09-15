@@ -2,6 +2,7 @@
 package app
 
 import (
+	"fmt"
 	"sync"
 
 	"dozou_katanuki/models"
@@ -44,20 +45,31 @@ func (a *App) GetThunderOrchestratorStatus() models.ThunderOrchestratorStatus {
 }
 
 func (a *App) getOrchestratorStatusLocked() models.ThunderOrchestratorStatus {
-	total := len(orchState.queue)
-	pending, running, success, failed := 0, 0, 0, 0
-	for _, t := range orchState.queue {
-		switch t.Status {
-		case "pending":
-			pending++
-		case "running":
-			running++
-		case "success":
-			success++
-		case "failed":
-			failed++
+	total, pending, running, holding, success, failed := 0, 0, 0, 0, 0, 0
+	if a.Repo != nil {
+		if c, err := a.Repo.GetThunderTaskCounts(); err == nil {
+			total, pending, running, holding, success, failed = c.Total, c.Pending, c.Running, c.Holding, c.Completed, c.Failed
 		}
 	}
+
+	cdpTasks, _ := GetTasksViaDirectCDP(9222)
+	recent := orchState.recentTasks
+	// ⚡ 投入中リストのフォールバック: オーケストレーター起動前でも迅雷内のリアルタイムタスクを表示
+	if len(recent) == 0 && len(cdpTasks) > 0 {
+		for i, ct := range cdpTasks {
+			st := "running"
+			if ct.TaskStatusCode == 11 { st = "completed" } else if ct.TaskStatusCode == 9 { st = "depleted" }
+			recent = append(recent, models.ThunderOrchestratorTask{
+				ID: fmt.Sprintf("%d", ct.TaskID), MediaID: ct.FileName, FileName: ct.FileName,
+				URL: ct.URL, Status: st, SlotIndex: i % 3, ErrorMessage: ct.DetailText,
+			})
+		}
+	}
+
+	occupied := 0
+	for _, s := range orchState.slots { if s.IsOccupied { occupied++ } }
+	maxSlots := orchState.config.MaxConcurrentSlots
+	if maxSlots <= 0 { maxSlots = 3 }
 
 	return models.ThunderOrchestratorStatus{
 		IsRunning:       orchState.isRunning,
@@ -66,10 +78,14 @@ func (a *App) getOrchestratorStatusLocked() models.ThunderOrchestratorStatus {
 		TotalJobs:       total,
 		PendingJobs:     pending,
 		RunningJobs:     running,
+		HoldingJobs:     holding,
 		SuccessJobs:     success,
 		FailedJobs:      failed,
-		TotalMediaCount: total / 3,
+		OccupiedSlots:   occupied,
+		TotalSlots:      maxSlots,
+		TotalMediaCount: total,
 		Slots:           orchState.slots,
-		RecentTasks:     orchState.recentTasks,
+		RecentTasks:     recent,
+		CDPTasks:        cdpTasks,
 	}
 }

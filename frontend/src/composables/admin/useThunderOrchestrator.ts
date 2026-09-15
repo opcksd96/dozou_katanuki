@@ -31,30 +31,42 @@ export function useThunderOrchestrator() {
   const pauseOrchestrator = async () => {
     if (await getApp()?.PauseThunderOrchestrator?.()) { addToast('⏸️ 一時停止しました', 'info', 3000); await fetchStatus(); }
   };
-
   const resumeOrchestrator = async () => {
     if (await getApp()?.ResumeThunderOrchestrator?.()) { addToast('▶️ 再開しました', 'success', 3000); await fetchStatus(); }
   };
-
   const stopOrchestrator = async () => {
     if (await getApp()?.StopThunderOrchestrator?.()) { addToast('🛑 停止しました', 'warning', 3000); await fetchStatus(); }
   };
 
+  const registerPendingTasks = async (limit = 3) => {
+    try {
+      const n = await getApp()?.RegisterThunderTasksFromDB?.(limit, tempDir.value);
+      addToast(n > 0 ? `🚀 ${n} 件のDBタスクを迅雷へ投入しました` : 'ℹ️ 投入対象のPENDINGタスクなし', 'info', 3000);
+      await fetchStatus();
+    } catch (e: any) { addToast(`❌ 投入失敗: ${e}`, 'error', 3000); }
+  };
+
+  const reapEmptyFailedTasks = async () => {
+    try {
+      const n = await getApp()?.ReapFailedEmptyThunderTasks?.();
+      addToast(n > 0 ? `🗑️ ${n} 件の0B枯渇タスクをゴミ箱へ移動しました` : 'ℹ️ 対象の0B失敗タスクなし', 'info', 3000);
+      await fetchStatus();
+    } catch (e: any) { addToast(`❌ ゴミ箱移動失敗: ${e}`, 'error', 3000); }
+  };
+
+  const reactivateTasks = async () => {
+    try {
+      await getApp()?.ReactivateThunderTasks?.(true);
+      addToast('♻️ 迅雷・DBタスクを再活性化しました', 'success', 3000);
+      await fetchStatus();
+    } catch (e: any) { addToast(`❌ 再活性化失敗: ${e}`, 'error', 3000); }
+  };
+
   const launchThunder = async () => {
     try {
-      let ok = false;
-      if (getApp()?.LaunchThunder) {
-        ok = await getApp().LaunchThunder();
-      } else {
-        const res = await fetch('/api/admin/pipeline/launch-thunder', { method: 'POST' });
-        const json = await res.json();
-        ok = !!json?.success;
-      }
-      if (ok) addToast('⚡ 迅雷 (Thunder) をキックしました', 'success', 3000);
-      else addToast('❌ 迅雷の起動に失敗しました', 'error', 3000);
-    } catch {
-      addToast('❌ 迅雷の起動リクエストに失敗しました', 'error', 3000);
-    }
+      let ok = getApp()?.LaunchThunder ? await getApp().LaunchThunder() : false;
+      addToast(ok ? '⚡ 迅雷 (Thunder) をキックしました' : '❌ 迅雷起動に失敗', ok ? 'success' : 'error', 3000);
+    } catch { addToast('❌ 迅雷起動リクエスト失敗', 'error', 3000); }
   };
 
   const syncDownloads = async () => {
@@ -70,5 +82,5 @@ export function useThunderOrchestrator() {
   onMounted(() => { fetchStatus(); timer = setInterval(fetchStatus, 2000); });
   onUnmounted(() => { if (timer) clearInterval(timer); });
 
-  return { status, loading, maxSlots, intervalSec, tempDir, fetchStatus, startOrchestrator, pauseOrchestrator, resumeOrchestrator, stopOrchestrator, launchThunder, syncDownloads };
+  return { status, loading, maxSlots, intervalSec, tempDir, fetchStatus, startOrchestrator, pauseOrchestrator, resumeOrchestrator, stopOrchestrator, registerPendingTasks, reapEmptyFailedTasks, reactivateTasks, launchThunder, syncDownloads };
 }

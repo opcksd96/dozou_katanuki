@@ -40,6 +40,10 @@ func (r *Repository) MarkThunderTaskRetiredAndCheckAll(fileName, reason string) 
 			"status": models.ThunderTaskRetired, "error_reason": reason, "reaped_at": &now,
 		}).Error
 
+	var compCount int64
+	_ = r.db.Model(&models.ThunderTask{}).Where("media_id = ? AND status = ?", task.MediaID, models.ThunderTaskCompleted).Count(&compCount).Error
+	if compCount > 0 { return false, task.MediaID, nil }
+
 	// 同一 media_id の全タスクを検査: PENDING / ONBOARDED / RUNNING / HOLDING が1つでもあれば false
 	var activeCount int64
 	_ = r.db.Model(&models.ThunderTask{}).

@@ -54,7 +54,7 @@ func (a *App) AppendPipelineLog(stage, level, msg string) {
 func (a *App) GetPipelineLogs(stage string, limit int) ([]PipelineLogEntry, error) {
 	if limit <= 0 { limit = 50 }
 	var entries []PipelineLogEntry
-	stages := []string{"scraper", "requests", "motrix", "thunder", "stash"}
+	stages := []string{"scraper", "requests", "motrix", "thunder", "stash", "system"}
 	if stage != "" && stage != "all" { stages = []string{strings.ToLower(stage)} }
 
 	for _, st := range stages {
@@ -63,19 +63,21 @@ func (a *App) GetPipelineLogs(stage string, limit int) ([]PipelineLogEntry, erro
 		var fileEntries []PipelineLogEntry
 		scanner := bufio.NewScanner(f)
 		for scanner.Scan() {
-			line := scanner.Text()
+			line := strings.TrimSpace(scanner.Text())
+			if line == "" { continue }
+			ts, lvl, msg := time.Now().Format("2006-01-02 15:04:05"), "INFO", line
 			if strings.HasPrefix(line, "[") && strings.Contains(line, "]") {
 				parts := strings.SplitN(line, "] ", 2)
 				if len(parts) == 2 {
-					ts, msg, lvl := strings.TrimPrefix(parts[0], "["), strings.TrimSpace(parts[1]), "INFO"
+					ts, msg = strings.TrimPrefix(parts[0], "["), strings.TrimSpace(parts[1])
 					if strings.Contains(msg, "[") && strings.Contains(msg, "]") {
 						lvlParts := strings.SplitN(msg, "] ", 2)
 						lvl = strings.Trim(lvlParts[0], "[]")
 						if len(lvlParts) > 1 { msg = strings.TrimSpace(lvlParts[1]) }
 					}
-					fileEntries = append(fileEntries, PipelineLogEntry{Timestamp: ts, Stage: strings.ToUpper(st), Level: lvl, Message: msg})
 				}
 			}
+			fileEntries = append(fileEntries, PipelineLogEntry{Timestamp: ts, Stage: strings.ToUpper(st), Level: lvl, Message: msg})
 		}
 		_ = scanner.Err()
 		_ = f.Close()

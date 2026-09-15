@@ -34,7 +34,7 @@ CREATE INDEX IF NOT EXISTS `idx_download_reserves_status` ON `download_reserves`
 CREATE INDEX IF NOT EXISTS `idx_download_reserves_media_id` ON `download_reserves`(`media_id`);
 CREATE INDEX IF NOT EXISTS `idx_download_reserves_article_id` ON `download_reserves`(`article_id`);
 CREATE INDEX IF NOT EXISTS `idx_download_reserves_g_id` ON `download_reserves`(`g_id`);
-CREATE TABLE IF NOT EXISTS `thunder_tasks` (`id` text,`media_id` text NOT NULL,`article_id` text,`resolution_type` text NOT NULL,`url` text NOT NULL,`file_name` text NOT NULL,`status` text DEFAULT "PENDING",`dispatched_at` datetime,`completed_at` datetime,`reaped_at` datetime,`created_at` datetime,`updated_at` datetime, `summary_size` text, `error_reason` text, `last_attempt_at` datetime,PRIMARY KEY (`id`));
+CREATE TABLE IF NOT EXISTS `thunder_tasks` (`id` text,`media_id` text NOT NULL,`article_id` text,`resolution_type` text NOT NULL,`url` text NOT NULL,`file_name` text NOT NULL,`status` text DEFAULT "PENDING",`dispatched_at` datetime,`completed_at` datetime,`reaped_at` datetime,`created_at` datetime,`updated_at` datetime, `summary_size` text, `error_reason` text, `last_attempt_at` datetime, `thunder_task_id` integer DEFAULT 0, `file_size` integer DEFAULT 0, `download_size` integer DEFAULT 0, `save_path` text DEFAULT "", `task_status_code` integer DEFAULT 0, `error_code` integer DEFAULT 0, `detail_text` text DEFAULT "", `raw_json` text,PRIMARY KEY (`id`));
 CREATE INDEX IF NOT EXISTS `idx_thunder_tasks_status` ON `thunder_tasks`(`status`);
 CREATE INDEX IF NOT EXISTS `idx_thunder_tasks_file_name` ON `thunder_tasks`(`file_name`);
 CREATE INDEX IF NOT EXISTS `idx_thunder_tasks_article_id` ON `thunder_tasks`(`article_id`);

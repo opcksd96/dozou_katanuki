@@ -3,8 +3,6 @@ package app
 
 import (
 	"fmt"
-	"os"
-	"path/filepath"
 	"time"
 
 	"dozou_katanuki/models"
@@ -14,6 +12,7 @@ func (a *App) runThunderOrchestrationWorker() {
 	interval := time.Duration(orchState.config.IntervalSeconds) * time.Second
 	if interval <= 0 { interval = 4 * time.Second }
 	ticker := time.NewTicker(interval); defer ticker.Stop()
+	cycle := 0
 
 	for {
 		select {
@@ -28,25 +27,22 @@ func (a *App) runThunderOrchestrationWorker() {
 				orchState.mu.Unlock(); continue
 			}
 
-			_, activeMap := a.ReconcileThunderTasksWithDB()
-			a.CheckAndReonboardMissingTasks(activeMap, maxSlots)
+			cycle++
+			if cycle%3 == 0 { _, _ = a.ReapFailedEmptyThunderTasks() }
+			if cycle%15 == 0 { _, _ = a.ReactivateThunderTasks(true) }
 
-			destDir, runningCount := a.getMediaDownloadDir(), 0
+			_, activeMap := a.ReconcileThunderTasksWithDB()
+			runningCount := 0
 			activeMedia := make(map[string]bool)
 			for _, t := range orchState.queue {
 				if t.Status == "running" || t.Status == "holding" {
-					if fi, err := os.Stat(filepath.Join(destDir, t.FileName)); err == nil && fi.Size() > 0 {
+					if a.CheckMediaFileExists(t.MediaID, t.FileName) {
 						t.Status = "completed"; continue
 					}
 				}
 				if t.Status == "running" {
 					isRecent := t.DispatchedAt != nil && time.Since(*t.DispatchedAt) < 15*time.Second
-					if !activeMap[t.FileName] && !isRecent {
-						t.Status = "holding"
-					} else {
-						runningCount++
-						activeMedia[t.MediaID] = true
-					}
+					if !activeMap[t.FileName] && !isRecent { t.Status = "holding" } else { runningCount++; activeMedia[t.MediaID] = true }
 				}
 			}
 
@@ -69,14 +65,13 @@ func (a *App) runThunderOrchestrationWorker() {
 					}
 				}
 				if nextTask == nil { break }
-				if fi, err := os.Stat(filepath.Join(destDir, nextTask.FileName)); err == nil && fi.Size() > 0 {
+				if a.CheckMediaFileExists(nextTask.MediaID, nextTask.FileName) {
 					nextTask.Status = "completed"
 					if a.Repo != nil { _ = a.Repo.UpdateMediaMetadata(nextTask.MediaID, "COMPLETED", "", "", "実ファイル確認済み") }
 					continue
 				}
 				a.dispatchTaskDirectly(nextTask)
-				activeMedia[nextTask.MediaID] = true
-				activeMap[nextTask.FileName] = true
+				activeMedia[nextTask.MediaID], activeMap[nextTask.FileName] = true, true
 				runningCount++
 			}
 			orchState.mu.Unlock()
@@ -92,8 +87,9 @@ func (a *App) dispatchTaskDirectly(task *models.ThunderOrchestratorTask) {
 		_ = a.Repo.UpdateMediaMetadata(task.MediaID, "ESCALATED", "", "", fmt.Sprintf("迅雷投入中 (%s)", task.ResolutionType))
 		_ = a.Repo.MarkThunderTaskOnboarded(task.ID, "")
 	}
-	destDir := a.getMediaDownloadDir()
-	go func(t *models.ThunderOrchestratorTask, dest string) { _ = AddTaskViaThunderCOM(t.URL, t.FileName, dest) }(task, destDir)
+	destDir := a.ResolveMediaTargetDir(task.MediaID)
+	items := []models.ThunderTaskInputItem{{URL: task.URL, FileName: task.FileName}}
+	go func(its []models.ThunderTaskInputItem, dest string) { _ = AddTasksViaDirectCDP(9222, its, dest) }(items, destDir)
 	orchState.recentTasks = append([]models.ThunderOrchestratorTask{*task}, orchState.recentTasks...)
 	if len(orchState.recentTasks) > 30 { orchState.recentTasks = orchState.recentTasks[:30] }
 }
