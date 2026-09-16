@@ -56,8 +56,10 @@ def extract_metrics_dict(raw: Dict[str, Any]) -> Dict[str, int]:
 
 def extract_media_entities(raw: Dict[str, Any]) -> List[Dict[str, Any]]:
     media_list = []
-    raw_media = raw.get("mediaEntities") or raw.get("extended_entities", {}).get("media") or raw.get("entities", {}).get("media") or []
-    for m in raw_media:
+    ee = raw.get("extendedEntities") or raw.get("extended_entities") or {}
+    raw_media = raw.get("mediaEntities") or ee.get("media") or raw.get("photos") or raw.get("media") or raw.get("entities", {}).get("media") or []
+    for item in raw_media:
+        m = {"url": item} if isinstance(item, str) else item
         m_type, direct_vid = m.get("type", "image"), m.get("videoURL") or ""
         v_list = (m.get("videoInfo") or {}).get("variants", [])
         mp4_vars = [v for v in v_list if "mp4" in (v.get("type") or v.get("content_type", "") or v.get("url", ""))]

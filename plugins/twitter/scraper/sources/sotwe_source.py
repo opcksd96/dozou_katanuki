@@ -81,5 +81,18 @@ class SotweSource:
         except Exception: return None
 
     def fetch_post(self, post_id: str, account: str = "", log_fn: Optional[Callable[[str], None]] = None) -> Optional[Dict[str, Any]]:
+        clean_acc = account.lstrip("@").strip()
+        url = f"https://www.sotwe.com/tweet/{post_id}"
+        if log_fn: log_fn(f"[SotweSource:SB] Direct post fetch: {url}")
+        try:
+            with SB(uc=True, headless=True) as sb:
+                sb.open(url); sb.wait_for_element_present("div.tweet-card", timeout=10)
+                raw_vue = sb.execute_script(VUE_EXTRACT_JS) or []
+                recs = parse_sotwe_vue_tweets(raw_vue, clean_acc) if raw_vue else parse_sotwe_html_tweets(sb.get_page_source(), clean_acc)
+                for r in recs:
+                    if r.get("post", {}).get("id") in [post_id, f"sotwe_{clean_acc}_1"]:
+                        r["post"]["id"] = post_id; return r
+                if recs: recs[0]["post"]["id"] = post_id; return recs[0]
+        except Exception: pass
         posts = self.fetch_account(account or "i", limit=20, log_fn=log_fn)
         return next((p for p in posts if p.get("post", {}).get("id") == post_id), None)

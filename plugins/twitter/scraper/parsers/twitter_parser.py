@@ -85,16 +85,14 @@ class TwitterParser(BaseParser):
                     v_item = [{"url": f"{base}?name=orig", "bit_rate": 10000, "content_type": "image/jpeg"}, {"url": f"{base}?name=large", "bit_rate": 5000, "content_type": "image/jpeg"}] if m_type == "image" else [{"url": u_c, "bit_rate": 0, "content_type": "video/mp4"}]
                     media_list.append({"url": f"{base}?name=orig" if m_type == "image" else u_c, "type": m_type, "width": 0, "height": 0, "variants": v_item})
         og_img = self._meta(html_text, "og:image")
-        if og_img and "profile_images" not in og_img and not any(og_img.split("?")[0] in m["url"] for m in media_list):
-            og_base = re.sub(r':(large|orig|small|medium|thumb)$', '', og_img.split('?')[0])
-            media_list.append({"url": f"{og_base}?name=orig", "type": "image", "width": 0, "height": 0, "variants": [{"url": f"{og_base}?name=orig", "bit_rate": 10000, "content_type": "image/jpeg"}, {"url": f"{og_base}?name=large", "bit_rate": 5000, "content_type": "image/jpeg"}]})
+        if og_img and "profile_images" not in og_img:
+            og_b = re.sub(r':(large|orig|small|medium|thumb)$', '', og_img.split('?')[0])
+            if og_b not in seen:
+                seen.add(og_b); media_list.append({"url": f"{og_b}?name=orig", "type": "image", "width": 0, "height": 0, "variants": [{"url": f"{og_b}?name=orig", "bit_rate": 10000, "content_type": "image/jpeg"}, {"url": f"{og_b}?name=large", "bit_rate": 5000, "content_type": "image/jpeg"}]})
 
-        created_at = self._meta(html_text, "datePublished") or ""
-        m_time = re.search(r'data-time="(\d+)"', html_text)
-        if not created_at and m_time:
-            try: created_at = datetime.datetime.fromtimestamp(int(m_time.group(1)), tz=datetime.timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
-            except Exception: pass
-        elif not created_at and p_id.isdigit() and int(p_id) > 30000000000:
-            try: created_at = datetime.datetime.fromtimestamp(((int(p_id) >> 22) + 1288834974657) / 1000, tz=datetime.timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
-            except Exception: pass
+        created_at, m_time = self._meta(html_text, "datePublished") or "", re.search(r'data-time="(\d+)"', html_text)
+        try:
+            if not created_at and m_time: created_at = datetime.datetime.fromtimestamp(int(m_time.group(1)), tz=datetime.timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+            elif not created_at and p_id.isdigit() and int(p_id) > 30000000000: created_at = datetime.datetime.fromtimestamp(((int(p_id) >> 22) + 1288834974657) / 1000, tz=datetime.timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+        except Exception: pass
         return {"platform": "twitter", "account": {"numeric_id": u_name, "username": u_name, "display_name": display_name, "avatar_url": avatar_url}, "post": {"id": p_id, "conversation_id": p_id, "created_at": created_at, "full_text": txt, "wayback_url": uri, "urls": []}, "media": media_list}

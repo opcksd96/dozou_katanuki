@@ -66,19 +66,18 @@ def parse_sotwe_html_tweets(html_str: str, default_account: str, whitelist: Any 
         metrics = {"replies": 0, "likes": 0, "retweets": 0, "bookmarks": 0, "views": 0}
         for it in card.select(".tweet-stats-item[aria-label]"):
             m = re.search(r'(\d+)\s+(repl|like|retweet|bookmark|view)', it.get("aria-label", ""), re.I)
-            if m:
-                k = next((x for x in ["replies", "likes", "retweets", "bookmarks", "views"] if x.startswith(m.group(2).lower()[:4])), "views")
-                metrics[k] = int(m.group(1))
+            if m: metrics[next((x for x in ["replies", "likes", "retweets", "bookmarks", "views"] if x.startswith(m.group(2).lower()[:4])), "views")] = int(m.group(1))
 
-        media_list = []
-        for img in card.select(".media-carousel img[src], .media-carousel-image img[src]"):
-            u = img.get("src", "")
-            if u and "profile_images" not in u and not any(m["url"] == u for m in media_list):
-                fn = get_filename_from_url(u); media_list.append({"media_id": fn, "url": u, "download_url": u, "type": "image", "width": 0, "height": 0, "filename": fn, "streamsaver_url": build_streamsaver_url(fn)})
-        for vid in card.select("video.video-player source[type='video/mp4']"):
-            u = vid.get("src", "")
+        media_list, seen_media, c_str = [], set(), str(card)
+        for u in re.findall(r'https?://pbs\.twimg\.com/media/[a-zA-Z0-9_\-]+(?:\.[a-zA-Z0-9]+|\?[^"\'\s<>]*)?', c_str):
+            if "profile_images" not in u:
+                fn = get_filename_from_url(u); base = fn.split(".")[0]
+                if base not in seen_media:
+                    seen_media.add(base); cb = re.sub(r':(large|orig|small|medium|thumb)$', '', u.split('?')[0])
+                    media_list.append({"media_id": fn, "url": u, "download_url": u, "type": "image", "width": 0, "height": 0, "filename": fn, "streamsaver_url": build_streamsaver_url(fn), "variants": [{"content_type": "image/jpeg", "bit_rate": 10000, "filename": fn, "url": f"{cb}?name=orig"}, {"content_type": "image/jpeg", "bit_rate": 5000, "filename": fn, "url": f"{cb}?name=large"}]})
+        for u in re.findall(r'https?://(?:video|video-cdn)\.twimg\.com/[^"\'\s<>]+\.(?:mp4|m3u8|webm)', c_str) + [v.get("src", "") for v in card.select("video.video-player source[src], video[src]") if v.get("src")]:
             if u and not any(m["url"] == u for m in media_list):
-                fn = get_filename_from_url(u); media_list.append({"media_id": fn, "url": u, "download_url": u, "type": "video", "width": 0, "height": 0, "filename": fn, "streamsaver_url": build_streamsaver_url(fn)})
+                fn = get_filename_from_url(u); media_list.append({"media_id": fn, "url": u, "download_url": u, "type": "video", "width": 0, "height": 0, "filename": fn, "streamsaver_url": build_streamsaver_url(fn), "variants": [{"content_type": "video/mp4", "bit_rate": 0, "url": u}]})
 
         post_id = f"sotwe_{author_user}_{idx+1}"
         results.append({

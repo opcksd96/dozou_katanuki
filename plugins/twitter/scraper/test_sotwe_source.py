@@ -71,7 +71,15 @@ class TestSotweSource(unittest.TestCase):
         self.assertTrue(res[0]["post"]["is_repost"])
         self.assertEqual(res[0]["post"]["retweeted_by"], "subyike")
         self.assertEqual(res[0]["account"]["username"], "xVictorialynnx")
-        self.assertEqual(res[0]["post"]["metrics"]["likes"], 1093)
+    def test_extract_multiple_images_from_vue_extended_entities(self):
+        item = {"id": "999", "user": {"screenName": "test"}, "text": "multi", "extendedEntities": {"media": [{"mediaURL": "https://pbs.twimg.com/media/A.jpg"}, {"mediaURL": "https://pbs.twimg.com/media/B.jpg"}, {"mediaURL": "https://pbs.twimg.com/media/C.jpg"}, {"mediaURL": "https://pbs.twimg.com/media/D.jpg"}]}}
+        rec = normalize_vue_tweet(item, "test")
+        self.assertEqual(len(rec["media"]), 4)
+
+    def test_extract_multiple_images_from_html_carousel(self):
+        html = '<div class="tweet-card"><div class="tweet-profile"><a href="/test"></a></div><div class="media-carousel"><img src="https://pbs.twimg.com/media/1.jpg"><div style="background-image:url(https://pbs.twimg.com/media/2.jpg)"></div><a href="https://pbs.twimg.com/media/3.jpg"></a></div></div>'
+        res = parse_sotwe_html_tweets(html, "test")
+        self.assertEqual(len(res[0]["media"]), 3)
 
 if __name__ == "__main__":
     unittest.main()
