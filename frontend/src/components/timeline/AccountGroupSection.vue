@@ -42,7 +42,7 @@ const pillClass = (active: boolean) => [
       <span class="text-[10px] text-slate-400 font-mono">{{ accounts.length }} 件</span>
     </div>
 
-    <div class="flex flex-wrap items-center gap-2 pl-1">
+    <div class="flex sm:flex-wrap items-center gap-1.5 sm:gap-2 pl-1 overflow-x-auto pb-1 sm:pb-0 no-scrollbar">
       <button
         v-for="acc in accounts"
         :key="acc.numeric_id"

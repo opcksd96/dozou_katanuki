@@ -1,11 +1,12 @@
-<!-- frontend/src/components/timeline/AccountScopeSelector.vue (100行以下 - SPEC-PRINCIPLE-001) -->
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import type { RenderAuthor } from '../../models/RenderTree';
 import AccountGroupSection from './AccountGroupSection.vue';
+import { Users, ChevronDown, ChevronUp } from 'lucide-vue-next';
 
 const props = defineProps<{ accounts: RenderAuthor[]; selectedId: string; }>();
 const emit = defineEmits<{ (e: 'select', id: string): void; }>();
+const isMobileExpanded = ref(false);
 
 interface AccountGroup { name: string; accounts: RenderAuthor[]; }
 
@@ -38,51 +39,51 @@ const pillClass = (active: boolean, isGroup = false) => [
 </script>
 
 <template>
-  <div class="bg-slate-900/60 border-y sm:border sm:rounded-2xl border-slate-800/80 p-3 sm:p-4 mb-2 sm:mb-4 space-y-3 shadow-xl backdrop-blur-sm">
-    <div class="flex items-center justify-between text-[11px] font-mono text-slate-400 border-b border-slate-800/60 pb-2">
+  <div class="bg-slate-900/60 border-y sm:border sm:rounded-2xl border-slate-800/80 p-2.5 sm:p-4 mb-2 sm:mb-4 space-y-2.5 shadow-xl backdrop-blur-sm">
+    <div class="flex items-center justify-between text-[11px] font-mono text-slate-400 border-b border-slate-800/60 pb-1.5">
       <span class="flex items-center gap-1.5 font-semibold text-slate-200"><span>📁</span> スコープ (Scope):</span>
       <div class="flex items-center gap-2 text-[10px]">
-        <span v-if="hasGroups" class="text-amber-400 font-semibold">{{ definedGroups.length }} Groups</span>
-        <span class="text-slate-600">•</span>
-        <span class="text-slate-400">{{ accounts.length }} Accounts</span>
+        <button @click="isMobileExpanded = !isMobileExpanded" class="sm:hidden flex items-center gap-1 text-blue-400 font-semibold px-2 py-0.5 rounded bg-blue-950/60 border border-blue-800/50">
+          <Users class="w-3 h-3" />
+          <span>{{ isMobileExpanded ? '閉じる' : '個別選択' }}</span>
+          <ChevronUp v-if="isMobileExpanded" class="w-3 h-3" />
+          <ChevronDown v-else class="w-3 h-3" />
+        </button>
+        <span class="hidden sm:inline text-slate-400">{{ accounts.length }} Accounts</span>
       </div>
     </div>
 
-    <!-- 最上段：全アカウント ＆ グループ一括選択ピルボタン一覧 -->
-    <div class="space-y-1.5">
-      <div class="flex flex-wrap items-center gap-1.5 sm:gap-2">
-        <button @click="emit('select', 'all')" :class="pillClass(selectedId === 'all')">
-          <span>🌐 全てのアカウント</span>
-          <span class="text-[10px] opacity-75 font-mono">({{ accounts.length }})</span>
-        </button>
+    <!-- 全アカウント＆グループ選択ピル（スマホでは横スクロールで1行にすっきり収める） -->
+    <div class="flex items-center gap-1.5 sm:gap-2 overflow-x-auto pb-1 sm:pb-0 sm:flex-wrap no-scrollbar">
+      <button @click="emit('select', 'all')" :class="pillClass(selectedId === 'all')">
+        <span>🌐 全てのアカウント</span>
+        <span class="text-[10px] opacity-75 font-mono">({{ accounts.length }})</span>
+      </button>
 
-        <button
-          v-for="group in definedGroups"
-          :key="`btn-grp-${group.name}`"
-          @click="emit('select', `group:${group.name}`)"
-          :class="pillClass(isGroupSelected(group.name), true)"
-          :title="`グループ「${group.name}」所属全${group.accounts.length}件を一括表示`"
-        >
-          <span>🏷️ {{ group.name }}</span>
-          <span class="text-[10px] opacity-75 font-mono">({{ group.accounts.length }})</span>
-        </button>
-      </div>
+      <button
+        v-for="group in definedGroups"
+        :key="`btn-grp-${group.name}`"
+        @click="emit('select', `group:${group.name}`)"
+        :class="pillClass(isGroupSelected(group.name), true)"
+        :title="`グループ「${group.name}」所属全${group.accounts.length}件を一括表示`"
+      >
+        <span>🏷️ {{ group.name }}</span>
+        <span class="text-[10px] opacity-75 font-mono">({{ group.accounts.length }})</span>
+      </button>
     </div>
 
-    <!-- グループ別アカウント個別ピル一覧 -->
-    <template v-if="hasGroups">
-      <div class="border-t border-slate-800/60 pt-2 space-y-2.5">
-        <AccountGroupSection
-          v-for="group in groupedAccounts"
-          :key="group.name || '__ungrouped__'"
-          :group-name="group.name"
-          :accounts="group.accounts"
-          :selected-id="selectedId"
-          :is-group-selected="isGroupSelected(group.name)"
-          @select="(id) => emit('select', id)"
-        />
-      </div>
-    </template>
+    <!-- グループ別アカウント個別ピル一覧（スマホでは開閉トグルで必要な時だけ展開） -->
+    <div v-if="hasGroups" :class="[isMobileExpanded ? 'block' : 'hidden sm:block', 'border-t border-slate-800/60 pt-2 space-y-2.5 max-h-60 sm:max-h-none overflow-y-auto']">
+      <AccountGroupSection
+        v-for="group in groupedAccounts"
+        :key="group.name || '__ungrouped__'"
+        :group-name="group.name"
+        :accounts="group.accounts"
+        :selected-id="selectedId"
+        :is-group-selected="isGroupSelected(group.name)"
+        @select="(id) => { emit('select', id); isMobileExpanded = false; }"
+      />
+    </div>
   </div>
 </template>
 

@@ -1,6 +1,6 @@
 <!-- frontend/src/views/webui/WebUI.vue (100行以下 - SPEC-FRONTEND-001) -->
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, ref, nextTick } from 'vue';
 import { useRouter } from 'vue-router';
 import { useTimeline } from '../../composables/useTimeline';
 import { useMediaOverlay } from '../../composables/useMediaOverlay';
@@ -24,23 +24,21 @@ import { Loader2, Box } from 'lucide-vue-next';
 
 const router = useRouter();
 const activeArticleId = ref<string | null>(null);
+let savedScrollTop = 0;
 const { initTheme } = useTheme();
 const { articles, accounts, selectedAccount, currentFilter, searchQuery, systemLang, loading, hasMore, renderKey, isStashReady, selectAccount, setFilter, setSearchQuery, clearSearchQuery, toggleLike, retryMedia, loadMore, reloadAll } = useTimeline();
 const { detail, loading: detailLoading, fetchDetail, clearDetail } = useArticleDetail();
 const { activeMedia, activeArticle, hasNext, hasPrev, openMedia, closeMedia, nextMedia, prevMedia } = useMediaOverlay();
 const { loadSkin } = useSkin();
 const { stashPort } = useStashResolver();
-useKeyboardReload();
-useExternalAppsHealth();
+useKeyboardReload(); useExternalAppsHealth();
 
 const currentAccountObj = computed(() => accounts.value.find((a) => a.numeric_id === selectedAccount.value) || null);
 const currentNavItems = computed(() => (activeArticleId.value && detail.value) ? [detail.value.article, ...(detail.value.thread || [])] : articles.value);
-const openDetail = (id: string) => { activeArticleId.value = id; fetchDetail(id); window.scrollTo({ top: 0, behavior: 'smooth' }); };
-const closeDetail = () => { activeArticleId.value = null; clearDetail(); if (router.currentRoute.value.query.post) router.replace({ query: {} }); };
-
+const openDetail = (id: string) => { savedScrollTop = window.scrollY || document.documentElement.scrollTop || 0; activeArticleId.value = id; fetchDetail(id); window.scrollTo({ top: 0, behavior: 'instant' }); };
+const closeDetail = () => { activeArticleId.value = null; clearDetail(); if (router.currentRoute.value.query.post) router.replace({ query: {} }); nextTick(() => { window.scrollTo({ top: savedScrollTop, behavior: 'instant' }); }); };
 const openAdmin = () => { router.push('/admin'); };
 const isAdminOpenRef = ref(false);
-
 useAppRouter(
   { activeArticleId, selectedAccount, isAdminOpen: isAdminOpenRef, isTimelineLoading: loading, isDetailLoading: detailLoading },
   { onSelectAccount: selectAccount, onSelectPost: openDetail, onOpenAdmin: openAdmin }
@@ -80,14 +78,17 @@ onMounted(() => {
           <div class="space-y-2 max-w-sm">
             <h2 class="text-base font-bold text-slate-100 flex items-center justify-center gap-2"><Loader2 class="w-4 h-4 animate-spin text-blue-400" />Stash メディアサーバー接続確認中...</h2>
             <p class="text-xs text-slate-400 font-mono">ポート{{ stashPort }}疎通プロービング中</p>
+            <button @click="isStashReady = true" class="mt-2 px-3 py-1 rounded bg-slate-800 hover:bg-slate-700 text-xs text-slate-300 font-mono cursor-pointer">スキップしてタイムラインを表示</button>
           </div>
         </div>
         <!-- タイムライン / 詳細 -->
-        <div v-else-if="activeArticleId">
-          <div v-if="detailLoading && !detail" class="p-12 text-center text-slate-500 font-mono flex items-center justify-center gap-2"><Loader2 class="w-4 h-4 animate-spin text-blue-400" /><span>詳細データを読み込み中...</span></div>
-          <ArticleDetailView v-else-if="detail" :article="detail.article" :thread="detail.thread" :target-lang="systemLang" :loading="detailLoading" :focused-article-id="focusedId || undefined" @back="closeDetail" @select-article="openDetail" @toggle-like="toggleLike" @retry-media="retryMedia" @click-tag="(t) => { closeDetail(); setSearchQuery('#' + t); }" @click-mention="(m) => { closeDetail(); setSearchQuery('@' + m); }" @click-media="(m, l, a) => openMedia(m, l, a)" />
-        </div>
-        <TimelineContainer v-else :articles="articles" :current-filter="currentFilter" :search-query="searchQuery" :system-lang="systemLang" :loading="loading" :has-more="hasMore" :focused-article-id="focusedId" @filter="setFilter" @clear-search="clearSearchQuery" @load-more="loadMore" @open-detail="openDetail" @toggle-like="toggleLike" @retry-media="retryMedia" @open-media="(m, l, a) => openMedia(m, l, a)" @click-tag="(t) => setSearchQuery('#' + t)" @click-mention="(m) => setSearchQuery('@' + m)" />
+        <template v-else>
+          <div v-if="activeArticleId">
+            <div v-if="detailLoading && !detail" class="p-12 text-center text-slate-500 font-mono flex items-center justify-center gap-2"><Loader2 class="w-4 h-4 animate-spin text-blue-400" /><span>詳細データを読み込み中...</span></div>
+            <ArticleDetailView v-else-if="detail" :article="detail.article" :thread="detail.thread" :target-lang="systemLang" :loading="detailLoading" :focused-article-id="focusedId || undefined" @back="closeDetail" @select-article="openDetail" @toggle-like="toggleLike" @retry-media="retryMedia" @click-tag="(t) => { closeDetail(); setSearchQuery('#' + t); }" @click-mention="(m) => { closeDetail(); setSearchQuery('@' + m); }" @click-media="(m, l, a) => openMedia(m, l, a)" />
+          </div>
+          <TimelineContainer v-show="!activeArticleId" :articles="articles" :current-filter="currentFilter" :search-query="searchQuery" :system-lang="systemLang" :loading="loading" :has-more="hasMore" :focused-article-id="focusedId" @filter="setFilter" @clear-search="clearSearchQuery" @load-more="loadMore" @open-detail="openDetail" @toggle-like="toggleLike" @retry-media="retryMedia" @open-media="(m, l, a) => openMedia(m, l, a)" @click-tag="(t) => setSearchQuery('#' + t)" @click-mention="(m) => setSearchQuery('@' + m)" />
+        </template>
       </main>
     </div>
     <KeyboardShortcutModal :is-open="isHelpOpen" @close="isHelpOpen = false" />

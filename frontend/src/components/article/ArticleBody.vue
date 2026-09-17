@@ -55,7 +55,7 @@ const handleBodyClick = (e: MouseEvent) => {
   <div class="my-2.5 text-slate-200 text-sm leading-relaxed">
     <div @click="handleBodyClick" class="whitespace-pre-line break-words leading-relaxed select-text" v-html="decoratedHtml"></div>
     <div class="mt-2 flex items-center gap-2 text-xs font-mono select-none">
-      <button @click="isTranslated = !isTranslated" type="button" class="text-blue-400 hover:text-blue-300 flex items-center gap-1.5 py-0.5">
+      <button @click.stop.prevent="isTranslated = !isTranslated" type="button" class="text-blue-400 hover:text-blue-300 flex items-center gap-1.5 py-0.5 cursor-pointer">
         <span>🌐</span>
         <span v-if="!isTranslated" class="hover:underline">{{ langLabel }} に翻訳</span>
         <span v-else class="flex items-center gap-1.5">

@@ -4,8 +4,6 @@ export function initWailsPolyfill() {
   if (typeof window === 'undefined') return;
   const win = window as any;
   if (win.runtime?.EventsEmit && !win._isWailsPolyfill) return;
-
-  const isDev = window.location.port === '5173';
   const baseUrl = '';
   let sseListeners: Record<string, Function[]> = {};
   if (!win.runtime) win.runtime = {};
@@ -41,7 +39,6 @@ export function initWailsPolyfill() {
 
   const postJson = async (url: string, data: any) => (await fetch(baseUrl + url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) })).json();
   const getJson = async (url: string, fallback: any) => { try { return await (await fetch(baseUrl + url)).json(); } catch { return fallback; } };
-
   const mockApp = {
     GetSystemLanguage: async () => 'ja',
     GetAccounts: async (p: string) => getJson(`/api/accounts?platform=${encodeURIComponent(p || 'twitter')}`, []),
@@ -95,6 +92,7 @@ export function initWailsPolyfill() {
     ExecutePipelineCycleNow: async () => { try { const r = await postJson('/api/admin/pipeline/cycle-now', {}); return r || { success: true }; } catch { return { success: false }; } },
     LaunchThunder: async () => { try { const r = await postJson('/api/admin/pipeline/launch-thunder', {}); return !!r?.success; } catch { return false; } },
     SyncStashNow: async () => { try { await postJson('/api/admin/pipeline/sync-stash', {}); return true; } catch { return false; } },
+    IsStashReady: async () => true,
   };
   (window as any)._isWailsPolyfill = true;
   (window as any).go = { app: { App: mockApp }, main: { App: mockApp } };
