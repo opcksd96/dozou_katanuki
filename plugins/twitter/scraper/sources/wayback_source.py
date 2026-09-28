@@ -19,7 +19,7 @@ class WaybackSource(BaseSource):
         self, account: str, limit: int = 0, log_fn: Optional[Callable[[str], None]] = None
     ) -> List[Dict[str, Any]]:
         clean_acc = account.lstrip("@").strip()
-        self.scraper.get_cdx_url_pattern = lambda acc: f"twitter.com/{clean_acc}/status/*"
+        self.scraper.get_cdx_url_pattern = lambda acc: f"twitter.com/{clean_acc}/status"
         snapshots = self.scraper.search_cdx(clean_acc, limit=limit, log_fn=log_fn)
         records = []
         for s in snapshots:

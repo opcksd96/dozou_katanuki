@@ -26,7 +26,7 @@ class Scraper(BaseScraper):
 
     def get_cdx_url_pattern(self, account: str) -> str:
         clean = account.lstrip("@").strip()
-        return f"twitter.com/{clean}/status/*"
+        return f"twitter.com/{clean}/status"
 
     def collect_multi_source(
         self, account: str, limit: int = 0, source_filter: str = "all", log_fn: Optional[Callable[[str], None]] = None
